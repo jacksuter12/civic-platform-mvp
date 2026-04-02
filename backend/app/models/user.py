@@ -1,0 +1,62 @@
+import uuid
+from datetime import datetime
+from enum import Enum as PyEnum
+
+from sqlalchemy import Boolean, DateTime, Enum as SAEnum, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.models.base import Base, TimestampMixin, UUIDPKMixin
+
+
+class UserTier(str, PyEnum):
+    REGISTERED = "registered"    # email verified; can read threads and cast signals
+    PARTICIPANT = "participant"   # identity verified; can post and vote
+    FACILITATOR = "facilitator"  # can advance thread phases and moderate posts
+    ADMIN = "admin"              # system administration
+
+
+TIER_ORDER = {
+    UserTier.REGISTERED: 0,
+    UserTier.PARTICIPANT: 1,
+    UserTier.FACILITATOR: 2,
+    UserTier.ADMIN: 3,
+}
+
+
+class User(Base, UUIDPKMixin, TimestampMixin):
+    __tablename__ = "users"
+
+    supabase_uid: Mapped[str] = mapped_column(
+        String(255), unique=True, nullable=False, index=True
+    )
+    email: Mapped[str] = mapped_column(
+        String(320), unique=True, nullable=False, index=True
+    )
+    display_name: Mapped[str] = mapped_column(String(60), nullable=False)
+    tier: Mapped[UserTier] = mapped_column(
+        SAEnum(UserTier, name="user_tier"), default=UserTier.REGISTERED, nullable=False
+    )
+    identity_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    # Relationships
+    threads_created: Mapped[list["Thread"]] = relationship(  # type: ignore[name-defined]
+        "Thread", back_populates="created_by", foreign_keys="Thread.created_by_id"
+    )
+    posts: Mapped[list["Post"]] = relationship(  # type: ignore[name-defined]
+        "Post", back_populates="author"
+    )
+    signals: Mapped[list["Signal"]] = relationship(  # type: ignore[name-defined]
+        "Signal", back_populates="user"
+    )
+    votes: Mapped[list["Vote"]] = relationship(  # type: ignore[name-defined]
+        "Vote", back_populates="voter"
+    )
+    proposals: Mapped[list["Proposal"]] = relationship(  # type: ignore[name-defined]
+        "Proposal", back_populates="created_by"
+    )
+
+    def has_tier(self, required: UserTier) -> bool:
+        return TIER_ORDER[self.tier] >= TIER_ORDER[required]
