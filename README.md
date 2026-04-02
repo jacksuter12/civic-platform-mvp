@@ -4,6 +4,11 @@
 collective allocation without outrage dynamics. The architecture enforces that
 translation structurally — not through content moderation alone.
 
+**Problem Statement:** No persistent mechanism exists for converting citizen preferences
+on cross-cutting policy issues into concentrated political force capable of
+overcoming organized economic opposition. Elections, NGOs, polling, and social
+media each fail in distinct ways. This platform is the coordination layer that's
+missing.
 ---
 
 ## What It Does
