@@ -1,4 +1,4 @@
-# CLAUDE.md — Civics Platform
+# CLAUDE.md — Civic Power Consortium
 
 This file is read by Claude Code at the start of every session.
 
@@ -8,8 +8,9 @@ Civic Power Consortium — a nonprofit civic platform converting deliberation
 into legitimate collective allocation. No outrage dynamics by design.
 
 **Domain:** Healthcare (initial content focus). Architecture is domain-agnostic.
-**Target:** Apple App Store (iOS) + web browser (future).
-**Stage:** MVP scaffold.
+**Target:** Web-first (plain HTML/CSS/JS → React migration planned).
+**Stage:** MVP — web frontend in progress.
+**Dev environment:** GitHub Codespaces (primary). No local tooling assumed.
 
 ---
 
@@ -18,16 +19,15 @@ into legitimate collective allocation. No outrage dynamics by design.
 | Component | Technology |
 |---|---|
 | Backend | FastAPI + SQLAlchemy 2.0 (async) + Alembic |
-| Database | PostgreSQL (Supabase cloud) |
-| Auth | Supabase Auth (magic links) |
-| Mobile | React Native + Expo 52 |
-| Hosting | Render (backend) + Supabase (DB/Auth) |
+| Database | PostgreSQL 16 (Supabase cloud) |
+| Auth | Supabase Auth (magic links + JWT) |
+| Frontend | Plain HTML/CSS/JS served from FastAPI |
+| Hosting | Render.com (backend + static frontend) |
 | Python version | 3.12 |
 
 ---
 
 ## Project Structure
-
 ```
 backend/          FastAPI backend
   app/
@@ -36,24 +36,22 @@ backend/          FastAPI backend
     api/v1/       Route handlers
     core/         security.py (JWT), audit.py (log writer)
     db/session.py Async session factory
+    static/       CSS, JS files served to browser
+    templates/    HTML pages served by FastAPI
   alembic/        DB migrations
   tests/          pytest
 
-mobile/           React Native + Expo app
-  src/
-    api/client.ts API client (typed fetch wrappers)
-    store/        Zustand (auth state only)
-    screens/      Screen components
-    components/   Reusable UI components
-
-docs/             Architecture, roadmap, LLM integration guide
+docs/             Architecture, roadmap, LLM integration guide, decision log
+index.html        Public landing page (served via GitHub Pages)
 ```
 
 ---
 
 ## Dev Commands
-
 ```bash
+# Install Claude Code (run once in Codespaces)
+curl -fsSL https://claude.ai/install.sh | bash
+
 # Backend
 cd backend
 pip install -e ".[dev]"
@@ -63,11 +61,6 @@ uvicorn app.main:app --reload  # dev server at :8000
 pytest                         # run tests
 ruff check .                   # lint
 mypy app --ignore-missing-imports  # type check
-
-# Mobile
-cd mobile
-npm install
-npx expo start                 # starts dev server + QR code for Expo Go
 ```
 
 ---
@@ -75,7 +68,8 @@ npx expo start                 # starts dev server + QR code for Expo Go
 ## Key Architectural Constraints
 
 1. **Audit log is append-only.** Never write UPDATE/DELETE on `audit_logs`.
-   Use `core/audit.log_event()` only.
+   Use `core/audit.log_event()` only. The audit log is a capture detector,
+   not just an accountability surface.
 
 2. **Thread phase transitions are strict.** Use `thread.can_advance_to()`.
    Never update `Thread.status` directly — always go through the API route
@@ -90,8 +84,12 @@ npx expo start                 # starts dev server + QR code for Expo Go
 5. **Phase gates are enforced server-side.** Never trust the client to
    enforce which actions are allowed in which phase.
 
-6. **LLM is not yet integrated.** Do not add LLM calls until Phase 5
+6. **LLM is not yet integrated.** Do not add LLM calls until Phase 4
    of the roadmap. See `docs/llm-integration.md`.
+
+7. **api.js must stay framework-agnostic.** No DOM manipulation in api.js —
+   only fetch() calls that return data. This file must survive unchanged
+   when the frontend migrates to React.
 
 ---
 
@@ -102,19 +100,23 @@ npx expo start                 # starts dev server + QR code for Expo Go
 - **Schemas:** Pydantic v2 `model_config = ConfigDict(from_attributes=True)`.
 - **Routes:** Type-annotate all parameters. Use `Annotated[X, Depends(Y)]`.
 - **Audit:** Call `core.audit.log_event()` inside the same transaction as the action.
-- **TypeScript:** Strict mode. No `any` without a comment explaining why.
+- **HTML/JS:** Write one JavaScript function per UI component. Keep DOM
+  manipulation out of api.js.
 
 ---
 
 ## What NOT to Do
 
-- Do NOT add crypto, tokens, or blockchain. This is explicitly excluded from MVP.
+- Do NOT add crypto, tokens, or blockchain. Explicitly excluded from MVP.
 - Do NOT allow the LLM to post in threads. It is read-only.
 - Do NOT skip the phase gate in any route, even "just for testing."
 - Do NOT add upvotes, downvotes, or engagement metrics on posts.
 - Do NOT store PII in the audit log payload.
 - Do NOT commit `.env` files.
 - Do NOT use `git push --force` on `main`.
+- Do NOT add React, npm, or any build toolchain to the frontend yet.
+  Plain HTML/CSS/JS only until the migration is explicitly planned.
+- Do NOT reference or restore anything from the archived mobile/ scaffold.
 
 ---
 
@@ -135,5 +137,6 @@ Tests should verify **legitimacy rules**, not just CRUD:
 - Audit log population (every action leaves a record)
 - Vote immutability (can't vote twice)
 - State machine correctness (can't skip phases)
+- Audit log reconstructability (can you rebuild a decision from the log alone?)
 
 See `backend/tests/test_threads.py` for examples.
