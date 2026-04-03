@@ -117,10 +117,10 @@ Each entry follows this template. Copy it when adding new decisions.
 ---
 
 ## 2025-02-28 — Identity Tiers
-**Status:** Active
+**Status:** Active (updated 2026-04-03 — see also: Thread Creation Tier and Facilitator Request Flow decisions below)
 **Domain:** Mechanism / Technical
 **Context:** The platform needs Sybil resistance without excessive friction. Different levels of engagement require different levels of trust.
-**Decision:** Four tiers: registered (email magic link — can read, cast signals), participant (manual verification by facilitator — can post, vote, create proposals), facilitator (appointed by admin — can advance phases, moderate), admin (seeded — can create domains/pools, record allocations).
+**Decision:** Four tiers: registered (email magic link — can read, cast signals, create threads), participant (manual verification by facilitator — can post, vote, create proposals), facilitator (promoted via web request flow approved by admin — can advance phases, moderate), admin (seeded — can create domains/pools, record allocations, approve facilitator requests).
 **Reasoning:** Tiered identity creates a friction gradient: low friction for low-stakes actions (reading, signaling), higher friction for high-stakes actions (voting, proposing). Manual verification by facilitators is the MVP approach to Sybil resistance — imperfect but auditable and human-scale. Email-only registration creates some friction (harder to mass-create accounts than social login) while remaining accessible.
 **Implications:** The verification protocol for the participant tier needs specification (see Mechanism Design, Chat 3). The facilitator tier carries significant power and needs accountability mechanisms (see governance charter). The system scales manually to maybe 500 users before verification becomes a bottleneck. Migration path to more scalable identity verification is a post-MVP concern.
 **Revisit if:** The Sybil resistance analysis (Mechanism Design, Chat 3) reveals that email-only registration is too weak for even MVP-scale deliberation. Or if manual verification proves too slow to onboard users for a time-sensitive deliberation.
@@ -168,6 +168,30 @@ Each entry follows this template. Copy it when adding new decisions.
 **Reasoning:** The MVP phase is about validating the institutional design, not shipping production-quality software. AI-generated code supervised by AI-generated tests is sufficient for an invite-only beta. The cost of a technical hire before validation is premature. The cost of technical debt is manageable if the project is small and the codebase is well-documented.
 **Implications:** Code should be kept simple and well-documented so a future developer can understand and refactor it. Architecture decisions should be explicitly recorded (this file). The builder should maintain architectural understanding even if implementation details are delegated to AI.
 **Revisit if:** A critical bug or security vulnerability is discovered that AI cannot resolve. Or if a technical co-founder expresses interest in joining.
+
+---
+
+## 2026-04-03 — Thread Creation Lowered to Registered Tier
+**Status:** Active
+**Domain:** Technical / Mechanism
+**Context:** The original design required participant tier (manually verified) to create threads. For MVP testing before a live deliberation, this creates a catch-22: you can't test the thread creation flow without first verifying every tester as a participant, even when the goal is UI testing, not deliberation integrity.
+**Options considered:** (a) Keep thread creation at participant tier, (b) Lower to registered tier, (c) Add a separate "proposer" tier between registered and participant.
+**Decision:** Option (b). Registered users (email magic link only) can create threads for MVP.
+**Reasoning:** The legitimacy-critical actions are voting and posting — those remain at participant tier where Sybil resistance matters. Thread creation is an organizational action (setting up a topic and prompt) rather than a deliberation action. Lowering it to registered tier lets the builder and early testers exercise the full thread setup workflow without a manual verification ceremony. The state machine still prevents voting/posting without participant tier.
+**Implications:** Thread creation by unverified users means more noise threads are possible. Mitigation: facilitator controls (phase gating, moderation). This is acceptable at invite-only beta scale. Revisit when the platform opens to public registration.
+**Revisit if:** Spam threads become a problem, or when the platform scales beyond invite-only beta.
+
+---
+
+## 2026-04-03 — Facilitator Request Web Flow (Replacing Manual Admin Promotion)
+**Status:** Active
+**Domain:** Technical / Governance
+**Context:** The original design had admins promoting users to facilitator tier via a direct API call with no structured request/approval process. This means no audit trail, no stated reason, and no user-initiated pathway.
+**Options considered:** (a) Keep direct admin promotion via API, (b) Build a web-based request/approval flow, (c) Use an out-of-band process (email, Slack) with admin updating the DB.
+**Decision:** Option (b). Users submit a facilitator application (reason field, 10–500 chars) via the account page. Admins review and approve/deny via /admin page. Approval automatically promotes the user's tier to FACILITATOR.
+**Reasoning:** A structured request flow creates an audit trail (FACILITATOR_REQUEST_SUBMITTED, FACILITATOR_REQUEST_APPROVED/DENIED events in the audit log), makes the facilitator selection process visible, and gives facilitators a documented reason for their appointment. It also prevents the admin from needing direct database access for routine tier promotions, which is a security hygiene improvement.
+**Implications:** The FacilitatorRequest model and migration must be deployed before facilitator promotion is possible through the UI. The admin route requires AdminUser dependency — admins are still seeded directly (no web flow for admin promotion). The audit log now captures the full facilitator lifecycle.
+**Revisit if:** The facilitator selection process needs more formal criteria or a multi-step review (e.g., community endorsement before admin approval).
 
 ---
 

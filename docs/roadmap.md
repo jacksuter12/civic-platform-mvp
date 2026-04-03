@@ -8,22 +8,23 @@ Legitimacy is harder to test than functionality — plan for both.
 ---
 
 ## Phase 0 — Backend Foundation
-**Status: Complete (scaffold built; Codespaces environment pending verification)**
+**Status: Complete**
 
 **Goal:** Runnable backend with correct data model.
 
 **Tasks:**
 - [x] FastAPI scaffold with SQLAlchemy 2.0 models, Alembic migrations, API routes
 - [x] GitHub repository created, backend uploaded
-- [ ] Open Codespaces, install Claude Code: `curl -fsSL https://claude.ai/install.sh | bash`
-- [ ] `pip install -e ".[dev]"` — verify all deps install in Codespaces
-- [ ] Copy `.env.example` → `.env`, fill in Supabase credentials
-- [ ] `alembic upgrade head` — verify migration runs against Supabase PG
-- [ ] `uvicorn app.main:app --reload` — verify server starts
-- [ ] `pytest` — all existing tests pass
-- [ ] Manually create `healthcare` domain via `/docs` (DEBUG=true)
-- [ ] Create one thread, advance it through all phases manually
-- [ ] Verify audit log has entries for each action
+- [x] Open Codespaces, install Claude Code
+- [x] `pip install -e ".[dev]"` — all deps install in Codespaces
+- [x] Copy `.env.example` → `.env`, fill in Supabase credentials
+- [x] `alembic upgrade head` — migration runs against Supabase PG
+- [x] `uvicorn app.main:app --reload` — server starts
+- [x] `pytest` — all existing tests pass
+- [x] Manually create `healthcare` domain via `/docs`
+- [x] Seed script: 15 domains seeded (healthcare + 14 additional policy domains)
+- [x] Create one thread, advance it through all phases manually
+- [x] Verify audit log has entries for each action
 
 **Definition of done:** Server running in Codespaces; full thread lifecycle
 exercised via /docs; audit log populated.
@@ -31,35 +32,38 @@ exercised via /docs; audit log populated.
 ---
 
 ## Phase 1 — Web Frontend: Read-Only Surface
+**Status: Complete**
 
 **Goal:** Public-facing web pages showing live data from the API. No auth yet.
 
 **Tasks:**
-- [ ] Page 0: Static file infrastructure (update main.py, create static/ and templates/)
-- [ ] Page 1: Thread list — fetches and displays all threads with phase badges and signal counts
-- [ ] Page 2: Thread detail — displays thread, posts (chronological), signal bar (read-only)
-- [ ] Deployed to Render.com alongside backend (single service)
+- [x] Static file infrastructure (main.py updated, static/ and templates/ created)
+- [x] Landing page (/) — public, no auth
+- [x] How it works page (/how-it-works) — public, no auth
+- [x] Quiz page (/quiz) — public, no auth
+- [x] Thread list (/threads) — fetches and displays all threads with phase badges and signal counts
+- [x] Thread detail (/thread/{id}) — displays thread, posts (chronological), signal bar
+- [x] Deployed to Render.com alongside backend (single service)
 
 **Definition of done:** A stranger can visit the URL, browse threads, and read
 posts — without an account and without any auth.
 
-**What is NOT done in Phase 1:**
-- No sign-in
-- No signal casting
-- No posting
-
 ---
 
 ## Phase 2 — Auth + Core Interactions
+**Status: Complete**
 
 **Goal:** End-to-end auth flow and the core interactive features.
 
 **Tasks:**
-- [ ] Page 3: Auth — magic link sign-in via Supabase, JWT stored in localStorage
-- [ ] Header updates: show signed-in state, display_name, sign-out across all pages
-- [ ] Page 4: Signal casting — four signal buttons on thread detail, registered tier only
-- [ ] Page 5: Post creation — form on thread detail, participant tier only, phase-gated
-- [ ] Signal counts update immediately after casting (no page reload)
+- [x] Sign-in page (/signin) — magic link via Supabase, JWT stored in localStorage
+- [x] Account page (/account) — display name, tier, facilitator request section
+- [x] Header updates: show signed-in state, display_name, sign-out across all pages
+- [x] Signal casting — four signal buttons on thread detail, registered tier only
+- [x] Post creation — form on thread detail, participant tier only, phase-gated
+- [x] Signal counts update immediately after casting (no page reload)
+- [x] JWT expiry detection: client-side token expiry check clears stale tokens automatically
+- [x] Bug fix: account page no longer crashes on expired JWT
 
 **Definition of done:** A verified participant can sign in, view threads, cast
 a signal, and write a post. A registered-only user can sign in and cast a signal
@@ -68,15 +72,23 @@ but not post.
 ---
 
 ## Phase 3 — Proposals, Voting, Facilitator Controls
+**Status: In Progress**
 
 **Goal:** Complete deliberation flow end-to-end.
 
-**Tasks:**
-- [ ] Page 6: Proposal creation — form visible in PROPOSING phase, participant tier
-- [ ] Page 7: Voting — yes/no/abstain buttons in VOTING phase, one vote per proposal
-- [ ] Page 8: Facilitator controls — phase advance UI with required reason field
-- [ ] Page 9: Public audit log — filterable, read-only, unauthenticated
-- [ ] Page 10: Admin — create domains, funding pools, record allocations
+**Completed:**
+- [x] Thread creation page (/new-thread) — registered tier, domain select, title, central question, context
+- [x] Facilitator request flow — account page application form → admin approval page
+- [x] Admin page (/admin) — approve/deny facilitator requests, tier promotion, audit log entries
+- [x] 15 policy domains seeded (healthcare + 14 more: education, defense, fiscal policy, etc.)
+- [x] FacilitatorRequest model, migration, API routes (submit, list, approve, deny)
+
+**Remaining:**
+- [ ] Proposal creation — form visible in PROPOSING phase, participant tier
+- [ ] Voting — yes/no/abstain buttons in VOTING phase, one vote per proposal
+- [ ] Facilitator phase controls — phase advance UI with required reason field
+- [ ] Public audit log page — filterable, read-only, unauthenticated
+- [ ] Full admin capabilities — create domains, funding pools, record allocations
 - [ ] End-to-end test: full thread lifecycle with 3 test users
 
 **Testing legitimacy (not just functionality):**
@@ -91,14 +103,15 @@ reconstructs every decision.
 ---
 
 ## Phase 4 — First Real Deliberation
+**Status: Not Started (blocked on Phase 3 completion)**
 
 **Goal:** First real deliberation with healthcare domain participants.
 
 **Tasks:**
-- [ ] Recruit facilitators (2–3 trusted people)
+- [ ] Recruit facilitators (2–3 trusted people) — use new facilitator request flow
 - [ ] Design first deliberation prompt (healthcare focus — prescription drug pricing)
 - [ ] Identity verification workflow for PARTICIPANT tier
-  (MVP: facilitator manually reviews and grants via admin API)
+  (MVP: facilitator manually promotes via API; no web flow yet)
 - [ ] Notification system (email for phase changes — no push notifications in MVP)
 - [ ] Participant onboarding: explain signals, phase gates, audit log
 - [ ] Run deliberation, observe: does it feel legitimate?
