@@ -2,7 +2,8 @@ import structlog
 import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 
 from app.config import settings
@@ -58,7 +59,31 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 app.include_router(api_router, prefix="/api/v1")
 
+# Serve static assets (CSS, JS)
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 
 @app.get("/health", tags=["ops"])
 async def health() -> dict:
     return {"status": "ok", "version": "0.1.0"}
+
+
+# Page routes — serve HTML shells
+@app.get("/")
+async def index_page() -> FileResponse:
+    return FileResponse("app/templates/index.html")
+
+
+@app.get("/thread/{thread_id}")
+async def thread_page(thread_id: str) -> FileResponse:
+    return FileResponse("app/templates/thread.html")
+
+
+@app.get("/signin")
+async def signin_page() -> FileResponse:
+    return FileResponse("app/templates/signin.html")
+
+
+@app.get("/account")
+async def account_page() -> FileResponse:
+    return FileResponse("app/templates/account.html")

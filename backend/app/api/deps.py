@@ -9,7 +9,7 @@ Flow:
   5. Route functions declare which tier is required via get_participant, etc.
 """
 
-from typing import Annotated
+from typing import Annotated, Optional
 
 import structlog
 from fastapi import Depends, HTTPException, status
@@ -23,6 +23,7 @@ from app.models.user import User, UserTier
 
 log = structlog.get_logger()
 bearer = HTTPBearer()
+bearer_optional = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
@@ -57,6 +58,22 @@ async def get_current_user(
     return user
 
 
+async def get_optional_user(
+    credentials: Annotated[Optional[HTTPAuthorizationCredentials], Depends(bearer_optional)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Optional[User]:
+    """Returns the current user if a valid token is present, otherwise None."""
+    if not credentials:
+        return None
+    try:
+        claims = decode_supabase_token(credentials.credentials)
+        uid = extract_supabase_uid(claims)
+    except TokenError:
+        return None
+    result = await db.execute(select(User).where(User.supabase_uid == uid))
+    return result.scalar_one_or_none()
+
+
 def _require_tier(required: UserTier):
     async def check(user: Annotated[User, Depends(get_current_user)]) -> User:
         if not user.has_tier(required):
@@ -81,4 +98,5 @@ RegisteredUser = Annotated[User, Depends(get_registered)]
 ParticipantUser = Annotated[User, Depends(get_participant)]
 FacilitatorUser = Annotated[User, Depends(get_facilitator)]
 AdminUser = Annotated[User, Depends(get_admin)]
+OptionalUser = Annotated[Optional[User], Depends(get_optional_user)]
 DB = Annotated[AsyncSession, Depends(get_db)]

@@ -35,6 +35,19 @@ class UserMe(UserPublic):
     """Extended self-view including email."""
 
     email: str
+    display_name_changes_this_month: int = 0
+    display_name_changes_remaining: int = 3
+
+
+class DisplayNameUpdate(CamelBase):
+    display_name: str = Field(min_length=2, max_length=60)
+
+    @field_validator("display_name")
+    @classmethod
+    def no_pii_patterns(cls, v: str) -> str:
+        if len(v.split()) > 3:
+            raise ValueError("Display name must not look like a full name")
+        return v.strip()
 
 
 class UserTierUpdate(CamelBase):

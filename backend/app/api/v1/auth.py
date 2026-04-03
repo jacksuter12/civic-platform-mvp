@@ -8,15 +8,17 @@ Flow:
   4. All subsequent requests use the JWT directly (no sessions)
 """
 
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.api.deps import CurrentUser, DB, RegisteredUser
 from app.core.audit import log_event
 from app.core.security import TokenError, decode_supabase_token, extract_supabase_uid
-from app.models.audit import AuditEventType
+from app.models.audit import AuditEventType, AuditLog
 from app.models.user import User
-from app.schemas.user import UserCreate, UserMe, UserPublic
+from app.schemas.user import DisplayNameUpdate, UserCreate, UserMe, UserPublic
 
 router = APIRouter()
 
@@ -56,7 +58,72 @@ async def register(payload: UserCreate, db: DB) -> User:
     return user
 
 
+DISPLAY_NAME_CHANGE_LIMIT = 3
+DISPLAY_NAME_WINDOW_DAYS = 30
+
+
+async def _count_display_name_changes(db: DB, user_id) -> int:
+    since = datetime.now(timezone.utc) - timedelta(days=DISPLAY_NAME_WINDOW_DAYS)
+    result = await db.execute(
+        select(func.count()).where(
+            AuditLog.actor_id == user_id,
+            AuditLog.event_type == AuditEventType.DISPLAY_NAME_CHANGED,
+            AuditLog.created_at >= since,
+        )
+    )
+    return result.scalar_one()
+
+
 @router.get("/me", response_model=UserMe)
-async def me(user: RegisteredUser) -> User:
-    """Return the authenticated user's own record."""
-    return user
+async def me(user: RegisteredUser, db: DB) -> dict:
+    """Return the authenticated user's own record with display name change counts."""
+    changes = await _count_display_name_changes(db, user.id)
+    data = {
+        "id": user.id,
+        "created_at": user.created_at,
+        "display_name": user.display_name,
+        "tier": user.tier,
+        "identity_verified_at": user.identity_verified_at,
+        "email": user.email,
+        "display_name_changes_this_month": changes,
+        "display_name_changes_remaining": max(0, DISPLAY_NAME_CHANGE_LIMIT - changes),
+    }
+    return data
+
+
+@router.patch("/me", response_model=UserMe)
+async def update_me(payload: DisplayNameUpdate, user: RegisteredUser, db: DB) -> dict:
+    """Update the authenticated user's display name (max 3 times per 30 days)."""
+    changes = await _count_display_name_changes(db, user.id)
+
+    if changes >= DISPLAY_NAME_CHANGE_LIMIT:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Display name can only be changed {DISPLAY_NAME_CHANGE_LIMIT} times per 30 days. You have used all {DISPLAY_NAME_CHANGE_LIMIT}.",
+        )
+
+    old_name = user.display_name
+    user.display_name = payload.display_name
+    db.add(user)
+    await db.flush()
+
+    await log_event(
+        db,
+        event_type=AuditEventType.DISPLAY_NAME_CHANGED,
+        target_type="user",
+        target_id=user.id,
+        payload={"old_display_name": old_name, "new_display_name": user.display_name},
+        actor_id=user.id,
+    )
+
+    new_changes = changes + 1
+    return {
+        "id": user.id,
+        "created_at": user.created_at,
+        "display_name": user.display_name,
+        "tier": user.tier,
+        "identity_verified_at": user.identity_verified_at,
+        "email": user.email,
+        "display_name_changes_this_month": new_changes,
+        "display_name_changes_remaining": max(0, DISPLAY_NAME_CHANGE_LIMIT - new_changes),
+    }

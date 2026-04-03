@@ -35,6 +35,7 @@ class VoteSummary(CamelBase):
 class ProposalSummary(UUIDSchema, TimestampSchema):
     thread_id: uuid.UUID
     title: str
+    description: str
     status: ProposalStatus
     requested_amount: Decimal | None
     vote_summary: VoteSummary

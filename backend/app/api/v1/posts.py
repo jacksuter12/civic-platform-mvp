@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from typing import Annotated
 
 from app.api.deps import DB, FacilitatorUser, ParticipantUser
@@ -29,13 +30,25 @@ class PostRemove(BaseModel):
     reason: str = Field(min_length=10, max_length=500)
 
 
-class PostOut(UUIDSchema, TimestampSchema):
+class ReplyOut(UUIDSchema, TimestampSchema):
+    """A reply (level 2). No further nesting — UI cap is 2 levels."""
     model_config = {"from_attributes": True}
     thread_id: uuid.UUID
     parent_id: uuid.UUID | None
     body: str
     is_removed: bool
     author: UserPublic
+
+
+class PostOut(UUIDSchema, TimestampSchema):
+    """A top-level post with its direct replies."""
+    model_config = {"from_attributes": True}
+    thread_id: uuid.UUID
+    parent_id: uuid.UUID | None
+    body: str
+    is_removed: bool
+    author: UserPublic
+    replies: list[ReplyOut] = []
 
 
 @router.get("/thread/{thread_id}", response_model=list[PostOut])
@@ -47,15 +60,16 @@ async def list_posts(
 ) -> list[Post]:
     result = await db.execute(
         select(Post)
-        .where(Post.thread_id == thread_id, Post.parent_id == None)
+        .options(
+            selectinload(Post.author),
+            selectinload(Post.replies).options(selectinload(Post.author)),
+        )
+        .where(Post.thread_id == thread_id, Post.parent_id.is_(None))
         .order_by(Post.created_at)
         .limit(limit)
         .offset(offset)
     )
-    posts = list(result.scalars())
-    for p in posts:
-        await db.refresh(p, ["author"])
-    return posts
+    return list(result.scalars())
 
 
 @router.post("", response_model=PostOut, status_code=status.HTTP_201_CREATED)
@@ -102,7 +116,7 @@ async def create_post(
         actor_id=user.id,
     )
 
-    await db.refresh(post, ["author"])
+    await db.refresh(post, ["author", "replies"])
     return post
 
 
