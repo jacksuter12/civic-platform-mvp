@@ -15,7 +15,7 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
 
-from app.api.deps import DB, FacilitatorUser, ParticipantUser, RegisteredUser
+from app.api.deps import DB, FacilitatorUser, OptionalUser, ParticipantUser, RegisteredUser
 from app.core.audit import log_event
 from app.models.audit import AuditEventType
 from app.models.domain import Domain
@@ -160,7 +160,7 @@ async def create_thread(
 async def get_thread(
     thread_id: uuid.UUID,
     db: DB,
-    user: RegisteredUser | None = None,
+    user: OptionalUser,
 ) -> ThreadDetail:
     result = await db.execute(
         select(Thread).where(Thread.id == thread_id)

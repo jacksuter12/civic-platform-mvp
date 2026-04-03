@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
 from typing import Annotated
 
-from app.api.deps import DB, FacilitatorUser, ParticipantUser, RegisteredUser
+from app.api.deps import DB, FacilitatorUser, OptionalUser, ParticipantUser, RegisteredUser
 from app.core.audit import log_event
 from app.models.audit import AuditEventType
 from app.models.proposal import Proposal, ProposalStatus
@@ -51,7 +51,7 @@ async def _vote_summary(db: DB, proposal_id: uuid.UUID) -> VoteSummary:
 async def list_proposals(
     thread_id: uuid.UUID,
     db: DB,
-    user: RegisteredUser | None = None,
+    user: OptionalUser,
 ) -> list[ProposalSummary]:
     result = await db.execute(
         select(Proposal)
@@ -77,6 +77,7 @@ async def list_proposals(
                 id=p.id,
                 thread_id=p.thread_id,
                 title=p.title,
+                description=p.description,
                 status=p.status,
                 requested_amount=p.requested_amount,
                 vote_summary=vs,
@@ -131,6 +132,7 @@ async def create_proposal(
         id=proposal.id,
         thread_id=proposal.thread_id,
         title=proposal.title,
+        description=proposal.description,
         status=proposal.status,
         requested_amount=proposal.requested_amount,
         vote_summary=VoteSummary(),
