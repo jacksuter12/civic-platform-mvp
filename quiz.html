@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Where Do You Stand? — Civic Power Consortium</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink: #1a1a1a;
+      --ink-light: #555;
+      --ink-muted: #888;
+      --paper: #f8f6f1;
+      --accent: #2a5c9a;
+      --accent-light: #e8f0fb;
+      --border: #d4cfc4;
+      --agree-green: #2e7d32;
+      --disagree-red: #c62828;
+      --split-orange: #e65100;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Nav */
+    nav {
+      background: var(--paper);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 17px;
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    .nav-back {
+      font-size: 13px;
+      color: var(--ink-light);
+      text-decoration: none;
+    }
+
+    .nav-back:hover { color: var(--accent); }
+
+    /* Quiz shell */
+    .quiz-shell {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+    }
+
+    .quiz-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 640px;
+      overflow: hidden;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.06);
+    }
+
+    /* Progress bar */
+    .progress-bar-track {
+      height: 4px;
+      background: #eee;
+    }
+
+    .progress-bar-fill {
+      height: 4px;
+      background: var(--accent);
+      transition: width 0.4s ease;
+    }
+
+    /* Step content */
+    .step {
+      display: none;
+      padding: 48px 48px 40px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .step.active { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .step-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+
+    .step h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(22px, 4vw, 30px);
+      line-height: 1.25;
+      color: var(--ink);
+      margin-bottom: 12px;
+    }
+
+    .step-sub {
+      font-size: 14px;
+      color: var(--ink-light);
+      margin-bottom: 32px;
+      line-height: 1.6;
+    }
+
+    /* Answer buttons */
+    .answers {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+
+    .answer-btn {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 20px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s, background 0.15s;
+      width: 100%;
+    }
+
+    .answer-btn:hover {
+      border-color: var(--accent);
+      background: var(--accent-light);
+    }
+
+    .answer-btn.selected {
+      border-color: var(--accent);
+      background: var(--accent-light);
+    }
+
+    .answer-key {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink-light);
+      flex-shrink: 0;
+    }
+
+    .answer-btn.selected .answer-key {
+      background: var(--accent);
+      color: white;
+    }
+
+    .answer-text {
+      font-size: 15px;
+      color: var(--ink);
+      line-height: 1.4;
+    }
+
+    /* Stat reveal */
+    .stat-reveal {
+      background: #f8f6f1;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin-bottom: 28px;
+      display: none;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .stat-reveal.visible { display: block; }
+
+    .stat-number {
+      font-family: 'DM Serif Display', serif;
+      font-size: 42px;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .stat-agree { color: var(--agree-green); }
+    .stat-split { color: var(--split-orange); }
+    .stat-label {
+      font-size: 13px;
+      color: var(--ink-light);
+      margin-bottom: 8px;
+    }
+
+    .stat-bar-track {
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+
+    .stat-bar-fill {
+      height: 8px;
+      border-radius: 4px;
+      transition: width 0.8s ease;
+    }
+
+    .stat-bar-agree { background: var(--agree-green); }
+    .stat-bar-split { background: var(--split-orange); }
+
+    .stat-breakdown {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--ink-muted);
+    }
+
+    .stat-breakdown span strong { color: var(--ink); }
+
+    .stat-insight {
+      font-size: 13px;
+      color: var(--ink-light);
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-style: italic;
+      line-height: 1.5;
+    }
+
+    /* Navigation */
+    .step-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .step-counter {
+      font-size: 12px;
+      color: var(--ink-muted);
+    }
+
+    .next-btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .next-btn:hover { background: #1e4a80; }
+    .next-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    /* Result step */
+    .result-header {
+      background: var(--accent);
+      padding: 40px 48px;
+      color: white;
+    }
+
+    .result-header .step-label { color: rgba(255,255,255,0.6); }
+    .result-header h2 { color: white; margin-bottom: 8px; }
+    .result-header p { color: rgba(255,255,255,0.8); font-size: 15px; }
+
+    .result-body {
+      padding: 40px 48px;
+    }
+
+    .result-summary {
+      margin-bottom: 32px;
+    }
+
+    .result-summary h3 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 22px;
+      margin-bottom: 16px;
+      color: var(--ink);
+    }
+
+    .consensus-meter {
+      margin-bottom: 24px;
+    }
+
+    .consensus-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--ink-muted);
+      margin-bottom: 6px;
+    }
+
+    .consensus-track {
+      height: 16px;
+      background: #e0e0e0;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 4px;
+    }
+
+    .consensus-fill {
+      height: 16px;
+      border-radius: 8px;
+      background: linear-gradient(90deg, var(--agree-green), #81c784);
+      transition: width 1s ease;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 8px;
+    }
+
+    .consensus-pct {
+      font-size: 10px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .deliberation-preview {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 28px;
+    }
+
+    .deliberation-preview-header {
+      background: #f5f5f5;
+      padding: 12px 16px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--ink-muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .deliberation-thread {
+      padding: 16px;
+    }
+
+    .thread-preview-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .thread-preview-item:last-child { border-bottom: none; }
+
+    .thread-phase-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+
+    .dot-voting { background: #7b1fa2; }
+    .dot-deliberating { background: #1565c0; }
+    .dot-proposing { background: #e65100; }
+
+    .thread-preview-text { flex: 1; }
+    .thread-preview-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--ink);
+      margin-bottom: 2px;
+    }
+
+    .thread-preview-meta {
+      font-size: 11px;
+      color: var(--ink-muted);
+    }
+
+    .result-cta {
+      text-align: center;
+    }
+
+    .result-cta p {
+      font-size: 15px;
+      color: var(--ink-light);
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+
+    .btn-primary {
+      display: inline-block;
+      background: var(--accent);
+      color: white;
+      padding: 14px 32px;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      margin: 0 8px 8px;
+      transition: background 0.2s;
+    }
+
+    .btn-primary:hover { background: #1e4a80; }
+
+    .btn-secondary {
+      display: inline-block;
+      background: transparent;
+      color: var(--accent);
+      padding: 14px 32px;
+      border-radius: 6px;
+      font-size: 15px;
+      border: 2px solid var(--accent);
+      text-decoration: none;
+      margin: 0 8px 8px;
+      transition: background 0.2s;
+    }
+
+    .btn-secondary:hover {
+      background: var(--accent-light);
+    }
+
+    .gap-explainer {
+      background: var(--ink);
+      color: white;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 28px;
+    }
+
+    .gap-explainer h4 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+
+    .gap-explainer p {
+      font-size: 13px;
+      color: #aaa;
+      line-height: 1.6;
+    }
+
+    .gap-explainer strong { color: #7eb3f5; }
+
+    @media (max-width: 560px) {
+      .step, .result-header, .result-body { padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="index.html" class="nav-logo">Civic Power Consortium</a>
+    <a href="how-it-works.html" class="nav-back">← How It Works</a>
+  </nav>
+
+  <div class="quiz-shell">
+    <div class="quiz-card">
+
+      <!-- Progress -->
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progress" style="width: 0%"></div>
+      </div>
+
+      <!-- Step 1: Diagnosis -->
+      <div class="step active" id="step-1">
+        <div class="step-label">Question 1 of 5</div>
+        <h2>Do you think the US healthcare system could be doing better?</h2>
+        <p class="step-sub">No right or wrong answer. We want to know where you actually stand.</p>
+
+        <div class="answers" data-step="1">
+          <button class="answer-btn" data-value="yes" onclick="selectAnswer(this, 1)">
+            <span class="answer-key">A</span>
+            <span class="answer-text">Yes — significantly better</span>
+          </button>
+          <button class="answer-btn" data-value="somewhat" onclick="selectAnswer(this, 1)">
+            <span class="answer-key">B</span>
+            <span class="answer-text">Somewhat — there's room for improvement but it's not a crisis</span>
+          </button>
+          <button class="answer-btn" data-value="no" onclick="selectAnswer(this, 1)">
+            <span class="answer-key">C</span>
+            <span class="answer-text">No — the system works reasonably well</span>
+          </button>
+        </div>
+
+        <div class="stat-reveal" id="stat-1">
+          <div class="stat-number stat-agree">89%</div>
+          <div class="stat-label">of Americans say the healthcare system needs major changes or a complete overhaul</div>
+          <div class="stat-bar-track">
+            <div class="stat-bar-fill stat-bar-agree" style="width: 89%"></div>
+          </div>
+          <div class="stat-breakdown">
+            <span><strong>87%</strong> Republicans</span>
+            <span><strong>91%</strong> Democrats</span>
+            <span><strong>88%</strong> Independents</span>
+          </div>
+          <div class="stat-insight">Rare cross-partisan supermajority agreement on the diagnosis. The disagreement is about the solution — not whether there is a problem.</div>
+        </div>
+
+        <div class="step-nav">
+          <span class="step-counter">1 of 5</span>
+          <button class="next-btn" id="next-1" disabled onclick="nextStep(1)">Continue →</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Drug Pricing -->
+      <div class="step" id="step-2">
+        <div class="step-label">Question 2 of 5</div>
+        <h2>Should Medicare be allowed to negotiate prescription drug prices directly with pharmaceutical companies?</h2>
+        <p class="step-sub">Currently, Medicare is prohibited from negotiating drug prices — a restriction unique among wealthy nations.</p>
+
+        <div class="answers" data-step="2">
+          <button class="answer-btn" data-value="yes" onclick="selectAnswer(this, 2)">
+            <span class="answer-key">A</span>
+            <span class="answer-text">Yes — the government should be able to negotiate prices</span>
+          </button>
+          <button class="answer-btn" data-value="limited" onclick="selectAnswer(this, 2)">
+            <span class="answer-key">B</span>
+            <span class="answer-text">Yes, but only for a limited set of drugs</span>
+          </button>
+          <button class="answer-btn" data-value="no" onclick="selectAnswer(this, 2)">
+            <span class="answer-key">C</span>
+            <span class="answer-text">No — price controls could reduce innovation</span>
+          </button>
+        </div>
+
+        <div class="stat-reveal" id="stat-2">
+          <div class="stat-number stat-agree">83%</div>
+          <div class="stat-label">of Americans support Medicare negotiating drug prices directly</div>
+          <div class="stat-bar-track">
+            <div class="stat-bar-fill stat-bar-agree" style="width: 83%"></div>
+          </div>
+          <div class="stat-breakdown">
+            <span><strong>78%</strong> Republicans</span>
+            <span><strong>91%</strong> Democrats</span>
+            <span><strong>81%</strong> Independents</span>
+          </div>
+          <div class="stat-insight">One of the highest cross-partisan agreement rates on any policy question. Yet it took until 2022 for limited negotiation to become law — against significant pharmaceutical industry opposition.</div>
+        </div>
+
+        <div class="step-nav">
+          <span class="step-counter">2 of 5</span>
+          <button class="next-btn" id="next-2" disabled onclick="nextStep(2)">Continue →</button>
+        </div>
+      </div>
+
+      <!-- Step 3: The Split -->
+      <div class="step" id="step-3">
+        <div class="step-label">Question 3 of 5</div>
+        <h2>Now here's where it gets more complicated.</h2>
+        <p class="step-sub">Who should be primarily responsible for providing healthcare coverage?</p>
+
+        <div class="answers" data-step="3">
+          <button class="answer-btn" data-value="federal" onclick="selectAnswer(this, 3)">
+            <span class="answer-key">A</span>
+            <span class="answer-text">The federal government — universal coverage for all</span>
+          </button>
+          <button class="answer-btn" data-value="mixed" onclick="selectAnswer(this, 3)">
+            <span class="answer-key">B</span>
+            <span class="answer-text">A mix — public option alongside private insurance</span>
+          </button>
+          <button class="answer-btn" data-value="private" onclick="selectAnswer(this, 3)">
+            <span class="answer-key">C</span>
+            <span class="answer-text">Primarily the private market — with government as a safety net</span>
+          </button>
+          <button class="answer-btn" data-value="employer" onclick="selectAnswer(this, 3)">
+            <span class="answer-key">D</span>
+            <span class="answer-text">Employers, with government filling gaps</span>
+          </button>
+        </div>
+
+        <div class="stat-reveal" id="stat-3">
+          <div class="stat-number stat-split">4 ways</div>
+          <div class="stat-label">Americans split roughly evenly across these approaches</div>
+          <div class="stat-bar-track">
+            <div class="stat-bar-fill stat-bar-split" style="width: 45%"></div>
+          </div>
+          <div class="stat-breakdown">
+            <span><strong>~27%</strong> Universal</span>
+            <span><strong>~33%</strong> Public option</span>
+            <span><strong>~24%</strong> Private-led</span>
+            <span><strong>~16%</strong> Employer</span>
+          </div>
+          <div class="stat-insight">This is the real disagreement — not whether healthcare should be better, but the mechanism. And this is exactly the kind of question that needs structured deliberation, not a poll.</div>
+        </div>
+
+        <div class="step-nav">
+          <span class="step-counter">3 of 5</span>
+          <button class="next-btn" id="next-3" disabled onclick="nextStep(3)">Continue →</button>
+        </div>
+      </div>
+
+      <!-- Step 4: The Gap -->
+      <div class="step" id="step-4">
+        <div class="step-label">Question 4 of 5</div>
+        <h2>If 83% of Americans agree on drug pricing — why hasn't it been fixed?</h2>
+        <p class="step-sub">What do you think is the biggest obstacle?</p>
+
+        <div class="answers" data-step="4">
+          <button class="answer-btn" data-value="industry" onclick="selectAnswer(this, 4)">
+            <span class="answer-key">A</span>
+            <span class="answer-text">Pharmaceutical and insurance industry lobbying — money in politics</span>
+          </button>
+          <button class="answer-btn" data-value="coordination" onclick="selectAnswer(this, 4)">
+            <span class="answer-key">B</span>
+            <span class="answer-text">Citizens can't coordinate — we agree in polls but never act together</span>
+          </button>
+          <button class="answer-btn" data-value="complexity" onclick="selectAnswer(this, 4)">
+            <span class="answer-key">C</span>
+            <span class="answer-text">The system is too complex — no one can agree on the solution, even if they agree on the problem</span>
+          </button>
+          <button class="answer-btn" data-value="politicians" onclick="selectAnswer(this, 4)">
+            <span class="answer-key">D</span>
+            <span class="answer-text">Politicians prioritize their party over voter preferences</span>
+          </button>
+        </div>
+
+        <div class="stat-reveal" id="stat-4">
+          <div class="stat-number stat-split">All of the above</div>
+          <div class="stat-label" style="margin-bottom:16px">Research suggests each of these is a real factor — and they're connected.</div>
+          <div class="stat-insight" style="border-top:none; padding-top:0; margin-top:0">
+            The pharmaceutical industry spent <strong>$373M on lobbying in 2022</strong> — the most of any industry. But lobbying works partly because diffuse citizen preferences have no organized countervailing force. The coordination problem makes the money problem worse. That's the gap this platform is designed to close.
+          </div>
+        </div>
+
+        <div class="step-nav">
+          <span class="step-counter">4 of 5</span>
+          <button class="next-btn" id="next-4" disabled onclick="nextStep(4)">Continue →</button>
+        </div>
+      </div>
+
+      <!-- Step 5: Deliberation preview -->
+      <div class="step" id="step-5">
+        <div class="step-label">Question 5 of 5</div>
+        <h2>What if your preferences could actually become political force?</h2>
+        <p class="step-sub">Not a petition. Not a poll. A structured deliberation with a hired lobbyist acting on the result. Would you participate?</p>
+
+        <div class="answers" data-step="5">
+          <button class="answer-btn" data-value="yes" onclick="selectAnswer(this, 5)">
+            <span class="answer-key">A</span>
+            <span class="answer-text">Yes — I'd participate in a real deliberation on drug pricing</span>
+          </button>
+          <button class="answer-btn" data-value="maybe" onclick="selectAnswer(this, 5)">
+            <span class="answer-key">B</span>
+            <span class="answer-text">Maybe — I'd want to learn more first</span>
+          </button>
+          <button class="answer-btn" data-value="skeptical" onclick="selectAnswer(this, 5)">
+            <span class="answer-key">C</span>
+            <span class="answer-text">Skeptical — I've heard this before and nothing changes</span>
+          </button>
+        </div>
+
+        <div class="stat-reveal" id="stat-5">
+          <div class="stat-insight" style="border-top:none; padding-top:0; margin-top:0; font-style:normal; color: var(--ink)">
+            That skepticism is rational. Most civic platforms produce conversation, not outcomes. This one is designed differently — with a public audit log that makes every decision verifiable, and a lobbyist who acts on the result. We're building it in public. You can watch.
+          </div>
+        </div>
+
+        <div class="step-nav">
+          <span class="step-counter">5 of 5</span>
+          <button class="next-btn" id="next-5" disabled onclick="showResult()">See results →</button>
+        </div>
+      </div>
+
+      <!-- Result -->
+      <div class="step" id="step-result">
+        <div class="result-header">
+          <div class="step-label">Your Results</div>
+          <h2>You're not alone — and that's the point.</h2>
+          <p>Here's what we know based on your answers, and what it means.</p>
+        </div>
+        <div class="result-body">
+
+          <div class="result-summary">
+            <h3>Where the majority agrees with you</h3>
+
+            <div class="consensus-meter">
+              <div class="consensus-label">
+                <span>Healthcare needs improvement</span>
+                <span>89%</span>
+              </div>
+              <div class="consensus-track">
+                <div class="consensus-fill" style="width: 89%">
+                  <span class="consensus-pct">89%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="consensus-meter">
+              <div class="consensus-label">
+                <span>Medicare should negotiate drug prices</span>
+                <span>83%</span>
+              </div>
+              <div class="consensus-track">
+                <div class="consensus-fill" style="width: 83%">
+                  <span class="consensus-pct">83%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="consensus-meter">
+              <div class="consensus-label">
+                <span>Pharmaceutical lobbying is a problem</span>
+                <span>76%</span>
+              </div>
+              <div class="consensus-track">
+                <div class="consensus-fill" style="width: 76%">
+                  <span class="consensus-pct">76%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="gap-explainer">
+            <h4>The coordination gap</h4>
+            <p>Supermajorities agree on the diagnosis and on specific reforms like drug price negotiation. Yet <strong>concentrated economic interests</strong> — pharmaceutical companies spending hundreds of millions on lobbying — consistently block policies that 80%+ of Americans support. The reason isn't that your representatives don't know your views. It's that your diffuse preferences have no organized mechanism to match concentrated organized money. <strong>That's what this platform is building.</strong></p>
+          </div>
+
+          <div class="deliberation-preview">
+            <div class="deliberation-preview-header">Active deliberations on the platform</div>
+            <div class="deliberation-thread">
+              <div class="thread-preview-item">
+                <div class="thread-phase-dot dot-voting"></div>
+                <div class="thread-preview-text">
+                  <div class="thread-preview-title">Prescription drug pricing reform — Colorado HB-1234</div>
+                  <div class="thread-preview-meta">VOTING · 47 participants · 3 proposals under consideration</div>
+                </div>
+              </div>
+              <div class="thread-preview-item">
+                <div class="thread-phase-dot dot-deliberating"></div>
+                <div class="thread-preview-text">
+                  <div class="thread-preview-title">PBM transparency and reporting requirements</div>
+                  <div class="thread-preview-meta">DELIBERATING · 31 participants · 12 posts</div>
+                </div>
+              </div>
+              <div class="thread-preview-item">
+                <div class="thread-phase-dot dot-proposing"></div>
+                <div class="thread-preview-text">
+                  <div class="thread-preview-title">Out-of-pocket cost caps for insulin and critical medications</div>
+                  <div class="thread-preview-meta">PROPOSING · 28 participants · 2 proposals submitted</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="result-cta">
+            <p>These deliberations produce documented collective decisions backed by a hired lobbyist. Verified Colorado residents only for the beta — but the platform is being built in public.</p>
+            <a href="/app" class="btn-primary">Join the deliberation →</a>
+            <a href="how-it-works.html" class="btn-secondary">How it works</a>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const totalSteps = 5;
+    let answers = {};
+
+    function selectAnswer(btn, step) {
+      // Clear previous selection in this step
+      const stepEl = document.getElementById('step-' + step);
+      stepEl.querySelectorAll('.answer-btn').forEach(b => b.classList.remove('selected'));
+
+      // Select this one
+      btn.classList.add('selected');
+      answers[step] = btn.dataset.value;
+
+      // Show stat reveal
+      const stat = document.getElementById('stat-' + step);
+      if (stat) stat.classList.add('visible');
+
+      // Enable next button
+      const nextBtn = document.getElementById('next-' + step);
+      if (nextBtn) nextBtn.disabled = false;
+    }
+
+    function nextStep(current) {
+      const currentEl = document.getElementById('step-' + current);
+      const nextEl = document.getElementById('step-' + (current + 1));
+
+      currentEl.classList.remove('active');
+      nextEl.classList.add('active');
+
+      // Update progress
+      const pct = (current / totalSteps) * 100;
+      document.getElementById('progress').style.width = pct + '%';
+
+      // Scroll to top of card
+      document.querySelector('.quiz-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function showResult() {
+      document.getElementById('step-5').classList.remove('active');
+      document.getElementById('step-result').classList.add('active');
+      document.getElementById('progress').style.width = '100%';
+      document.querySelector('.quiz-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  </script>
+
+</body>
+</html>
