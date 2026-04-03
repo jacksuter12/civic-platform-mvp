@@ -1,0 +1,24 @@
+# Environment — never commit
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+build/
+
+# Node — not used in this project
+node_modules/
+package-lock.json
+package.json
+
+# Claude Code local config
+.claude/
+
+# Editors
+.vscode/
+.idea/
+*.swp
