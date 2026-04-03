@@ -9,8 +9,35 @@ into legitimate collective allocation. No outrage dynamics by design.
 
 **Domain:** Healthcare (initial content focus). Architecture is domain-agnostic.
 **Target:** Web-first (plain HTML/CSS/JS → React migration planned).
-**Stage:** MVP — web frontend in progress.
+**Stage:** MVP — phases 0–2 complete, phase 3 in progress (proposals/voting/facilitator controls remaining).
 **Dev environment:** GitHub Codespaces (primary). No local tooling assumed.
+
+---
+
+## Current Build Status (as of 2026-04-03)
+
+**What's live and working:**
+- All 9 pages deployed: `/` `/how-it-works` `/quiz` `/signin` `/threads` `/thread/{id}` `/new-thread` `/account` `/admin`
+- Auth: Supabase magic link, JWT with client-side expiry detection
+- Thread creation: registered tier can create threads (domain, title, central question, context)
+- Signals: 4-type signal system (support/concern/need_info/block) on thread detail
+- Posts: participant tier, phase-gated
+- Facilitator request flow: account page → admin approval → tier promotion
+- Admin page: approve/deny facilitator requests with audit log entries
+- 15 policy domains seeded (healthcare + 14 others)
+- Audit log: append-only, public API endpoint
+
+**What is NOT yet built (Phase 3 remaining):**
+- Proposal creation UI (PROPOSING phase)
+- Voting UI (VOTING phase)
+- Facilitator phase-advance controls (with required reason field)
+- Public audit log page (filterable, unauthenticated)
+- Full admin capabilities (create domains, funding pools, record allocations)
+
+**What is explicitly deferred:**
+- LLM integration (Phase 5 — do not add until Phase 4 deliberation is validated)
+- React migration (no npm/build toolchain yet)
+- Rate limiting, participant verification web flow, render.yaml
 
 ---
 

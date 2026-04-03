@@ -78,10 +78,11 @@ tooling required).
 | Phase | Focus | Status |
 |---|---|---|
 | 0 | Backend scaffold: models, migrations, API routes | Complete |
-| 1 | Web frontend: plain HTML/CSS/JS served from FastAPI | In progress |
-| 2 | Core deliberation flow: post → signal → propose → vote | Pending |
-| 3 | First real deliberation with real users | Pending |
-| 4 | LLM read-only research assistant | Pending |
+| 1 | Web frontend: read-only pages, thread browsing | Complete |
+| 2 | Auth + core interactions: sign-in, signals, posts, account | Complete |
+| 3 | Proposals, voting, facilitator controls, full deliberation flow | In progress |
+| 4 | First real deliberation with real users | Pending |
+| 5 | LLM read-only research assistant | Pending |
 
 See [docs/roadmap.md](docs/roadmap.md) for detail.
 
