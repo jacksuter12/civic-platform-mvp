@@ -20,6 +20,84 @@ from app.models.vote import Vote, VoteChoice
 
 DOMAIN_SLUG = "healthcare"
 
+DOMAINS = [
+    {
+        "slug": "healthcare",
+        "name": "Healthcare",
+        "description": "Health policy, insurance, pharmaceutical pricing, and public health infrastructure.",
+    },
+    {
+        "slug": "education",
+        "name": "Education",
+        "description": "K–12 and higher education funding, curriculum, access, and student debt.",
+    },
+    {
+        "slug": "defense",
+        "name": "Defense & National Security",
+        "description": "Military spending, veterans affairs, intelligence, and foreign policy.",
+    },
+    {
+        "slug": "fiscal-policy",
+        "name": "Fiscal Policy",
+        "description": "Federal and state budgets, taxation, deficit spending, and public investment.",
+    },
+    {
+        "slug": "monetary-policy",
+        "name": "Monetary Policy",
+        "description": "Federal Reserve policy, interest rates, inflation, and banking regulation.",
+    },
+    {
+        "slug": "social-security",
+        "name": "Social Security & Retirement",
+        "description": "Social Security solvency, retirement ages, benefit levels, and pension policy.",
+    },
+    {
+        "slug": "housing",
+        "name": "Housing & Land Use",
+        "description": "Affordability, zoning reform, homelessness, rent stabilization, and construction.",
+    },
+    {
+        "slug": "immigration",
+        "name": "Immigration",
+        "description": "Border policy, pathways to legal status, asylum, and workforce visas.",
+    },
+    {
+        "slug": "criminal-justice",
+        "name": "Criminal Justice & Public Safety",
+        "description": "Policing, sentencing, incarceration, rehabilitation, and community safety.",
+    },
+    {
+        "slug": "environment",
+        "name": "Environment & Energy",
+        "description": "Climate policy, emissions, renewable energy transition, and conservation.",
+    },
+    {
+        "slug": "infrastructure",
+        "name": "Infrastructure & Transportation",
+        "description": "Roads, transit, broadband, water systems, and public works investment.",
+    },
+    {
+        "slug": "labor",
+        "name": "Labor & Employment",
+        "description": "Wages, worker protections, unionization, benefits, and job training.",
+    },
+    {
+        "slug": "trade",
+        "name": "Trade & Economic Policy",
+        "description": "Tariffs, trade agreements, industrial policy, and domestic manufacturing.",
+    },
+    {
+        "slug": "civil-rights",
+        "name": "Civil Rights & Voting",
+        "description": "Voting access, election integrity, anti-discrimination law, and civil liberties.",
+    },
+    {
+        "slug": "drug-policy",
+        "name": "Drug & Substance Policy",
+        "description": "Decriminalization, addiction treatment, prescription drug access, and enforcement.",
+    },
+]
+
 THREADS = [
     {
         "title": "Should our city fund mobile mental health crisis teams?",
@@ -121,21 +199,25 @@ async def has_proposals(db, thread):
 async def seed():
     async with AsyncSessionLocal() as db:
 
-        # ── 1. Domain ──────────────────────────────────────────────────────────
-        r = await db.execute(select(Domain).where(Domain.slug == DOMAIN_SLUG))
-        domain = r.scalar_one_or_none()
-        if not domain:
-            domain = Domain(
-                slug=DOMAIN_SLUG,
-                name="Healthcare",
-                description="Public health policy deliberations for the county.",
-                is_active=True,
-            )
-            db.add(domain)
-            await db.flush()
-            print(f"Created domain: {domain.name}")
-        else:
-            print(f"Domain exists: {domain.name}")
+        # ── 1. Domains ─────────────────────────────────────────────────────────
+        domain = None
+        for d_data in DOMAINS:
+            r = await db.execute(select(Domain).where(Domain.slug == d_data["slug"]))
+            d = r.scalar_one_or_none()
+            if not d:
+                d = Domain(
+                    slug=d_data["slug"],
+                    name=d_data["name"],
+                    description=d_data["description"],
+                    is_active=True,
+                )
+                db.add(d)
+                await db.flush()
+                print(f"Created domain:  {d.name}")
+            else:
+                print(f"Domain exists:   {d.name}")
+            if d_data["slug"] == DOMAIN_SLUG:
+                domain = d
 
         # ── 2. Facilitator ─────────────────────────────────────────────────────
         r = await db.execute(select(User).where(User.email == "seed@civic.local"))
