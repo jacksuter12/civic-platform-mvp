@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How It Works — Civic Power Consortium</title>
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/nav.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink: #1a1a1a;
+      --ink-light: #555;
+      --ink-muted: #888;
+      --paper: #f8f6f1;
+      --paper-dark: #ede9e0;
+      --accent: #2a5c9a;
+      --accent-light: #e8f0fb;
+      --accent-warm: #c4783a;
+      --block-red: #c62828;
+      --support-green: #2e7d32;
+      --border: #d4cfc4;
+      --phase-open: #e8f5e9;
+      --phase-open-text: #2e7d32;
+      --phase-deliberating: #e3f2fd;
+      --phase-deliberating-text: #1565c0;
+      --phase-proposing: #fff3e0;
+      --phase-proposing-text: #e65100;
+      --phase-voting: #f3e5f5;
+      --phase-voting-text: #6a1b9a;
+      --phase-closed: #f5f5f5;
+      --phase-closed-text: #555;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+      line-height: 1.6;
+    }
+
+    /* ===== LAYOUT ===== */
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .container-wide {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ===== HERO ===== */
+    .hero {
+      padding: 80px 0 64px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .hero-eyebrow {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(36px, 6vw, 60px);
+      line-height: 1.1;
+      color: var(--ink);
+      margin-bottom: 24px;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero h1 em { font-style: italic; color: var(--accent); }
+
+    .hero-sub {
+      font-size: 18px;
+      color: var(--ink-light);
+      max-width: 560px;
+      margin: 0 auto 40px;
+    }
+
+    .hero-cta {
+      display: inline-block;
+      background: var(--accent);
+      color: white;
+      padding: 14px 32px;
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+
+    .hero-cta:hover { background: #1e4a80; }
+
+    /* ===== SECTION HEADER ===== */
+    .section-header { padding: 72px 0 48px; text-align: center; }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+
+    .section-header h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(28px, 4vw, 42px);
+      color: var(--ink);
+      margin-bottom: 16px;
+      line-height: 1.2;
+    }
+
+    .section-header p { font-size: 17px; color: var(--ink-light); max-width: 560px; margin: 0 auto; }
+
+    /* ===== PROBLEM SECTION ===== */
+    .problem-section { padding: 0 0 80px; }
+
+    .problem-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 48px;
+    }
+
+    .problem-card { background: var(--paper); padding: 28px 24px; position: relative; }
+    .problem-card-icon { font-size: 28px; margin-bottom: 12px; }
+    .problem-card h4 { font-family: 'DM Serif Display', serif; font-size: 18px; color: var(--ink); margin-bottom: 6px; }
+    .problem-card p { font-size: 13px; color: var(--ink-light); line-height: 1.5; }
+    .problem-card .failure {
+      font-size: 11px; font-weight: 600; color: var(--block-red);
+      text-transform: uppercase; letter-spacing: 0.08em; margin-top: 12px; display: block;
+    }
+
+    .gap-statement {
+      background: var(--ink); color: white; padding: 40px 48px; border-radius: 8px; text-align: center;
+    }
+    .gap-statement p { font-family: 'DM Serif Display', serif; font-size: clamp(18px, 3vw, 26px); line-height: 1.4; font-style: italic; }
+    .gap-statement span { color: #7eb3f5; }
+
+    /* ===== PHASE FLOW ===== */
+    .phases-section { background: white; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 80px 0; }
+
+    .phase-flow { display: flex; flex-direction: column; gap: 0; }
+
+    .phase-row {
+      display: grid; grid-template-columns: 200px 1fr; gap: 0;
+      border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 12px;
+      transition: box-shadow 0.2s; cursor: default;
+    }
+    .phase-row:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+
+    .phase-label {
+      padding: 28px 24px; display: flex; flex-direction: column;
+      justify-content: center; align-items: flex-start; border-right: 1px solid var(--border);
+    }
+
+    .phase-badge {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 4px 10px; border-radius: 4px; margin-bottom: 8px;
+    }
+
+    .phase-name { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--ink); }
+    .phase-body { padding: 28px 32px; background: var(--paper); }
+    .phase-body h4 { font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
+    .phase-body p { font-size: 14px; color: var(--ink-light); margin-bottom: 16px; line-height: 1.6; }
+
+    .phase-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .phase-action {
+      font-size: 12px; padding: 4px 10px; border-radius: 20px;
+      background: var(--paper-dark); color: var(--ink-light); border: 1px solid var(--border);
+      position: relative; cursor: help;
+    }
+
+    .phase-action[data-tooltip]:hover::after {
+      content: attr(data-tooltip); position: absolute; bottom: calc(100% + 8px); left: 50%;
+      transform: translateX(-50%); background: var(--ink); color: white; font-size: 12px;
+      padding: 6px 10px; border-radius: 4px; white-space: nowrap; z-index: 10; pointer-events: none;
+    }
+    .phase-action[data-tooltip]:hover::before {
+      content: ''; position: absolute; bottom: calc(100% + 2px); left: 50%;
+      transform: translateX(-50%); border: 5px solid transparent; border-top-color: var(--ink);
+      z-index: 10; pointer-events: none;
+    }
+
+    .phase-action.active { background: var(--accent-light); color: var(--accent); border-color: var(--accent); font-weight: 600; }
+    .phase-arrow { text-align: center; padding: 4px 0; color: var(--ink-muted); font-size: 20px; }
+
+    /* ===== SIGNALS ===== */
+    .signals-section { padding: 80px 0; }
+
+    .signals-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; }
+
+    .signal-card {
+      border: 2px solid var(--border); border-radius: 8px; padding: 24px;
+      position: relative; cursor: help; transition: border-color 0.2s, transform 0.15s;
+    }
+    .signal-card:hover { transform: translateY(-2px); }
+    .signal-card[data-tooltip]:hover::after {
+      content: attr(data-tooltip); position: absolute; top: calc(100% + 8px); left: 50%;
+      transform: translateX(-50%); background: var(--ink); color: white; font-size: 12px;
+      padding: 8px 12px; border-radius: 4px; width: 240px; text-align: center;
+      z-index: 10; line-height: 1.5; pointer-events: none;
+    }
+    .signal-card[data-tooltip]:hover::before {
+      content: ''; position: absolute; top: calc(100% + 2px); left: 50%;
+      transform: translateX(-50%); border: 5px solid transparent;
+      border-bottom-color: var(--ink); z-index: 10; pointer-events: none;
+    }
+
+    .signal-support { border-color: #a5d6a7; background: #f1f8f1; }
+    .signal-concern { border-color: #ffcc80; background: #fffbf2; }
+    .signal-need_info { border-color: #90caf9; background: #f0f7ff; }
+    .signal-block { border-color: #ef9a9a; background: #fff5f5; }
+    .signal-icon { font-size: 32px; margin-bottom: 12px; }
+    .signal-card h4 { font-family: 'DM Serif Display', serif; font-size: 20px; margin-bottom: 6px; }
+    .signal-support h4 { color: var(--support-green); }
+    .signal-concern h4 { color: #e65100; }
+    .signal-need_info h4 { color: #1565c0; }
+    .signal-block h4 { color: var(--block-red); }
+    .signal-card p { font-size: 13px; color: var(--ink-light); line-height: 1.5; }
+
+    .signal-block-note {
+      margin-top: 16px; padding: 16px 20px; background: #fff5f5;
+      border: 1px solid #ef9a9a; border-radius: 6px; font-size: 13px; color: var(--block-red);
+    }
+    .signal-block-note strong { display: block; margin-bottom: 4px; }
+
+    /* ===== AUDIT ===== */
+    .audit-section { background: var(--ink); color: white; padding: 80px 0; }
+    .audit-section .section-label { color: #7eb3f5; }
+    .audit-section h2 { color: white; }
+    .audit-section p { color: #aaa; }
+
+    .audit-log-demo { background: #111; border-radius: 8px; padding: 24px; margin-top: 40px; font-family: 'DM Sans', monospace; font-size: 13px; }
+
+    .log-row {
+      display: grid; grid-template-columns: 140px 180px 1fr; gap: 16px;
+      padding: 10px 0; border-bottom: 1px solid #222; align-items: center;
+    }
+    .log-row:last-child { border-bottom: none; }
+    .log-time { color: #555; font-size: 11px; }
+    .log-event { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .log-phase { background: #1e3a5f; color: #7eb3f5; }
+    .log-signal { background: #1a3a1a; color: #81c784; }
+    .log-post { background: #3a2a1a; color: #ffb74d; }
+    .log-vote { background: #2a1a3a; color: #ce93d8; }
+    .log-detail { color: #888; font-size: 12px; }
+    .log-detail strong { color: #ddd; }
+    .audit-note { margin-top: 24px; font-size: 13px; color: #666; text-align: center; }
+
+    /* ===== PRINCIPLES ===== */
+    .principles-section { padding: 80px 0; border-top: 1px solid var(--border); }
+    .principles-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; margin-top: 16px; }
+
+    .principle-card {
+      padding: 28px; border: 1px solid var(--border); border-radius: 8px; background: white;
+      position: relative; cursor: help; transition: box-shadow 0.2s;
+    }
+    .principle-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+    .principle-card[data-tooltip]:hover::after {
+      content: attr(data-tooltip); position: absolute; top: calc(100% + 8px); left: 0;
+      background: var(--ink); color: white; font-size: 12px; padding: 8px 12px;
+      border-radius: 4px; width: 260px; z-index: 10; line-height: 1.5; pointer-events: none;
+    }
+
+    .principle-vs { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+    .principle-bad { font-size: 12px; color: var(--ink-muted); text-decoration: line-through; }
+    .principle-arrow-small { color: var(--ink-muted); font-size: 12px; }
+    .principle-good { font-size: 12px; font-weight: 600; color: var(--accent); }
+    .principle-card h4 { font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
+    .principle-card p { font-size: 13px; color: var(--ink-light); line-height: 1.5; }
+
+    /* ===== CTA ===== */
+    .cta-section { background: var(--accent); padding: 80px 0; text-align: center; }
+    .cta-section h2 { font-family: 'DM Serif Display', serif; font-size: clamp(28px, 4vw, 42px); color: white; margin-bottom: 16px; }
+    .cta-section p { font-size: 17px; color: rgba(255,255,255,0.75); margin-bottom: 40px; max-width: 480px; margin-left: auto; margin-right: auto; }
+
+    .btn-white { display: inline-block; background: white; color: var(--accent); padding: 14px 32px; border-radius: 4px; font-size: 15px; font-weight: 600; text-decoration: none; margin: 0 8px; transition: opacity 0.2s; }
+    .btn-white:hover { opacity: 0.9; }
+    .btn-outline-white { display: inline-block; background: transparent; color: white; padding: 14px 32px; border-radius: 4px; font-size: 15px; border: 2px solid rgba(255,255,255,0.5); text-decoration: none; margin: 0 8px; transition: border-color 0.2s; }
+    .btn-outline-white:hover { border-color: white; }
+
+    /* ===== FOOTER ===== */
+    footer { border-top: 1px solid var(--border); padding: 32px 24px; text-align: center; font-size: 13px; color: var(--ink-muted); }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    @media (max-width: 600px) {
+      .phase-row { grid-template-columns: 1fr; }
+      .phase-label { border-right: none; border-bottom: 1px solid var(--border); }
+      .log-row { grid-template-columns: 1fr; gap: 4px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="nav-placeholder"></div>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-eyebrow">Platform Design</div>
+      <h1>Deliberation that produces <em>decisions,</em> not discourse.</h1>
+      <p class="hero-sub">
+        Most civic platforms produce conversation. This one produces
+        documented collective decisions backed by political force.
+        Here's exactly how it works.
+      </p>
+      <a href="/quiz" class="hero-cta">See where you stand →</a>
+    </div>
+  </section>
+
+  <!-- Problem -->
+  <section class="problem-section">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">The Problem</div>
+        <h2>Every existing civic tool fails in a specific, predictable way.</h2>
+        <p>The failure modes are structural — not failures of effort or intent.</p>
+      </div>
+
+      <div class="problem-grid">
+        <div class="problem-card">
+          <div class="problem-card-icon">🗳️</div>
+          <h4>Elections</h4>
+          <p>Select leaders every few years. Cannot specify policy between cycles.</p>
+          <span class="failure">Fails at: policy specification</span>
+        </div>
+        <div class="problem-card">
+          <div class="problem-card-icon">🏛️</div>
+          <h4>NGOs</h4>
+          <p>Start aligned with members. Over time, organizational survival replaces member preferences.</p>
+          <span class="failure">Fails at: resisting capture</span>
+        </div>
+        <div class="problem-card">
+          <div class="problem-card-icon">📊</div>
+          <h4>Polling</h4>
+          <p>Accurately captures opinion. Has no mechanism to convert that opinion into action.</p>
+          <span class="failure">Fails at: execution layer</span>
+        </div>
+        <div class="problem-card">
+          <div class="problem-card-icon">📱</div>
+          <h4>Social Media</h4>
+          <p>Optimizes for engagement. Outrage travels faster than reasoning — by design.</p>
+          <span class="failure">Fails at: deliberation quality</span>
+        </div>
+      </div>
+
+      <div class="gap-statement">
+        <p>"No persistent mechanism exists for converting <span>majority citizen preferences</span> on cross-cutting policy issues into concentrated political force capable of overcoming <span>organized economic opposition</span> — when those interests have shaped both the legislative and information environment."</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Phase Flow -->
+  <section class="phases-section">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">The Process</div>
+        <h2>Six phases. One direction. No shortcuts.</h2>
+        <p>Every thread moves through the same sequence. Phases are irreversible.
+           You cannot vote before deliberating. You cannot propose before discussing.</p>
+      </div>
+
+      <div class="phase-flow">
+        <div class="phase-row">
+          <div class="phase-label">
+            <span class="phase-badge" style="background:var(--phase-open);color:var(--phase-open-text)">Phase 1</span>
+            <span class="phase-name">Open</span>
+          </div>
+          <div class="phase-body">
+            <h4>Discussion begins</h4>
+            <p>Verified participants can read, post, and cast signals. The thread is open for exploratory discussion. No formal structure yet — the goal is surfacing perspectives.</p>
+            <div class="phase-actions">
+              <span class="phase-action active" data-tooltip="Write posts visible to all participants">Post</span>
+              <span class="phase-action active" data-tooltip="Cast one of four structured signals on the thread">Signal</span>
+              <span class="phase-action" data-tooltip="Not available until PROPOSING phase">Propose</span>
+              <span class="phase-action" data-tooltip="Not available until VOTING phase">Vote</span>
+            </div>
+          </div>
+        </div>
+        <div class="phase-arrow">↓</div>
+        <div class="phase-row">
+          <div class="phase-label">
+            <span class="phase-badge" style="background:var(--phase-deliberating);color:var(--phase-deliberating-text)">Phase 2</span>
+            <span class="phase-name">Deliberating</span>
+          </div>
+          <div class="phase-body">
+            <h4>Structured discussion</h4>
+            <p>The facilitator has formally opened deliberation. Discussion continues, but participants are expected to engage with the issue substantively. Signals update in real time.</p>
+            <div class="phase-actions">
+              <span class="phase-action active" data-tooltip="Write posts visible to all participants">Post</span>
+              <span class="phase-action active" data-tooltip="Update your signal as your views evolve">Signal</span>
+              <span class="phase-action" data-tooltip="Not available until PROPOSING phase">Propose</span>
+              <span class="phase-action" data-tooltip="Not available until VOTING phase">Vote</span>
+            </div>
+          </div>
+        </div>
+        <div class="phase-arrow">↓</div>
+        <div class="phase-row">
+          <div class="phase-label">
+            <span class="phase-badge" style="background:var(--phase-proposing);color:var(--phase-proposing-text)">Phase 3</span>
+            <span class="phase-name">Proposing</span>
+          </div>
+          <div class="phase-body">
+            <h4>Formal proposals submitted</h4>
+            <p>Posting is locked. Participants submit formal proposals with a title and description. All participants can see and discuss proposals. The facilitator decides when the proposal set is complete.</p>
+            <div class="phase-actions">
+              <span class="phase-action" data-tooltip="Posting is locked in this phase">Post</span>
+              <span class="phase-action active" data-tooltip="Signals remain active throughout all phases">Signal</span>
+              <span class="phase-action active" data-tooltip="Submit a formal titled proposal for consideration">Propose</span>
+              <span class="phase-action" data-tooltip="Not available until VOTING phase">Vote</span>
+            </div>
+          </div>
+        </div>
+        <div class="phase-arrow">↓</div>
+        <div class="phase-row">
+          <div class="phase-label">
+            <span class="phase-badge" style="background:var(--phase-voting);color:var(--phase-voting-text)">Phase 4</span>
+            <span class="phase-name">Voting</span>
+          </div>
+          <div class="phase-body">
+            <h4>Participants vote on proposals</h4>
+            <p>Each participant votes on each proposal. Votes are immutable — once cast, they cannot be changed. This prevents strategic vote-switching. Results are not shown until the phase closes.</p>
+            <div class="phase-actions">
+              <span class="phase-action" data-tooltip="Posting locked">Post</span>
+              <span class="phase-action active" data-tooltip="Signals remain visible">Signal</span>
+              <span class="phase-action" data-tooltip="Proposal submission closed">Propose</span>
+              <span class="phase-action active" data-tooltip="Cast your vote — yes, no, or abstain. Immutable once submitted.">Vote</span>
+            </div>
+          </div>
+        </div>
+        <div class="phase-arrow">↓</div>
+        <div class="phase-row">
+          <div class="phase-label">
+            <span class="phase-badge" style="background:var(--phase-closed);color:var(--phase-closed-text)">Phase 5</span>
+            <span class="phase-name">Closed</span>
+          </div>
+          <div class="phase-body">
+            <h4>Results visible. Decision recorded.</h4>
+            <p>Vote results are published. The winning proposal and full vote summary are written to the public audit log. The admin records an allocation decision. Everything is now read-only.</p>
+            <div class="phase-actions">
+              <span class="phase-action" data-tooltip="Thread is read-only">Post</span>
+              <span class="phase-action" data-tooltip="Thread is read-only">Signal</span>
+              <span class="phase-action" data-tooltip="Thread is read-only">Propose</span>
+              <span class="phase-action" data-tooltip="Thread is read-only">Vote</span>
+            </div>
+          </div>
+        </div>
+        <div class="phase-arrow">↓</div>
+        <div class="phase-row">
+          <div class="phase-label">
+            <span class="phase-badge" style="background:#f0f0f0;color:#666">Phase 6</span>
+            <span class="phase-name">Archived</span>
+          </div>
+          <div class="phase-body">
+            <h4>Historical record</h4>
+            <p>The full deliberation — every post, signal, proposal, vote, and allocation decision — is preserved in the public audit log indefinitely. Any observer can reconstruct how the decision was reached.</p>
+            <div class="phase-actions">
+              <span class="phase-action" data-tooltip="Permanently archived">Read-only forever</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Signals -->
+  <section class="signals-section">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">Structured Signals</div>
+        <h2>Not upvotes. Not downvotes. Something better.</h2>
+        <p>Signals replace reaction buttons. One signal per participant per thread.
+           They express your orientation toward the discussion, not your opinion of a post.</p>
+      </div>
+      <div class="signals-grid">
+        <div class="signal-card signal-support" data-tooltip="I support the direction of this discussion and believe it should advance.">
+          <div class="signal-icon">↑</div>
+          <h4>Support</h4>
+          <p>I support the direction of this discussion. I believe it's moving toward a good outcome.</p>
+        </div>
+        <div class="signal-card signal-concern" data-tooltip="I have concerns that need addressing before this discussion should advance.">
+          <div class="signal-icon">!</div>
+          <h4>Concern</h4>
+          <p>I have concerns that haven't been adequately addressed. I'm not opposed, but not fully behind it yet.</p>
+        </div>
+        <div class="signal-card signal-need_info" data-tooltip="I need more information before I can form a view on this.">
+          <div class="signal-icon">?</div>
+          <h4>Need Info</h4>
+          <p>I can't form a view yet. Key questions remain unanswered. More evidence or clarification is needed.</p>
+        </div>
+        <div class="signal-card signal-block" data-tooltip="I have a serious objection. Proceeding would cause significant harm.">
+          <div class="signal-icon">✕</div>
+          <h4>Block</h4>
+          <p>I have a serious objection. Proceeding in the current direction would cause meaningful harm.</p>
+        </div>
+      </div>
+      <div class="signal-block-note">
+        <strong>Block signals are always surfaced prominently — even when they're a minority.</strong>
+        On most platforms, minority dissent disappears into the noise. Here, a single Block signal is visible to all participants and must be acknowledged by the facilitator when advancing phases. Dissent is protected by design.
+      </div>
+    </div>
+  </section>
+
+  <!-- Audit Log -->
+  <section class="audit-section">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">The Audit Log</div>
+        <h2 style="color:white">Every action. Public. Permanent.</h2>
+        <p>The audit log is not an afterthought — it is the platform's primary legitimacy mechanism. Every phase transition, post, signal, vote, and allocation decision is recorded and publicly accessible.</p>
+      </div>
+      <div class="audit-log-demo">
+        <div class="log-row">
+          <span class="log-time">2026-04-01 09:14</span>
+          <span class="log-event log-phase">PHASE_ADVANCED</span>
+          <span class="log-detail">Facilitator <strong>f-7a2c</strong> advanced thread <strong>#hc-001</strong> from DELIBERATING → PROPOSING. Reason: "Main concerns addressed, 3 block signals acknowledged."</span>
+        </div>
+        <div class="log-row">
+          <span class="log-time">2026-04-01 10:02</span>
+          <span class="log-event log-signal">SIGNAL_CAST</span>
+          <span class="log-detail">Participant <strong>u-3f8b</strong> changed signal on thread <strong>#hc-001</strong> from CONCERN → SUPPORT.</span>
+        </div>
+        <div class="log-row">
+          <span class="log-time">2026-04-01 11:47</span>
+          <span class="log-event log-post">PROPOSAL_CREATED</span>
+          <span class="log-detail">Participant <strong>u-9d1a</strong> submitted proposal <strong>"Mandate PBM transparency reporting"</strong> on thread <strong>#hc-001</strong>.</span>
+        </div>
+        <div class="log-row">
+          <span class="log-time">2026-04-01 14:22</span>
+          <span class="log-event log-vote">VOTE_CAST</span>
+          <span class="log-detail">Participant <strong>u-2c7e</strong> voted <strong>YES</strong> on proposal <strong>p-4421</strong>. Vote immutable.</span>
+        </div>
+      </div>
+      <p class="audit-note">Actor identities are UUIDs — publicly auditable without exposing personal information.</p>
+    </div>
+  </section>
+
+  <!-- Principles -->
+  <section class="principles-section">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">Design Principles</div>
+        <h2>Every choice has a reason.</h2>
+        <p>None of the platform's design decisions are arbitrary. Each one addresses a specific failure mode of existing civic tools.</p>
+      </div>
+      <div class="principles-grid">
+        <div class="principle-card" data-tooltip="Algorithmic feeds rank content by engagement potential, which correlates strongly with emotional provocation. Chronological order removes this distortion entirely.">
+          <div class="principle-vs"><span class="principle-bad">Algorithmic feed</span><span class="principle-arrow-small">→</span><span class="principle-good">Chronological</span></div>
+          <h4>No ranking. No amplification.</h4>
+          <p>Posts appear in the order they were written. The first post and the last post have equal visibility.</p>
+        </div>
+        <div class="principle-card" data-tooltip="Reactions on posts create popularity contests and pile-on dynamics. Signals on the thread capture the distribution of participant sentiment without targeting individual posts.">
+          <div class="principle-vs"><span class="principle-bad">Post reactions</span><span class="principle-arrow-small">→</span><span class="principle-good">Thread signals</span></div>
+          <h4>Signal the discussion, not the post.</h4>
+          <p>No upvotes, downvotes, or reactions on individual posts. Signals express your orientation toward the thread as a whole.</p>
+        </div>
+        <div class="principle-card" data-tooltip="Without phase gates, discussions jump straight to solutions before problems are understood. Phase gates enforce sequential engagement.">
+          <div class="principle-vs"><span class="principle-bad">Open-ended voting</span><span class="principle-arrow-small">→</span><span class="principle-good">Phase-gated</span></div>
+          <h4>You must deliberate before you vote.</h4>
+          <p>Voting is only available after discussion and proposal phases are complete. The sequence is enforced at the database level — not just the UI.</p>
+        </div>
+        <div class="principle-card" data-tooltip="When allocation decisions are made in private, there is no way to verify that the process was followed. The audit log makes this verification possible for anyone.">
+          <div class="principle-vs"><span class="principle-bad">Private decisions</span><span class="principle-arrow-small">→</span><span class="principle-good">Public audit log</span></div>
+          <h4>Every decision is reconstructable.</h4>
+          <p>The audit log is append-only and publicly accessible. Journalists, researchers, and skeptics can verify every decision without permission.</p>
+        </div>
+        <div class="principle-card" data-tooltip="Immutable votes prevent strategic behavior — changing your vote after seeing others' votes. The vote you cast is the vote that counts.">
+          <div class="principle-vs"><span class="principle-bad">Changeable votes</span><span class="principle-arrow-small">→</span><span class="principle-good">Immutable votes</span></div>
+          <h4>Your vote is final.</h4>
+          <p>Once cast, votes cannot be changed. This prevents strategic vote-switching and late-stage manipulation.</p>
+        </div>
+        <div class="principle-card" data-tooltip="Facilitators have significant power over thread progression. Making all their actions public creates accountability without eliminating their authority.">
+          <div class="principle-vs"><span class="principle-bad">Anonymous moderation</span><span class="principle-arrow-small">→</span><span class="principle-good">Accountable facilitation</span></div>
+          <h4>Facilitators are never anonymous.</h4>
+          <p>Every facilitator action — phase advance, post removal — is recorded in the public audit log with a required stated reason.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <div class="container">
+      <h2>Ready to see where you stand?</h2>
+      <p>Take a 3-minute quiz to find out how your views connect to ongoing deliberations.</p>
+      <a href="/quiz" class="btn-white">Take the Quiz</a>
+      <a href="/threads" class="btn-outline-white">Go to Platform</a>
+    </div>
+  </section>
+
+  <footer>
+    Civic Power Consortium · <a href="/">Home</a> · <a href="/how-it-works">How It Works</a> · Early Preview
+  </footer>
+
+</body>
+</html>

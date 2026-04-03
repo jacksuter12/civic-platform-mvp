@@ -3,142 +3,432 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Civic Deliberation Platform</title>
-  <link rel="stylesheet" href="/static/css/main.css">
+  <title>Civic Power Consortium</title>
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/nav.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f1117;
+      color: #e8e8e8;
+      line-height: 1.6;
+    }
+
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 48px 24px;
+      background: linear-gradient(160deg, #0f1117 0%, #1a1f2e 100%);
+    }
+
+    .tag {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #5b8dd9;
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      font-size: clamp(36px, 6vw, 72px);
+      font-weight: 700;
+      line-height: 1.1;
+      max-width: 800px;
+      margin-bottom: 24px;
+      color: #ffffff;
+    }
+
+    h1 span {
+      color: #5b8dd9;
+    }
+
+    .subtitle {
+      font-size: clamp(16px, 2.5vw, 20px);
+      color: #9ca3af;
+      max-width: 580px;
+      margin-bottom: 48px;
+    }
+
+    .cta-group {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 80px;
+    }
+
+    .btn-primary {
+      background: #5b8dd9;
+      color: white;
+      padding: 14px 32px;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+
+    .btn-primary:hover { background: #4a7bc8; }
+
+    .btn-secondary {
+      background: transparent;
+      color: #9ca3af;
+      padding: 14px 32px;
+      border-radius: 6px;
+      font-size: 16px;
+      border: 1px solid #2d3348;
+      text-decoration: none;
+      transition: border-color 0.2s, color 0.2s;
+    }
+
+    .btn-secondary:hover { border-color: #5b8dd9; color: #e8e8e8; }
+
+    /* Problem section */
+    .section {
+      padding: 96px 24px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #5b8dd9;
+      margin-bottom: 16px;
+    }
+
+    .section h2 {
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 24px;
+      line-height: 1.2;
+    }
+
+    .section p {
+      font-size: 18px;
+      color: #9ca3af;
+      margin-bottom: 16px;
+      max-width: 680px;
+    }
+
+    .gap-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-top: 40px;
+    }
+
+    .gap-card {
+      background: #1a1f2e;
+      border: 1px solid #2d3348;
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    .gap-card h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e8e8e8;
+      margin-bottom: 6px;
+    }
+
+    .gap-card p {
+      font-size: 13px;
+      color: #6b7280;
+      margin: 0;
+    }
+
+    /* How it works */
+    .how-section {
+      background: #1a1f2e;
+      padding: 96px 24px;
+    }
+
+    .how-inner {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .phases {
+      display: flex;
+      gap: 0;
+      margin-top: 48px;
+      flex-wrap: wrap;
+    }
+
+    .phase {
+      flex: 1;
+      min-width: 140px;
+      padding: 24px 16px;
+      border-left: 2px solid #2d3348;
+      position: relative;
+    }
+
+    .phase:first-child { border-left: 2px solid #5b8dd9; }
+
+    .phase-num {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #5b8dd9;
+      margin-bottom: 8px;
+    }
+
+    .phase h4 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #e8e8e8;
+      margin-bottom: 6px;
+    }
+
+    .phase p {
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    /* Principles */
+    .principles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+      margin-top: 48px;
+    }
+
+    .principle {
+      background: #0f1117;
+      border: 1px solid #2d3348;
+      border-radius: 8px;
+      padding: 24px;
+    }
+
+    .principle-icon {
+      font-size: 24px;
+      margin-bottom: 12px;
+    }
+
+    .principle h4 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #e8e8e8;
+      margin-bottom: 8px;
+    }
+
+    .principle p {
+      font-size: 13px;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+
+    /* CTA section */
+    .cta-section {
+      padding: 96px 24px;
+      text-align: center;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .cta-section h2 {
+      font-size: clamp(28px, 4vw, 40px);
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 16px;
+    }
+
+    .cta-section p {
+      font-size: 18px;
+      color: #9ca3af;
+      margin-bottom: 40px;
+    }
+
+    .interest-form {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .interest-form input {
+      background: #1a1f2e;
+      border: 1px solid #2d3348;
+      border-radius: 6px;
+      padding: 12px 20px;
+      font-size: 16px;
+      color: #e8e8e8;
+      width: 280px;
+      outline: none;
+    }
+
+    .interest-form input:focus {
+      border-color: #5b8dd9;
+    }
+
+    .interest-form input::placeholder { color: #4b5563; }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid #2d3348;
+      padding: 32px 24px;
+      text-align: center;
+      font-size: 13px;
+      color: #4b5563;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #2d3348;
+    }
+  </style>
 </head>
 <body>
 
-  <header class="site-header">
-    <div class="container">
-      <span class="site-title">Civic Platform</span>
-      <div class="nav-auth" id="nav-auth">
-        <a href="/signin">Sign in</a>
-      </div>
-    </div>
-  </header>
+  <div id="nav-placeholder"></div>
 
-  <main class="container">
-    <h1 class="page-title">Active Discussions</h1>
-    <p class="page-subtitle">
-      Threads are phase-gated deliberations. Each moves through Open → Deliberating
-      → Proposing → Voting → Closed.
+  <!-- Hero -->
+  <section class="hero">
+    <div class="tag">Early Preview — Not Yet Launched</div>
+    <h1>Citizens deserve a<br><span>coordination layer.</span></h1>
+    <p class="subtitle">
+      The Civic Power Consortium is building structured deliberation infrastructure
+      that converts diffuse public preferences into concentrated political force.
+    </p>
+    <div class="cta-group">
+      <a href="/quiz" class="btn-primary">Follow the Build</a>
+      <a href="/how-it-works" class="btn-secondary">How It Works</a>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- Problem -->
+  <div class="section">
+    <div class="section-label">The Problem</div>
+    <h2>Every civic tool was built for a different era.</h2>
+    <p>
+      Elections solve leader selection, not policy specification. NGOs suffer
+      organizational capture. Polling has no execution layer. Social media
+      optimizes for engagement, not deliberation.
+    </p>
+    <p>
+      The result is a coordination gap: diffuse citizen preferences cannot be
+      converted into concentrated political force through any existing mechanism.
     </p>
 
-    <div id="thread-list-container">
-      <div class="loading">Loading threads…</div>
+    <div class="gap-grid">
+      <div class="gap-card">
+        <h4>Elections</h4>
+        <p>Solve leader selection, not policy specification</p>
+      </div>
+      <div class="gap-card">
+        <h4>NGOs</h4>
+        <p>Prone to organizational capture over time</p>
+      </div>
+      <div class="gap-card">
+        <h4>Polling</h4>
+        <p>Aggregates opinion but has no execution layer</p>
+      </div>
+      <div class="gap-card">
+        <h4>Social Media</h4>
+        <p>Optimizes for outrage, not decisions</p>
+      </div>
     </div>
-  </main>
+  </div>
 
-  <!-- Load JS files. Order matters: auth and utils before api, api before page logic. -->
-  <script src="/static/js/auth.js"></script>
-  <script src="/static/js/utils.js"></script>
-  <script src="/static/js/api.js"></script>
-  <script>
-    // ===== Page Logic =====
+  <hr class="divider">
 
-    // Update header based on auth state
-    async function updateNav() {
-      const navEl = document.getElementById("nav-auth");
-      if (!auth.isSignedIn()) return;
+  <!-- How it works -->
+  <div class="how-section" id="how">
+    <div class="how-inner">
+      <div class="section-label">How It Works</div>
+      <h2>Deliberation that produces decisions, not discourse.</h2>
 
-      let user = auth.getUser();
-      if (!user) {
-        try {
-          user = await getMe();
-          auth.setUser(user);
-        } catch (_) {}
-      }
+      <div class="phases">
+        <div class="phase">
+          <div class="phase-num">Phase 1</div>
+          <h4>Open</h4>
+          <p>Verified participants discuss the issue</p>
+        </div>
+        <div class="phase">
+          <div class="phase-num">Phase 2</div>
+          <h4>Deliberating</h4>
+          <p>Structured turn-based discussion with signals</p>
+        </div>
+        <div class="phase">
+          <div class="phase-num">Phase 3</div>
+          <h4>Proposing</h4>
+          <p>Formal proposals submitted and refined</p>
+        </div>
+        <div class="phase">
+          <div class="phase-num">Phase 4</div>
+          <h4>Voting</h4>
+          <p>Participants vote on proposals</p>
+        </div>
+        <div class="phase">
+          <div class="phase-num">Phase 5</div>
+          <h4>Closed</h4>
+          <p>Decision recorded to public audit log</p>
+        </div>
+      </div>
 
-      navEl.innerHTML = `
-        <span>Power to the People, ${user ? user.display_name : "friend"}!</span>
-        &nbsp;·&nbsp;
-        <a href="#" onclick="handleSignOut()">Sign out</a>
-        &nbsp;·&nbsp;
-        <a href="/account">Account</a>
-      `;
-    }
+      <div class="principles" style="margin-top: 64px;">
+        <div class="principle">
+          <div class="principle-icon">🔒</div>
+          <h4>Structured Signals</h4>
+          <p>Support, concern, need info, block — instead of upvotes and downvotes. Signal the thread, not the post.</p>
+        </div>
+        <div class="principle">
+          <div class="principle-icon">📋</div>
+          <h4>Public Audit Log</h4>
+          <p>Every phase transition, every vote, every allocation decision is publicly verifiable. No black boxes.</p>
+        </div>
+        <div class="principle">
+          <div class="principle-icon">🛡️</div>
+          <h4>No Algorithmic Feed</h4>
+          <p>Posts shown chronologically. No engagement optimization. No outrage amplification.</p>
+        </div>
+        <div class="principle">
+          <div class="principle-icon">⚖️</div>
+          <h4>Execution Layer</h4>
+          <p>Deliberation outputs connect to a hired lobbyist. The goal is legislative outcomes, not petitions.</p>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    function handleSignOut() {
-      auth.clearToken();
-      window.location.reload();
-    }
+  <hr class="divider">
 
-    // Render a single thread card as an HTML string
-    function renderThreadCard(thread) {
-      const sc = thread.signal_counts;
+  <!-- CTA -->
+  <div class="cta-section" id="interest">
+    <h2>We're building in public.</h2>
+    <p>
+      MVP targets one healthcare sub-issue in one U.S. state.
+      Follow the build or express interest in the beta cohort.
+    </p>
+    <div class="interest-form">
+      <input type="email" placeholder="your@email.com">
+      <a href="mailto:jack.suter.desh@gmail.com?subject=Interest in Beta" class="btn-primary">
+        Express Interest
+      </a>
+    </div>
+  </div>
 
-      return `
-        <a href="/thread/${thread.id}" style="display:block">
-          <div class="thread-card">
-            <div class="thread-card-header">
-              <span class="thread-title">${thread.title}</span>
-              <span class="${phaseBadgeClass(thread.status)}">
-                ${capitalize(thread.status)}
-              </span>
-            </div>
-
-            <div class="signal-bar">
-              ${sc.support > 0 ? `
-                <span class="signal-count signal-support">
-                  ${SIGNAL_ICONS.support} ${sc.support} support
-                </span>` : ""}
-              ${sc.concern > 0 ? `
-                <span class="signal-count signal-concern">
-                  ${SIGNAL_ICONS.concern} ${sc.concern} concern
-                </span>` : ""}
-              ${sc.need_info > 0 ? `
-                <span class="signal-count signal-need_info">
-                  ${SIGNAL_ICONS.need_info} ${sc.need_info} need info
-                </span>` : ""}
-              ${sc.block > 0 ? `
-                <span class="signal-count signal-block">
-                  ${SIGNAL_ICONS.block} ${sc.block} block
-                </span>` : ""}
-              ${sc.total === 0 ? `<span>No signals yet</span>` : ""}
-            </div>
-
-            <div class="thread-meta">
-              ${thread.post_count} post${thread.post_count !== 1 ? "s" : ""}
-              · ${thread.proposal_count} proposal${thread.proposal_count !== 1 ? "s" : ""}
-              · ${timeAgo(thread.created_at)}
-            </div>
-          </div>
-        </a>
-      `;
-    }
-
-    // Main load function
-    async function loadThreads() {
-      const container = document.getElementById("thread-list-container");
-
-      try {
-        const threads = await getThreads();
-
-        if (threads.length === 0) {
-          container.innerHTML = `
-            <div class="empty-state">
-              No threads yet. A facilitator can create the first one.
-            </div>`;
-          return;
-        }
-
-        container.innerHTML = `
-          <div class="thread-list">
-            ${threads.map(renderThreadCard).join("")}
-          </div>`;
-
-      } catch (err) {
-        container.innerHTML = `
-          <div class="error-message">
-            Could not load threads: ${err.message}
-          </div>`;
-      }
-    }
-
-    // Run on page load
-    updateNav();
-    loadThreads();
-  </script>
+  <footer>
+    Civic Power Consortium · Early Preview · Not yet launched ·
+    <a href="https://github.com/jacksuter12/civic-power-consortium"
+       style="color: #5b8dd9; text-decoration: none;">
+      GitHub
+    </a>
+  </footer>
 
 </body>
 </html>

@@ -68,10 +68,25 @@ async def health() -> dict:
     return {"status": "ok", "version": "0.1.0"}
 
 
-# Page routes — serve HTML shells
+# Page routes
 @app.get("/")
 async def index_page() -> FileResponse:
     return FileResponse("app/templates/index.html")
+
+
+@app.get("/how-it-works")
+async def how_it_works_page() -> FileResponse:
+    return FileResponse("app/templates/how-it-works.html")
+
+
+@app.get("/quiz")
+async def quiz_page() -> FileResponse:
+    return FileResponse("app/templates/quiz.html")
+
+
+@app.get("/threads")
+async def threads_page() -> FileResponse:
+    return FileResponse("app/templates/threads.html")
 
 
 @app.get("/thread/{thread_id}")
