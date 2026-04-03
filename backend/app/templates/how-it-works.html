@@ -311,6 +311,47 @@
       .phase-label { border-right: none; border-bottom: 1px solid var(--border); }
       .log-row { grid-template-columns: 1fr; gap: 4px; }
     }
+
+    /* Failure modes */
+    .failure-section { padding: 80px 0; border-top: 1px solid var(--border); }
+
+    .failure-item {
+      padding: 28px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .failure-item:first-child { border-top: 1px solid var(--border); margin-top: 40px; }
+
+    .failure-name {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--block-red);
+      margin-bottom: 10px;
+    }
+
+    .failure-item p {
+      font-size: 16px;
+      color: var(--ink-light);
+      max-width: 700px;
+      line-height: 1.65;
+    }
+
+    .failure-closing {
+      margin-top: 48px;
+      padding: 28px 36px;
+      background: var(--paper-dark);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 4px 4px 0;
+    }
+
+    .failure-closing p {
+      font-size: 16px;
+      color: var(--ink-light);
+      line-height: 1.7;
+      max-width: 680px;
+    }
   </style>
 </head>
 <body>
@@ -597,6 +638,44 @@
           <h4>Facilitators are never anonymous.</h4>
           <p>Every facilitator action — phase advance, post removal — is recorded in the public audit log with a required stated reason.</p>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How This Platform Could Fail -->
+  <section class="failure-section">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">Honest Assessment</div>
+        <h2>How this platform could fail.</h2>
+        <p>The five most likely failure modes, stated plainly.</p>
+      </div>
+
+      <div>
+        <div class="failure-item">
+          <div class="failure-name">1 — Engagement Failure</div>
+          <p>Most people who sign up for civic platforms don't complete a full deliberation. If threads don't reach quorum — enough verified participants to make the outcome legitimate — they produce noise, not signal. We need sustained participation, not just sign-ups.</p>
+        </div>
+        <div class="failure-item">
+          <div class="failure-name">2 — Funding Gap</div>
+          <p>Platform operations and lobbyist fees require predictable recurring revenue. If the platform attracts users but not donors, or donors give once and don't renew, the execution layer collapses. A deliberation without a funded lobbyist is just a forum.</p>
+        </div>
+        <div class="failure-item">
+          <div class="failure-name">3 — Conversion Failure</div>
+          <p>The causal chain is long: consensus → funding pool → lobbyist engagement → legislative access → policy change. Each link can break. A lobbyist can be outspent. A legislator can be unresponsive. A policy can pass and be weakly enforced. We won't know which links are weakest until we try.</p>
+        </div>
+        <div class="failure-item">
+          <div class="failure-name">4 — Capture</div>
+          <p>Any institution can be captured by the people who run it, fund it, or participate most actively. We've designed structural safeguards — facilitator accountability, public audit logs, term limits — but these are imperfect. If this platform succeeds and becomes influential, the pressure to capture it will increase.</p>
+        </div>
+        <div class="failure-item">
+          <div class="failure-name">5 — Timing Mismatch</div>
+          <p>Deliberation takes weeks. Legislative windows open and close in days. If our process produces consensus too slowly to influence a specific vote, the effort is wasted for that cycle. Getting the timing right requires institutional relationships we don't yet have.</p>
+        </div>
+      </div>
+
+      <div class="failure-closing">
+        <p>We publish these failure modes because we believe transparency about risk is a precondition for trust. If this platform is going to ask for your time, your identity verification, and eventually your money, you deserve to know exactly how it could fail and what we're doing about each one.</p>
       </div>
     </div>
   </section>

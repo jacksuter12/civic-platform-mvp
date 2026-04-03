@@ -288,6 +288,102 @@
       border: none;
       border-top: 1px solid #2d3348;
     }
+
+    /* Stats section */
+    .stat-grid {
+      display: grid;
+      gap: 16px;
+      margin-top: 40px;
+    }
+
+    .stat-card {
+      background: #1a1f2e;
+      border: 1px solid #2d3348;
+      border-radius: 8px;
+      padding: 28px 32px;
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 580px) {
+      .stat-card { grid-template-columns: 1fr; }
+    }
+
+    .stat-number {
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 700;
+      color: #5b8dd9;
+      line-height: 1.1;
+    }
+
+    .stat-unit {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .stat-body p {
+      font-size: 14px;
+      color: #9ca3af;
+      margin-bottom: 10px;
+      max-width: none;
+    }
+
+    .stat-source {
+      font-size: 12px;
+      color: #5b8dd9;
+      text-decoration: none;
+    }
+
+    .stat-source:hover { text-decoration: underline; }
+
+    .stat-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #4b5563;
+      display: block;
+      margin-top: 4px;
+    }
+
+    /* Donations section */
+    .donations-list {
+      list-style: none;
+      margin: 28px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .donations-list li {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      font-size: 16px;
+      color: #9ca3af;
+    }
+
+    .donations-list li::before {
+      content: '→';
+      color: #5b8dd9;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .mvp-note {
+      font-size: 13px;
+      color: #6b7280;
+      border: 1px solid #2d3348;
+      border-radius: 6px;
+      padding: 14px 18px;
+      margin-top: 24px;
+      max-width: 680px;
+    }
   </style>
 </head>
 <body>
@@ -346,61 +442,120 @@
 
   <hr class="divider">
 
-  <!-- How it works -->
-  <div class="how-section" id="how">
-    <div class="how-inner">
-      <div class="section-label">How It Works</div>
-      <h2>Deliberation that produces decisions, not discourse.</h2>
+  <!-- Math of Political Power -->
+  <div class="section">
+    <div class="section-label">The Math of Political Power</div>
+    <h2>The opposition has a budget.<br>So do you.</h2>
+    <p>
+      The coordination gap isn't an accident. It reflects a structural spending
+      asymmetry — and a collective giving capacity that has never been organized.
+    </p>
 
-      <div class="phases">
-        <div class="phase">
-          <div class="phase-num">Phase 1</div>
-          <h4>Open</h4>
-          <p>Verified participants discuss the issue</p>
+    <div class="stat-grid">
+
+      <div class="stat-card">
+        <div>
+          <div class="stat-number">$4.4B</div>
+          <div class="stat-unit">lobbying, 2024</div>
         </div>
-        <div class="phase">
-          <div class="phase-num">Phase 2</div>
-          <h4>Deliberating</h4>
-          <p>Structured turn-based discussion with signals</p>
-        </div>
-        <div class="phase">
-          <div class="phase-num">Phase 3</div>
-          <h4>Proposing</h4>
-          <p>Formal proposals submitted and refined</p>
-        </div>
-        <div class="phase">
-          <div class="phase-num">Phase 4</div>
-          <h4>Voting</h4>
-          <p>Participants vote on proposals</p>
-        </div>
-        <div class="phase">
-          <div class="phase-num">Phase 5</div>
-          <h4>Closed</h4>
-          <p>Decision recorded to public audit log</p>
+        <div class="stat-body">
+          <p>Concentrated interests spent $4.4 billion lobbying the federal government in 2024 alone — a new record. The health and pharmaceutical sector alone spent $744 million that year.</p>
+          <a href="https://www.opensecrets.org/news/2025/02/federal-lobbying-set-new-record-in-2024/"
+             class="stat-source" target="_blank" rel="noopener noreferrer">OpenSecrets, Feb 2025 ↗</a>
         </div>
       </div>
 
-      <div class="principles" style="margin-top: 64px;">
-        <div class="principle">
-          <div class="principle-icon">🔒</div>
-          <h4>Structured Signals</h4>
-          <p>Support, concern, need info, block — instead of upvotes and downvotes. Signal the thread, not the post.</p>
+      <div class="stat-card">
+        <div>
+          <div class="stat-number">$46B</div>
+          <div class="stat-unit">since 2015</div>
         </div>
-        <div class="principle">
-          <div class="principle-icon">📋</div>
-          <h4>Public Audit Log</h4>
-          <p>Every phase transition, every vote, every allocation decision is publicly verifiable. No black boxes.</p>
+        <div class="stat-body">
+          <p>Since 2015, lobbying at the state and federal level has totaled more than $46 billion.</p>
+          <a href="https://www.opensecrets.org/news/2024/01/state-and-federal-lobbying-spending-tops-46-billion-after-federal-lobbying-spending-broke-records-in-2023/"
+             class="stat-source" target="_blank" rel="noopener noreferrer">OpenSecrets, Jan 2024 ↗</a>
         </div>
-        <div class="principle">
-          <div class="principle-icon">🛡️</div>
-          <h4>No Algorithmic Feed</h4>
-          <p>Posts shown chronologically. No engagement optimization. No outrage amplification.</p>
+      </div>
+
+      <div class="stat-card">
+        <div>
+          <div class="stat-number">49%</div>
+          <div class="stat-unit">individual income tax</div>
         </div>
-        <div class="principle">
-          <div class="principle-icon">⚖️</div>
-          <h4>Execution Layer</h4>
-          <p>Deliberation outputs connect to a hired lobbyist. The goal is legislative outcomes, not petitions.</p>
+        <div class="stat-body">
+          <p>In 2023, individuals contributed 49% of all federal revenue through income taxes — roughly five times the share contributed by corporate income taxes (9.4%).</p>
+          <a href="https://usafacts.org/articles/how-much-revenue-does-the-federal-government-collect/"
+             class="stat-source" target="_blank" rel="noopener noreferrer">USAFacts ↗</a>
         </div>
+      </div>
+
+      <div class="stat-card">
+        <div>
+          <div class="stat-number">$557B</div>
+          <div class="stat-unit">charitable giving, 2023</div>
+        </div>
+        <div class="stat-body">
+          <p>Americans voluntarily gave $557 billion to charitable causes in 2023. Individuals accounted for 67% of that — $374 billion. The capacity to fund coordinated civic action already exists. The mechanism hasn't.</p>
+          <a href="https://givingusa.org/giving-usa-u-s-charitable-giving-totaled-557-16-billion-in-2023/"
+             class="stat-source" target="_blank" rel="noopener noreferrer">Giving USA 2024 ↗</a>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div>
+          <div class="stat-number">$20M</div>
+          <div class="stat-unit">AARP / $62M NRA</div>
+        </div>
+        <div class="stat-body">
+          <p>AARP — 38 million members, one of the most effective lobbying organizations in America — spent approximately $20 million on federal lobbying in 2024. The NRA operates its lobbying operation on roughly $62 million in annual membership dues from ~1.5 million members. You don't need to outspend the opposition. You need to outcoordinate it.</p>
+          <a href="https://www.opensecrets.org/orgs/aarp/summary?id=D000023726"
+             class="stat-source" target="_blank" rel="noopener noreferrer">OpenSecrets: AARP ↗</a>
+          &nbsp;·&nbsp;
+          <a href="https://paddockpost.com/2025/04/25/how-the-nra-spends-revenue-2023/"
+             class="stat-source" target="_blank" rel="noopener noreferrer">NRA revenue breakdown ↗</a>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div>
+          <div class="stat-number">1,000</div>
+          <div class="stat-unit">people × $100</div>
+        </div>
+        <div class="stat-body">
+          <p>A single experienced state lobbyist costs approximately $100,000–$500,000 per year. 1,000 people each contributing $100 funds that. Our MVP goal: deliberate on one healthcare issue in one state. Fund one lobbyist. Measure what happens.</p>
+          <span class="stat-label">Platform Strategy — No External Source</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- How Donations Work -->
+  <div style="background: #1a1f2e;">
+    <div class="section">
+      <div class="section-label">How Donations Work</div>
+      <h2>The community decides how the money is used. Not us.</h2>
+      <p>
+        Donations go into a domain funding pool — not to specific proposals. The deliberation
+        process determines how that pool gets allocated.
+      </p>
+      <ul class="donations-list">
+        <li>Participants deliberate on a policy issue and vote on proposals.</li>
+        <li>Winning proposals receive funding from the pool.</li>
+        <li>Every allocation decision is recorded in the public audit log and permanently verifiable.</li>
+        <li>The platform does not choose where the money goes — the deliberation outcome does.</li>
+      </ul>
+      <p>
+        This is why the deliberation process matters: the community decides how the
+        money is used. That accountability is what separates this from a donation to
+        an advocacy organization.
+      </p>
+      <div class="mvp-note">
+        <strong style="color: #e8e8e8;">MVP Note:</strong> The current version uses simulated funding (USD_SIM)
+        while we validate the deliberation model. No real money is collected or disbursed during this phase.
+        When real funding is introduced, this page will be updated.
       </div>
     </div>
   </div>
