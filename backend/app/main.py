@@ -102,3 +102,13 @@ async def signin_page() -> FileResponse:
 @app.get("/account")
 async def account_page() -> FileResponse:
     return FileResponse("app/templates/account.html")
+
+
+@app.get("/new-thread")
+async def new_thread_page() -> FileResponse:
+    return FileResponse("app/templates/new-thread.html")
+
+
+@app.get("/admin")
+async def admin_page() -> FileResponse:
+    return FileResponse("app/templates/admin.html")

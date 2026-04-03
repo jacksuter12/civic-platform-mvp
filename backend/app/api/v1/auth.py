@@ -17,7 +17,9 @@ from app.api.deps import CurrentUser, DB, RegisteredUser
 from app.core.audit import log_event
 from app.core.security import TokenError, decode_supabase_token, extract_supabase_uid
 from app.models.audit import AuditEventType, AuditLog
-from app.models.user import User
+from app.models.facilitator_request import FacilitatorRequest, FacilitatorRequestStatus
+from app.models.user import User, UserTier
+from app.schemas.facilitator_request import FacilitatorRequestCreate, FacilitatorRequestOut
 from app.schemas.user import DisplayNameUpdate, UserCreate, UserMe, UserPublic
 
 router = APIRouter()
@@ -127,3 +129,62 @@ async def update_me(payload: DisplayNameUpdate, user: RegisteredUser, db: DB) ->
         "display_name_changes_this_month": new_changes,
         "display_name_changes_remaining": max(0, DISPLAY_NAME_CHANGE_LIMIT - new_changes),
     }
+
+
+@router.post(
+    "/facilitator-request",
+    response_model=FacilitatorRequestOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def submit_facilitator_request(
+    payload: FacilitatorRequestCreate,
+    user: RegisteredUser,
+    db: DB,
+) -> FacilitatorRequest:
+    """Submit an application for facilitator status."""
+    if user.has_tier(UserTier.FACILITATOR):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You already have facilitator tier or higher.",
+        )
+
+    existing = await db.execute(
+        select(FacilitatorRequest).where(
+            FacilitatorRequest.user_id == user.id,
+            FacilitatorRequest.status == FacilitatorRequestStatus.PENDING,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You already have a pending facilitator request.",
+        )
+
+    req = FacilitatorRequest(user_id=user.id, reason=payload.reason)
+    db.add(req)
+    await db.flush()
+
+    await log_event(
+        db,
+        event_type=AuditEventType.FACILITATOR_REQUEST_SUBMITTED,
+        target_type="facilitator_request",
+        target_id=req.id,
+        payload={"user_id": str(user.id)},
+        actor_id=user.id,
+    )
+    return req
+
+
+@router.get("/facilitator-request", response_model=FacilitatorRequestOut | None)
+async def get_my_facilitator_request(
+    user: RegisteredUser,
+    db: DB,
+) -> FacilitatorRequest | None:
+    """Return the user's most recent facilitator request (any status), or null."""
+    result = await db.execute(
+        select(FacilitatorRequest)
+        .where(FacilitatorRequest.user_id == user.id)
+        .order_by(FacilitatorRequest.created_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()

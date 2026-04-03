@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Civic Platform</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/nav.js"></script>
+  <style>
+    .request-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: start;
+      padding: 18px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .request-row:last-child { border-bottom: none; }
+    .request-name { font-size: 15px; font-weight: 600; color: #1a1a1a; }
+    .request-email { font-size: 13px; color: #888; margin-top: 2px; }
+    .request-tier {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #888;
+      margin-top: 4px;
+    }
+    .request-reason {
+      font-size: 14px;
+      color: #333;
+      margin-top: 10px;
+      line-height: 1.5;
+      padding-left: 12px;
+      border-left: 3px solid #e0e0e0;
+    }
+    .request-date { font-size: 12px; color: #aaa; margin-top: 6px; }
+    .request-actions { display: flex; gap: 8px; flex-shrink: 0; padding-top: 2px; }
+    .btn-approve {
+      padding: 7px 16px;
+      background: #2e7d32;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+    .btn-approve:hover:not(:disabled) { background: #1b5e20; }
+    .btn-deny {
+      padding: 7px 16px;
+      background: #fff;
+      color: #c62828;
+      border: 1px solid #e57373;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+    .btn-deny:hover:not(:disabled) { background: #fff3f3; }
+    .btn-approve:disabled, .btn-deny:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status-tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .status-approved { background: #e8f5e9; color: #2e7d32; }
+    .status-denied   { background: #fff3f3; color: #c62828; }
+  </style>
+</head>
+<body>
+
+  <div id="nav-placeholder"></div>
+
+  <main class="container" style="padding-top: 32px; padding-bottom: 64px;">
+    <div id="page-content">
+      <div class="loading">Loading…</div>
+    </div>
+  </main>
+
+  <script src="/static/js/utils.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script>
+
+    async function init() {
+      if (!auth.isSignedIn()) {
+        window.location.href = "/signin";
+        return;
+      }
+
+      const content = document.getElementById("page-content");
+
+      let user = auth.getUser();
+      if (!user) {
+        try { user = await getMe(); auth.setUser(user); } catch (_) {}
+      }
+
+      if (!user || user.tier !== "admin") {
+        content.innerHTML = `<div class="error-message">Access denied. Admin only.</div>`;
+        return;
+      }
+
+      content.innerHTML = `
+        <h1 class="page-title">Admin</h1>
+        <div id="requests-section"><div class="loading">Loading requests…</div></div>
+      `;
+
+      loadRequests();
+    }
+
+    async function loadRequests() {
+      const section = document.getElementById("requests-section");
+      try {
+        const requests = await getFacilitatorRequests();
+        renderRequests(section, requests);
+      } catch (err) {
+        section.innerHTML = `<div class="error-message">Could not load requests: ${err.message}</div>`;
+      }
+    }
+
+    function renderRequests(container, requests) {
+      if (requests.length === 0) {
+        container.innerHTML = `
+          <div class="detail-section">
+            <div class="section-heading">Facilitator Requests</div>
+            <div class="empty-state" style="padding: 32px 0;">No pending requests.</div>
+          </div>`;
+        return;
+      }
+
+      const rows = requests.map(r => `
+        <div class="request-row" id="row-${r.id}">
+          <div>
+            <div class="request-name">${escapeHtml(r.user.display_name)}</div>
+            <div class="request-email">${escapeHtml(r.user.email)}</div>
+            <div class="request-tier">Current tier: ${r.user.tier}</div>
+            <div class="request-reason">${escapeHtml(r.reason)}</div>
+            <div class="request-date">Submitted ${timeAgo(r.created_at)}</div>
+          </div>
+          <div class="request-actions">
+            <button class="btn-approve" onclick="handleApprove('${r.id}')">Approve</button>
+            <button class="btn-deny" onclick="handleDeny('${r.id}')">Deny</button>
+          </div>
+        </div>
+      `).join("");
+
+      container.innerHTML = `
+        <div class="detail-section">
+          <div class="section-heading">Facilitator Requests — ${requests.length} pending</div>
+          ${rows}
+        </div>
+      `;
+    }
+
+    async function handleApprove(id) {
+      const row = document.getElementById(`row-${id}`);
+      row.querySelectorAll("button").forEach(b => b.disabled = true);
+      try {
+        await approveFacilitatorRequest(id);
+        row.querySelector(".request-actions").innerHTML =
+          `<span class="status-tag status-approved">Approved</span>`;
+      } catch (err) {
+        row.querySelectorAll("button").forEach(b => b.disabled = false);
+        alert(`Error: ${err.message}`);
+      }
+    }
+
+    async function handleDeny(id) {
+      const row = document.getElementById(`row-${id}`);
+      row.querySelectorAll("button").forEach(b => b.disabled = true);
+      try {
+        await denyFacilitatorRequest(id);
+        row.querySelector(".request-actions").innerHTML =
+          `<span class="status-tag status-denied">Denied</span>`;
+      } catch (err) {
+        row.querySelectorAll("button").forEach(b => b.disabled = false);
+        alert(`Error: ${err.message}`);
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    init();
+  </script>
+
+</body>
+</html>

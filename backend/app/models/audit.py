@@ -30,6 +30,10 @@ class AuditEventType(str, PyEnum):
     VOTE_CAST = "vote_cast"
     # Allocation
     ALLOCATION_DECIDED = "allocation_decided"
+    # Facilitator requests
+    FACILITATOR_REQUEST_SUBMITTED = "facilitator_request_submitted"
+    FACILITATOR_REQUEST_APPROVED = "facilitator_request_approved"
+    FACILITATOR_REQUEST_DENIED = "facilitator_request_denied"
     # Profile
     DISPLAY_NAME_CHANGED = "display_name_changed"
     # LLM (future)

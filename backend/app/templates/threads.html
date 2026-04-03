@@ -13,7 +13,13 @@
   <div id="nav-placeholder"></div>
 
   <main class="container">
-    <h1 class="page-title">Active Discussions</h1>
+    <div style="display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:8px;">
+      <h1 class="page-title" style="margin-bottom:0;">Active Discussions</h1>
+      <a id="create-thread-btn" href="/new-thread"
+         style="display:none; padding:7px 16px; background:#1a1a1a; color:#fff; border-radius:6px; font-size:14px; font-weight:500; text-decoration:none; white-space:nowrap;">
+        + Start a discussion
+      </a>
+    </div>
     <p class="page-subtitle">
       Threads are phase-gated deliberations. Each moves through Open → Deliberating
       → Proposing → Voting → Closed.
@@ -115,6 +121,11 @@
             Could not load threads: ${err.message}
           </div>`;
       }
+    }
+
+    // Show create button for signed-in users
+    if (auth.isSignedIn()) {
+      document.getElementById("create-thread-btn").style.display = "inline-block";
     }
 
     // Run on page load

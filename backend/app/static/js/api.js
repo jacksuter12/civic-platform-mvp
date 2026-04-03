@@ -166,3 +166,41 @@ async function updateDisplayName(displayName) {
     body: JSON.stringify({ display_name: displayName }),
   });
 }
+
+// ===== Threads (create) =====
+
+async function createThread(domainId, title, prompt, context) {
+  return apiFetch("/threads", {
+    method: "POST",
+    body: JSON.stringify({ domain_id: domainId, title, prompt, context }),
+  });
+}
+
+// ===== Facilitator Requests =====
+
+async function submitFacilitatorRequest(reason) {
+  return apiFetch("/auth/facilitator-request", {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+}
+
+async function getMyFacilitatorRequest() {
+  return apiFetch("/auth/facilitator-request");
+}
+
+async function getFacilitatorRequests() {
+  return apiFetch("/admin/facilitator-requests");
+}
+
+async function approveFacilitatorRequest(requestId) {
+  return apiFetch(`/admin/facilitator-requests/${requestId}/approve`, {
+    method: "POST",
+  });
+}
+
+async function denyFacilitatorRequest(requestId) {
+  return apiFetch(`/admin/facilitator-requests/${requestId}/deny`, {
+    method: "POST",
+  });
+}

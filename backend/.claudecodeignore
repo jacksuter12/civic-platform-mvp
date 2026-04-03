@@ -1,0 +1,4 @@
+__pycache__
+.venv
+alembic/versions
+node_modules

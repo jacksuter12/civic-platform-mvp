@@ -10,6 +10,7 @@ from app.models.vote import Vote, VoteChoice
 from app.models.pool import FundingPool
 from app.models.allocation import AllocationDecision
 from app.models.audit import AuditLog, AuditEventType
+from app.models.facilitator_request import FacilitatorRequest, FacilitatorRequestStatus
 
 __all__ = [
     "Base",
@@ -30,4 +31,6 @@ __all__ = [
     "AllocationDecision",
     "AuditLog",
     "AuditEventType",
+    "FacilitatorRequest",
+    "FacilitatorRequestStatus",
 ]

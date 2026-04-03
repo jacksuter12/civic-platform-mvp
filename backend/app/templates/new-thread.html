@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Start a Discussion — Civic Platform</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/nav.js"></script>
+  <style>
+    .form-field textarea {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #d0d0d0;
+      border-radius: 6px;
+      font-size: 15px;
+      font-family: inherit;
+      color: #1a1a1a;
+      background: #fafafa;
+      transition: border-color 0.15s;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    .form-field textarea:focus {
+      outline: none;
+      border-color: #555;
+      background: #fff;
+    }
+    .form-field select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #d0d0d0;
+      border-radius: 6px;
+      font-size: 15px;
+      font-family: inherit;
+      color: #1a1a1a;
+      background: #fafafa;
+    }
+    .form-field select:focus {
+      outline: none;
+      border-color: #555;
+    }
+    .char-count {
+      font-size: 12px;
+      color: #aaa;
+      text-align: right;
+      margin-top: 4px;
+    }
+    .char-count.near-limit { color: #e65100; }
+    .form-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+    }
+    .btn-submit {
+      padding: 10px 28px;
+      background: #1a1a1a;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-submit:hover:not(:disabled) { background: #333; }
+    .btn-submit:disabled { background: #999; cursor: not-allowed; }
+    .form-error {
+      background: #fff3f3;
+      border: 1px solid #ffcdd2;
+      border-radius: 6px;
+      padding: 12px 16px;
+      color: #c62828;
+      margin-bottom: 16px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="nav-placeholder"></div>
+
+  <main class="container" style="padding-top: 32px; padding-bottom: 64px;">
+    <div id="page-content">
+      <div class="loading">Loading…</div>
+    </div>
+  </main>
+
+  <script src="/static/js/utils.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script>
+
+    async function init() {
+      if (!auth.isSignedIn()) {
+        window.location.href = "/signin";
+        return;
+      }
+
+      const content = document.getElementById("page-content");
+      let domains;
+
+      try {
+        domains = await getDomains();
+      } catch (err) {
+        content.innerHTML = `<div class="error-message">Could not load domains: ${err.message}</div>`;
+        return;
+      }
+
+      if (!domains.length) {
+        content.innerHTML = `<div class="error-message">No active domains are available yet.</div>`;
+        return;
+      }
+
+      content.innerHTML = renderForm(domains);
+      setTimeout(() => {
+        wireCharCounter("prompt-input", "prompt-count", 2000);
+        wireCharCounter("context-input", "context-count", 5000);
+      }, 0);
+    }
+
+    function renderForm(domains) {
+      const options = domains
+        .map(d => `<option value="${d.id}">${escapeHtml(d.name)}</option>`)
+        .join("");
+
+      return `
+        <h1 class="page-title">Start a Discussion</h1>
+        <p class="page-subtitle">
+          New threads open in the <strong>Open</strong> phase. A facilitator advances the discussion from there.
+        </p>
+
+        <div class="detail-section" style="margin-top: 24px;">
+          <div id="form-error" class="form-error"></div>
+
+          <form id="create-form" onsubmit="handleSubmit(event)">
+
+            <div class="form-field">
+              <label for="domain-select">
+                Domain
+                <span class="field-hint">— Which area does this discussion belong to?</span>
+              </label>
+              <select id="domain-select" required>${options}</select>
+            </div>
+
+            <div class="form-field">
+              <label for="title-input">
+                Title
+                <span class="field-hint">— 10–200 characters</span>
+              </label>
+              <input
+                id="title-input"
+                type="text"
+                minlength="10"
+                maxlength="200"
+                required
+                placeholder="A clear, specific title for this discussion"
+              >
+            </div>
+
+            <div class="form-field">
+              <label for="prompt-input">
+                Central question
+                <span class="field-hint">— The core question participants will deliberate on. Be specific and non-leading. Minimum 50 characters.</span>
+              </label>
+              <textarea
+                id="prompt-input"
+                rows="4"
+                minlength="50"
+                maxlength="2000"
+                required
+                placeholder="What specific policy question or issue should this group deliberate on?"
+              ></textarea>
+              <div class="char-count" id="prompt-count">0 / 2000</div>
+            </div>
+
+            <div class="form-field">
+              <label for="context-input">
+                Background context
+                <span class="field-hint">— Optional. Relevant facts, history, or framing to help participants engage.</span>
+              </label>
+              <textarea
+                id="context-input"
+                rows="5"
+                maxlength="5000"
+                placeholder="Optional background information…"
+              ></textarea>
+              <div class="char-count" id="context-count">0 / 5000</div>
+            </div>
+
+            <div class="form-footer">
+              <a href="/threads" style="font-size:14px; color:#888;">← Back to discussions</a>
+              <button type="submit" class="btn-submit" id="submit-btn">Create discussion</button>
+            </div>
+
+          </form>
+        </div>
+      `;
+    }
+
+    function wireCharCounter(inputId, countId, max) {
+      const input = document.getElementById(inputId);
+      const counter = document.getElementById(countId);
+      if (!input || !counter) return;
+      const update = () => {
+        const len = input.value.length;
+        counter.textContent = `${len} / ${max}`;
+        counter.className = "char-count" + (len > max * 0.9 ? " near-limit" : "");
+      };
+      input.addEventListener("input", update);
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    async function handleSubmit(e) {
+      e.preventDefault();
+      const btn = document.getElementById("submit-btn");
+      const errEl = document.getElementById("form-error");
+      errEl.style.display = "none";
+
+      const domainId = document.getElementById("domain-select").value;
+      const title = document.getElementById("title-input").value.trim();
+      const prompt = document.getElementById("prompt-input").value.trim();
+      const context = document.getElementById("context-input").value.trim();
+
+      if (prompt.length < 50) {
+        errEl.textContent = "The central question must be at least 50 characters.";
+        errEl.style.display = "block";
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Creating…";
+
+      try {
+        const thread = await createThread(domainId, title, prompt, context);
+        window.location.href = `/thread/${thread.id}`;
+      } catch (err) {
+        errEl.textContent = err.message || "Could not create discussion. Please try again.";
+        errEl.style.display = "block";
+        btn.disabled = false;
+        btn.textContent = "Create discussion";
+      }
+    }
+
+    init();
+  </script>
+
+</body>
+</html>

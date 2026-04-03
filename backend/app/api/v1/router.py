@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1 import (
+    admin,
     allocations,
     audit,
     auth,
@@ -15,6 +16,7 @@ from app.api.v1 import (
 
 api_router = APIRouter()
 
+api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(domains.router, prefix="/domains", tags=["domains"])
 api_router.include_router(threads.router, prefix="/threads", tags=["threads"])

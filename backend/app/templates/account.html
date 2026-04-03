@@ -20,7 +20,65 @@
   <script src="/static/js/api.js"></script>
   <script>
 
-    function renderAccount(user) {
+    function renderFacilitatorSection(user, facReq) {
+      const tierOrder = ["registered", "participant", "facilitator", "admin"];
+      const isFacilitator = tierOrder.indexOf(user.tier) >= tierOrder.indexOf("facilitator");
+
+      if (isFacilitator) {
+        return `
+          <div class="detail-section">
+            <div class="section-heading">Facilitator Status</div>
+            <p class="account-field-desc">
+              You have facilitator access. You can advance thread phases and moderate posts.
+            </p>
+          </div>`;
+      }
+
+      if (facReq && facReq.status === "pending") {
+        return `
+          <div class="detail-section">
+            <div class="section-heading">Facilitator Application</div>
+            <div class="account-feedback account-feedback-success" style="display:block; margin-bottom:0;">
+              Application submitted — we'll review it shortly.
+            </div>
+          </div>`;
+      }
+
+      const deniedNote = (facReq && facReq.status === "denied")
+        ? `<p class="account-limit-warning">Your previous application was not approved. You're welcome to apply again.</p>`
+        : "";
+
+      return `
+        <div class="detail-section">
+          <div class="section-heading">Apply for Facilitator Status</div>
+          <p class="account-field-desc">
+            Facilitators can advance thread phases and moderate posts.
+            Briefly explain why you'd like facilitator access (1–2 sentences).
+          </p>
+          ${deniedNote}
+          <form id="facilitator-form" onsubmit="handleFacilitatorSubmit(event)">
+            <div class="form-field">
+              <label for="facilitator-reason">Why do you want to facilitate?</label>
+              <textarea
+                id="facilitator-reason"
+                rows="3"
+                minlength="10"
+                maxlength="500"
+                required
+                placeholder="Brief explanation…"
+                style="width:100%; padding:9px 12px; border:1px solid #d0d0d0; border-radius:6px; font-family:inherit; font-size:14px; resize:vertical; box-sizing:border-box;"
+              ></textarea>
+            </div>
+            <div id="facilitator-feedback" class="account-feedback" style="display:none"></div>
+            <button type="submit" class="btn-primary" id="facilitator-submit"
+              style="width:auto; padding:8px 20px;">
+              Submit application
+            </button>
+          </form>
+        </div>`;
+    }
+
+    function renderAccount(user, facReq) {
       const remaining = user.display_name_changes_remaining;
       const used = user.display_name_changes_this_month;
       const atLimit = remaining === 0;
@@ -31,6 +89,8 @@
 
       return `
         <h1 class="page-title">Account</h1>
+
+        ${renderFacilitatorSection(user, facReq)}
 
         <div class="detail-section">
           <div class="section-heading">Profile</div>
@@ -92,6 +152,33 @@
         .replace(/'/g, "&#039;");
     }
 
+    async function handleFacilitatorSubmit(e) {
+      e.preventDefault();
+      const btn = document.getElementById("facilitator-submit");
+      const feedback = document.getElementById("facilitator-feedback");
+      const reason = document.getElementById("facilitator-reason").value.trim();
+
+      feedback.style.display = "none";
+      btn.disabled = true;
+      btn.textContent = "Submitting…";
+
+      try {
+        await submitFacilitatorRequest(reason);
+        // Replace the form section with a pending confirmation
+        btn.closest(".detail-section").innerHTML = `
+          <div class="section-heading">Facilitator Application</div>
+          <div class="account-feedback account-feedback-success" style="display:block; margin-bottom:0;">
+            Application submitted — we'll review it shortly.
+          </div>`;
+      } catch (err) {
+        feedback.textContent = err.message || "Could not submit application. Please try again.";
+        feedback.className = "account-feedback account-feedback-error";
+        feedback.style.display = "block";
+        btn.disabled = false;
+        btn.textContent = "Submit application";
+      }
+    }
+
     async function handleDisplayNameSubmit(e) {
       e.preventDefault();
       const input = document.getElementById("display-name-input");
@@ -148,7 +235,15 @@
       try {
         const user = await getMe();
         auth.setUser(user);
-        container.innerHTML = renderAccount(user);
+
+        // Fetch facilitator request status for users below facilitator tier
+        let facReq = null;
+        const tierOrder = ["registered", "participant", "facilitator", "admin"];
+        if (tierOrder.indexOf(user.tier) < tierOrder.indexOf("facilitator")) {
+          try { facReq = await getMyFacilitatorRequest(); } catch (_) {}
+        }
+
+        container.innerHTML = renderAccount(user, facReq);
       } catch (err) {
         container.innerHTML = `
           <div class="error-message">Could not load account: ${err.message}</div>

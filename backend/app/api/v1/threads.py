@@ -114,7 +114,7 @@ async def list_threads(
 @router.post("", response_model=ThreadSummary, status_code=status.HTTP_201_CREATED)
 async def create_thread(
     payload: ThreadCreate,
-    user: ParticipantUser,
+    user: RegisteredUser,
     db: DB,
 ) -> ThreadSummary:
     # Validate domain exists and is active
