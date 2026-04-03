@@ -29,8 +29,24 @@ const auth = {
     localStorage.removeItem(this.SUPABASE_SESSION_KEY);
   },
 
+  isTokenExpired() {
+    const token = this.getToken();
+    if (!token) return true;
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload.exp ? payload.exp < Math.floor(Date.now() / 1000) : false;
+    } catch (_) {
+      return true;
+    }
+  },
+
   isSignedIn() {
-    return !!this.getToken();
+    if (!this.getToken()) return false;
+    if (this.isTokenExpired()) {
+      this.clearToken();
+      return false;
+    }
+    return true;
   },
 
   /**
