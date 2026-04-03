@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account — Civic Platform</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="site-title">← Active Discussions</a>
+      <div class="nav-auth" id="nav-auth">
+        <a href="/signin">Sign in</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" id="account-container">
+    <div class="loading">Loading account…</div>
+  </main>
+
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/utils.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script>
+
+    async function updateNav(user) {
+      const navEl = document.getElementById("nav-auth");
+      if (!auth.isSignedIn()) return;
+      navEl.innerHTML = `
+        <span>Power to the People, ${user ? user.display_name : "friend"}!</span>
+        &nbsp;·&nbsp;
+        <a href="#" onclick="auth.clearToken(); window.location.href='/'">Sign out</a>
+      `;
+    }
+
+    function renderAccount(user) {
+      const remaining = user.display_name_changes_remaining;
+      const used = user.display_name_changes_this_month;
+      const atLimit = remaining === 0;
+
+      const limitNote = atLimit
+        ? `<p class="account-limit-warning">You've used all 3 display name changes for this 30-day period.</p>`
+        : `<p class="account-limit-note">${remaining} change${remaining !== 1 ? "s" : ""} remaining this month (${used}/3 used).</p>`;
+
+      return `
+        <h1 class="page-title">Account</h1>
+
+        <div class="detail-section">
+          <div class="section-heading">Profile</div>
+
+          <div class="account-field">
+            <span class="account-field-label">Email</span>
+            <span class="account-field-value">${escapeHtml(user.email)}</span>
+          </div>
+
+          <div class="account-field">
+            <span class="account-field-label">Member since</span>
+            <span class="account-field-value">${new Date(user.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</span>
+          </div>
+
+          <div class="account-field">
+            <span class="account-field-label">Role</span>
+            <span class="account-field-value">${capitalize(user.tier)}</span>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <div class="section-heading">Display Name</div>
+          <p class="account-field-desc">
+            This is how you appear in discussions. Choose a first name or handle — not a full name.
+          </p>
+
+          <form id="display-name-form" onsubmit="handleDisplayNameSubmit(event)">
+            <div class="form-field">
+              <label for="display-name-input">Display name</label>
+              <input
+                id="display-name-input"
+                type="text"
+                value="${escapeHtml(user.display_name)}"
+                minlength="2"
+                maxlength="60"
+                autocomplete="off"
+                ${atLimit ? "disabled" : ""}
+              >
+            </div>
+            ${limitNote}
+            <div id="display-name-feedback" class="account-feedback" style="display:none"></div>
+            <button
+              type="submit"
+              class="btn-primary account-save-btn"
+              id="display-name-submit"
+              ${atLimit ? "disabled" : ""}
+            >Save display name</button>
+          </form>
+        </div>
+      `;
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    async function handleDisplayNameSubmit(e) {
+      e.preventDefault();
+      const input = document.getElementById("display-name-input");
+      const btn = document.getElementById("display-name-submit");
+      const feedback = document.getElementById("display-name-feedback");
+      const newName = input.value.trim();
+
+      feedback.style.display = "none";
+      feedback.className = "account-feedback";
+
+      if (!newName || newName.length < 2) {
+        showFeedback("Display name must be at least 2 characters.", "error");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Saving…";
+
+      try {
+        const updated = await updateDisplayName(newName);
+        auth.setUser(updated);
+        // Re-render with fresh data
+        document.getElementById("account-container").innerHTML = renderAccount(updated);
+        updateNav(updated);
+        // Show success in freshly rendered feedback
+        const newFeedback = document.getElementById("display-name-feedback");
+        if (newFeedback) {
+          newFeedback.textContent = "Display name updated.";
+          newFeedback.className = "account-feedback account-feedback-success";
+          newFeedback.style.display = "block";
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = "Save display name";
+        showFeedback(err.message || "Could not save. Please try again.", "error");
+      }
+    }
+
+    function showFeedback(msg, type) {
+      const el = document.getElementById("display-name-feedback");
+      if (!el) return;
+      el.textContent = msg;
+      el.className = `account-feedback account-feedback-${type}`;
+      el.style.display = "block";
+    }
+
+    async function init() {
+      const container = document.getElementById("account-container");
+
+      if (!auth.isSignedIn()) {
+        window.location.href = "/signin";
+        return;
+      }
+
+      try {
+        const user = await getMe();
+        auth.setUser(user);
+        updateNav(user);
+        container.innerHTML = renderAccount(user);
+      } catch (err) {
+        container.innerHTML = `
+          <div class="error-message">Could not load account: ${err.message}</div>
+          <p style="margin-top:16px"><a href="/">← Back to discussions</a></p>
+        `;
+      }
+    }
+
+    init();
+  </script>
+
+</body>
+</html>

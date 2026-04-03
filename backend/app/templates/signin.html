@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In — Civic Platform</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="site-title">← Civic Platform</a>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- State: sign-in / create-account form -->
+    <div id="state-form">
+      <div class="auth-mode-toggle">
+        <button class="auth-mode-btn active" id="btn-signin"   onclick="setMode('signin')">Sign in</button>
+        <button class="auth-mode-btn"        id="btn-register" onclick="setMode('register')">Create account</button>
+      </div>
+
+      <form id="auth-form" class="auth-form" novalidate>
+        <!-- Sign in -->
+        <div id="mode-signin">
+          <p class="auth-form-description">Sign in to your account.</p>
+          <div class="form-field">
+            <label for="si-email">Email</label>
+            <input type="email" id="si-email" autocomplete="email" placeholder="you@example.com">
+          </div>
+          <div class="form-field">
+            <label for="si-password">Password</label>
+            <div class="password-wrapper">
+              <input type="password" id="si-password" autocomplete="current-password" placeholder="••••••••">
+              <button type="button" class="password-toggle" onclick="togglePassword('si-password', this)" aria-label="Show password">👁</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Create account -->
+        <div id="mode-register" style="display:none">
+          <p class="auth-form-description">Create an account to join deliberations.</p>
+          <div class="form-field">
+            <label for="reg-email">Email</label>
+            <input type="email" id="reg-email" autocomplete="email" placeholder="you@example.com">
+          </div>
+          <div class="form-field">
+            <label for="reg-password">Password <span class="field-hint">— 8 characters minimum</span></label>
+            <div class="password-wrapper">
+              <input type="password" id="reg-password" autocomplete="new-password" placeholder="••••••••">
+              <button type="button" class="password-toggle" onclick="togglePassword('reg-password', this)" aria-label="Show password">👁</button>
+            </div>
+          </div>
+          <div class="form-field">
+            <label for="reg-display-name">Display name <span class="field-hint">— 2–60 characters · no full names</span></label>
+            <input type="text" id="reg-display-name" minlength="2" maxlength="60"
+                   placeholder="e.g. Jordan or J. Rivera">
+          </div>
+        </div>
+
+        <div id="form-error" class="error-message" style="display:none"></div>
+        <button type="submit" class="btn-primary" id="submit-btn">Sign in</button>
+        <p id="forgot-link" class="forgot-link">
+          <a href="#" onclick="showState('state-forgot'); return false;">Forgot password?</a>
+        </p>
+      </form>
+    </div>
+
+    <!-- State: forgot password -->
+    <div id="state-forgot" style="display:none">
+      <h1 class="page-title">Reset your password</h1>
+      <p class="page-subtitle">Enter your email and we'll send you a reset link.</p>
+      <form class="auth-form" onsubmit="sendRecovery(event)">
+        <div class="form-field">
+          <label for="recovery-email">Email</label>
+          <input type="email" id="recovery-email" autocomplete="email" placeholder="you@example.com" required>
+        </div>
+        <div id="recovery-error" class="error-message" style="display:none"></div>
+        <button type="submit" class="btn-primary" id="recovery-btn">Send reset link</button>
+      </form>
+      <p style="font-size:13px; color:#888; margin-top:16px">
+        <a href="#" onclick="showState('state-form'); return false;">← Back to sign in</a>
+      </p>
+    </div>
+
+    <!-- State: recovery email sent -->
+    <div id="state-recovery-sent" style="display:none">
+      <div class="auth-confirm">
+        <div class="auth-confirm-icon">✉</div>
+        <h1 class="page-title">Check your email</h1>
+        <p class="page-subtitle">
+          We sent a password reset link to <strong id="recovery-sent-email"></strong>.
+          Click it to set a new password.
+        </p>
+        <p style="font-size:13px; color:#888; margin-top:24px">
+          <a href="#" onclick="showState('state-form'); return false;">← Back to sign in</a>
+        </p>
+      </div>
+    </div>
+
+    <!-- State: set new password (after clicking recovery link) -->
+    <div id="state-new-password" style="display:none">
+      <h1 class="page-title">Set a new password</h1>
+      <p class="page-subtitle">Choose a password for your account.</p>
+      <form class="auth-form" onsubmit="submitNewPassword(event)">
+        <div class="form-field">
+          <label for="new-password">New password <span class="field-hint">— 8 characters minimum</span></label>
+          <div class="password-wrapper">
+            <input type="password" id="new-password" autocomplete="new-password" placeholder="••••••••" required>
+            <button type="button" class="password-toggle" onclick="togglePassword('new-password', this)" aria-label="Show password">👁</button>
+          </div>
+        </div>
+        <div id="new-password-error" class="error-message" style="display:none"></div>
+        <button type="submit" class="btn-primary" id="new-password-btn">Set password</button>
+      </form>
+    </div>
+
+    <!-- State: confirm email (after sign-up, before first login) -->
+    <div id="state-confirm-email" style="display:none">
+      <div class="auth-confirm">
+        <div class="auth-confirm-icon">✉</div>
+        <h1 class="page-title">Confirm your email</h1>
+        <p class="page-subtitle">
+          We sent a confirmation link to <strong id="confirm-email"></strong>.
+          Click it to activate your account, then come back here to sign in.
+        </p>
+        <p style="font-size:13px; color:#888; margin-top:24px">
+          Didn't get it? Check your spam folder, or
+          <a href="/signin" onclick="setMode('register'); showState('form'); return false;">try again</a>.
+        </p>
+      </div>
+    </div>
+
+    <!-- State: MFA / TOTP challenge -->
+    <div id="state-mfa" style="display:none">
+      <h1 class="page-title">Two-factor authentication</h1>
+      <p class="page-subtitle">Enter the 6-digit code from your authenticator app.</p>
+      <div class="mfa-form">
+        <input type="text" id="totp-code" class="totp-input"
+               inputmode="numeric" pattern="[0-9]*"
+               maxlength="6" autocomplete="one-time-code"
+               placeholder="000000">
+        <div id="mfa-error" class="error-message" style="display:none"></div>
+        <button class="btn-primary" id="mfa-btn" onclick="submitMfa()">Verify</button>
+      </div>
+      <p style="font-size:13px; color:#888; margin-top:16px">
+        <a href="/signin">← Use a different account</a>
+      </p>
+    </div>
+
+    <!-- State: processing -->
+    <div id="state-success" style="display:none">
+      <div class="auth-confirm">
+        <div class="loading" style="padding:48px 0">Signing you in…</div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/static/js/config.js"></script>
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/utils.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script>
+    // ===== Password visibility toggle =====
+
+    function togglePassword(inputId, btn) {
+      const input = document.getElementById(inputId);
+      const show  = input.type === "password";
+      input.type  = show ? "text" : "password";
+      btn.textContent  = show ? "🙈" : "👁";
+      btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+    }
+
+    // ===== State =====
+
+    let currentMode = "signin";
+    let mfaFactorId    = null;
+    let mfaChallengeId = null;
+
+    const ALL_STATES = [
+      "state-form", "state-forgot", "state-recovery-sent",
+      "state-new-password", "state-confirm-email", "state-mfa", "state-success",
+    ];
+
+    function showState(state) {
+      ALL_STATES.forEach(id => {
+        document.getElementById(id).style.display = id === state ? "" : "none";
+      });
+      // Only show forgot link when on sign-in tab
+      const forgotLink = document.getElementById("forgot-link");
+      if (forgotLink) forgotLink.style.display =
+        (state === "state-form" && currentMode === "signin") ? "" : "none";
+    }
+
+    async function sendRecovery(e) {
+      e.preventDefault();
+      const email = document.getElementById("recovery-email").value.trim();
+      const btn   = document.getElementById("recovery-btn");
+      const err   = document.getElementById("recovery-error");
+      err.style.display = "none";
+      btn.disabled = true;
+      btn.textContent = "Sending…";
+      try {
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin + "/signin",
+        });
+        if (error) throw new Error(error.message);
+        document.getElementById("recovery-sent-email").textContent = email;
+        showState("state-recovery-sent");
+      } catch (ex) {
+        err.textContent = ex.message;
+        err.style.display = "";
+        btn.disabled = false;
+        btn.textContent = "Send reset link";
+      }
+    }
+
+    async function submitNewPassword(e) {
+      e.preventDefault();
+      const password = document.getElementById("new-password").value;
+      const btn      = document.getElementById("new-password-btn");
+      const err      = document.getElementById("new-password-error");
+      err.style.display = "none";
+      if (password.length < 8) {
+        err.textContent = "Password must be at least 8 characters.";
+        err.style.display = "";
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = "Saving…";
+      try {
+        const { error } = await supabaseClient.auth.updateUser({ password });
+        if (error) throw new Error(error.message);
+        // Password set — fetch session and complete sign-in
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        await completeSignIn(session);
+      } catch (ex) {
+        err.textContent = ex.message;
+        err.style.display = "";
+        btn.disabled = false;
+        btn.textContent = "Set password";
+      }
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById("mode-signin").style.display   = mode === "signin"   ? "" : "none";
+      document.getElementById("mode-register").style.display = mode === "register" ? "" : "none";
+      document.getElementById("btn-signin").classList.toggle("active",   mode === "signin");
+      document.getElementById("btn-register").classList.toggle("active", mode === "register");
+      document.getElementById("submit-btn").textContent = mode === "signin" ? "Sign in" : "Create account";
+      document.getElementById("form-error").style.display = "none";
+    }
+
+    function showFormError(msg) {
+      const el = document.getElementById("form-error");
+      el.textContent = msg;
+      el.style.display = "";
+    }
+
+    // ===== Complete sign-in: sync JWT + user to our DB =====
+
+    async function completeSignIn(session) {
+      auth.setToken(session.access_token);
+
+      let user;
+      try {
+        user = await apiFetch("/auth/me");
+      } catch (_) {
+        // First sign-in after email confirmation — create DB record
+        const displayName = localStorage.getItem("civic_pending_display_name")
+                            || session.user.email.split("@")[0];
+        localStorage.removeItem("civic_pending_display_name");
+        try {
+          user = await apiFetch("/auth/register", {
+            method: "POST",
+            body: JSON.stringify({
+              supabase_uid: session.user.id,
+              email:        session.user.email,
+              display_name: displayName,
+            }),
+          });
+        } catch (regErr) {
+          if (regErr.message === "User already registered.") {
+            user = await apiFetch("/auth/me");
+          } else {
+            throw regErr;
+          }
+        }
+      }
+
+      auth.setUser(user);
+      showState("state-success"); // only transition to spinner once everything succeeded
+      window.location.href = "/";
+    }
+
+    // ===== MFA: trigger challenge, then verify =====
+
+    async function startMfaChallenge(session) {
+      auth.setToken(session.access_token);
+      const { data: factors } = await supabaseClient.auth.mfa.listFactors();
+      const totp = factors?.totp?.[0];
+      if (!totp) {
+        // No factor enrolled — skip MFA
+        await completeSignIn(session);
+        return;
+      }
+
+      const { data: challenge, error } = await supabaseClient.auth.mfa.challenge({
+        factorId: totp.id,
+      });
+      if (error) throw new Error(error.message);
+
+      mfaFactorId    = totp.id;
+      mfaChallengeId = challenge.id;
+      showState("state-mfa");
+      document.getElementById("totp-code").focus();
+    }
+
+    async function submitMfa() {
+      const code = document.getElementById("totp-code").value.trim();
+      const btn  = document.getElementById("mfa-btn");
+      const err  = document.getElementById("mfa-error");
+      err.style.display = "none";
+      btn.disabled = true;
+      btn.textContent = "Verifying…";
+
+      try {
+        const { error } = await supabaseClient.auth.mfa.verify({
+          factorId:    mfaFactorId,
+          challengeId: mfaChallengeId,
+          code,
+        });
+        if (error) throw new Error(error.message);
+
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        await completeSignIn(session);
+      } catch (e) {
+        err.textContent = e.message;
+        err.style.display = "";
+        btn.disabled = false;
+        btn.textContent = "Verify";
+      }
+    }
+
+    // Allow Enter key in TOTP input
+    document.getElementById("totp-code").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); submitMfa(); }
+    });
+
+    // ===== Form submit =====
+
+    (async () => {
+      if (auth.isSignedIn()) { window.location.href = "/"; return; }
+
+      // Detect Supabase redirect (?code= for recovery or PKCE, #access_token for implicit)
+      const urlCode   = new URLSearchParams(window.location.search).get("code");
+      const hashToken = window.location.hash.includes("access_token");
+
+      if (urlCode || hashToken) {
+        showState("state-success");
+        let handled = false;
+
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+          if (handled) return;
+          if (event === "PASSWORD_RECOVERY") {
+            handled = true;
+            showState("state-new-password");
+          } else if (event === "SIGNED_IN" && session) {
+            handled = true;
+            try { await completeSignIn(session); }
+            catch (err) { showState("state-form"); showFormError("Sign-in failed: " + err.message); }
+          }
+        });
+
+        // Check immediately in case SDK already resolved synchronously
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!handled && session) {
+          handled = true;
+          try { await completeSignIn(session); }
+          catch (err) { showState("state-form"); showFormError("Sign-in failed: " + err.message); }
+        }
+        return;
+      }
+
+      document.getElementById("auth-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("submit-btn");
+        document.getElementById("form-error").style.display = "none";
+        btn.disabled = true;
+        btn.textContent = "Please wait…";
+
+        try {
+          if (currentMode === "signin") {
+            const email    = document.getElementById("si-email").value.trim();
+            const password = document.getElementById("si-password").value;
+            if (!email || !password) throw new Error("Please fill in both fields.");
+
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) {
+              // Supabase returns the same error for wrong password and unknown email
+              // to prevent account enumeration — we can't distinguish them.
+              const isCredentialError = error.message.toLowerCase().includes("invalid login");
+              throw new Error(
+                isCredentialError
+                  ? "Email or password not recognised. Check for typos, or use 'Forgot password?' to reset it. If you don't have an account yet, use 'Create account'."
+                  : error.message
+              );
+            }
+
+            // Check whether MFA verification is required
+            const { data: aal } = await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
+            if (aal.nextLevel === "aal2" && aal.nextLevel !== aal.currentLevel) {
+              await startMfaChallenge(data.session);
+            } else {
+              await completeSignIn(data.session);
+            }
+
+          } else {
+            // Create account
+            const email       = document.getElementById("reg-email").value.trim();
+            const password    = document.getElementById("reg-password").value;
+            const displayName = document.getElementById("reg-display-name").value.trim();
+            if (!email || !password) throw new Error("Please fill in your email and password.");
+            if (password.length < 8)  throw new Error("Password must be at least 8 characters.");
+            if (!displayName)         throw new Error("Please enter a display name.");
+
+            localStorage.setItem("civic_pending_display_name", displayName);
+
+            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+            if (error) throw new Error(error.message);
+
+            if (!data.session) {
+              // Supabase returns session:null for two reasons:
+              // 1. Email confirmation required (new account — check inbox)
+              // 2. Email already exists — Supabase silently no-ops and sends a
+              //    magic link instead of applying the new password.
+              // Distinguish by checking identities: existing accounts have them.
+              const isExisting = data.user?.identities?.length === 0;
+              if (isExisting) {
+                localStorage.removeItem("civic_pending_display_name");
+                throw new Error(
+                  "An account with that email already exists. " +
+                  "Sign in instead, or use Forgot password to set a new one."
+                );
+              }
+              // Genuine new account — waiting for confirmation
+              document.getElementById("confirm-email").textContent = email;
+              showState("state-confirm-email");
+              return;
+            }
+
+            // Email confirmation disabled — session returned immediately
+            await completeSignIn(data.session);
+          }
+        } catch (err) {
+          showFormError(err.message);
+          btn.disabled = false;
+          btn.textContent = currentMode === "signin" ? "Sign in" : "Create account";
+        }
+      });
+    })();
+  </script>
+
+</body>
+</html>
