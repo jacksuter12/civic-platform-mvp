@@ -143,7 +143,7 @@
           <div class="stat-label">of Americans say the healthcare system needs major changes or a complete overhaul</div>
           <div class="stat-bar-track"><div class="stat-bar-fill stat-bar-agree" style="width: 89%"></div></div>
           <div class="stat-breakdown"><span><strong>87%</strong> Republicans</span><span><strong>91%</strong> Democrats</span><span><strong>88%</strong> Independents</span></div>
-          <div class="stat-insight">Rare cross-partisan supermajority agreement on the diagnosis. The disagreement is about the solution — not whether there is a problem.</div>
+          <div class="stat-insight"></div>
         </div>
         <div class="step-nav"><span class="step-counter">1 of 5</span><button class="next-btn" id="next-1" disabled onclick="nextStep(1)">Continue →</button></div>
       </div>
@@ -163,7 +163,7 @@
           <div class="stat-label">of Americans support Medicare negotiating drug prices directly</div>
           <div class="stat-bar-track"><div class="stat-bar-fill stat-bar-agree" style="width: 83%"></div></div>
           <div class="stat-breakdown"><span><strong>78%</strong> Republicans</span><span><strong>91%</strong> Democrats</span><span><strong>81%</strong> Independents</span></div>
-          <div class="stat-insight">One of the highest cross-partisan agreement rates on any policy question. Yet it took until 2022 for limited negotiation to become law — against significant pharmaceutical industry opposition.</div>
+          <div class="stat-insight"></div>
         </div>
         <div class="step-nav"><span class="step-counter">2 of 5</span><button class="next-btn" id="next-2" disabled onclick="nextStep(2)">Continue →</button></div>
       </div>
@@ -184,7 +184,7 @@
           <div class="stat-label">Americans split roughly evenly across these approaches</div>
           <div class="stat-bar-track"><div class="stat-bar-fill stat-bar-split" style="width: 45%"></div></div>
           <div class="stat-breakdown"><span><strong>~27%</strong> Universal</span><span><strong>~33%</strong> Public option</span><span><strong>~24%</strong> Private-led</span><span><strong>~16%</strong> Employer</span></div>
-          <div class="stat-insight">This is the real disagreement — not whether healthcare should be better, but the mechanism. And this is exactly the kind of question that needs structured deliberation, not a poll.</div>
+          <div class="stat-insight"></div>
         </div>
         <div class="step-nav"><span class="step-counter">3 of 5</span><button class="next-btn" id="next-3" disabled onclick="nextStep(3)">Continue →</button></div>
       </div>
@@ -203,9 +203,7 @@
         <div class="stat-reveal" id="stat-4">
           <div class="stat-number stat-split">All of the above</div>
           <div class="stat-label" style="margin-bottom:16px">Research suggests each of these is a real factor — and they're connected.</div>
-          <div class="stat-insight" style="border-top:none; padding-top:0; margin-top:0">
-            The pharmaceutical industry spent <strong>$373M on lobbying in 2022</strong> — the most of any industry. But lobbying works partly because diffuse citizen preferences have no organized countervailing force. The coordination problem makes the money problem worse. That's the gap this platform is designed to close.
-          </div>
+          <div class="stat-insight" style="border-top:none; padding-top:0; margin-top:0"></div>
         </div>
         <div class="step-nav"><span class="step-counter">4 of 5</span><button class="next-btn" id="next-4" disabled onclick="nextStep(4)">Continue →</button></div>
       </div>
@@ -221,9 +219,7 @@
           <button class="answer-btn" data-value="skeptical" onclick="selectAnswer(this, 5)"><span class="answer-key">C</span><span class="answer-text">Skeptical — I've heard this before and nothing changes</span></button>
         </div>
         <div class="stat-reveal" id="stat-5">
-          <div class="stat-insight" style="border-top:none; padding-top:0; margin-top:0; font-style:normal; color: var(--ink)">
-            That skepticism is rational. Most civic platforms produce conversation, not outcomes. This one is designed differently — with a public audit log that makes every decision verifiable, and a lobbyist who acts on the result. We're building it in public. You can watch.
-          </div>
+          <div class="stat-insight" style="border-top:none; padding-top:0; margin-top:0; font-style:normal; color: var(--ink)"></div>
         </div>
         <div class="step-nav"><span class="step-counter">5 of 5</span><button class="next-btn" id="next-5" disabled onclick="showResult()">See results →</button></div>
       </div>
@@ -299,12 +295,48 @@
     const totalSteps = 5;
     let answers = {};
 
+    const INSIGHTS = {
+      1: {
+        yes: "You're with the supermajority — 89% of Americans, including 87% of Republicans and 91% of Democrats, say the system needs major changes. The striking thing isn't the agreement. It's that this consensus hasn't translated into policy. That gap between what people want and what passes is the coordination problem.",
+        somewhat: "Sitting between 'broken' and 'fine' is a coherent position — the system works for many people but fails others badly. Worth knowing: 89% of Americans say major changes are needed. What separates your view from theirs is probably which failures you're weighing and how you'd trade off disruption against improvement. Deliberation is designed to surface exactly that distinction.",
+        no: "You're in the 11% — which makes your view genuinely interesting here. People who say the system works tend to either be insured and healthy, or skeptical of government alternatives rather than satisfied with the status quo. Those are two very different positions. Deliberation would surface that distinction fast, and it would matter for what solutions the group could actually reach."
+      },
+      2: {
+        yes: "You're with 83% of Americans on this, including 78% of Republicans. The striking thing isn't the level of support — it's that it took until 2022 for even limited negotiation to become law, against $373M in pharmaceutical lobbying. Majority preference and political outcome are not the same thing. That gap is what this platform is designed to close.",
+        limited: "The 'limited set' approach is actually what the 2022 Inflation Reduction Act did — starting with 10 drugs. Whether that's a workable first step or a watered-down compromise is exactly the kind of question deliberation works through. The mechanism matters as much as the principle, and polling can't get there.",
+        no: "The innovation concern is real and not frivolous — drug R&D is expensive and uncertain, and prices fund future research. But 83% of Americans don't accept it as sufficient reason to leave prices uncontrolled. The deliberation question is whether that concern can be addressed structurally — tiered negotiation, patent reform, innovation credits — or whether it's fundamentally incompatible with any price control."
+      },
+      3: {
+        federal: "Universal coverage is the most transformative position and the most contested. About 27% of Americans share it. The honest challenge isn't whether it's desirable — it's the transition: 160 million people get coverage through employers, and displacing that without disruption is an unsolved design problem. Deliberation would have to work through that, not around it.",
+        mixed: "The public option is the plurality position, and also the least specified one. 'Public option' can mean a lot of things — what it can do that private insurance can't, how it's priced, who administers it. The details determine whether it's transformative or marginal. That gap between the label and the policy is exactly what deliberation is built to navigate.",
+        private: "A private-led approach with a government safety net has about 24% support — it's not a fringe position. It reflects real skepticism about government efficiency and real concern about innovation. The design challenge: defining the safety net large enough to actually catch people tends to push this position closer to a public option than it starts. That tension is worth deliberating honestly.",
+        employer: "The employer-based system is the status quo, and its structural flaw is job-lock: coverage tied to employment means losing your job at your worst moment. Whether that's a fixable design flaw or a fundamental contradiction is a question deliberation would surface quickly — and the answer shapes every other reform option on the table."
+      },
+      4: {
+        industry: "Industry lobbying is real — pharma spent $373M in 2022, the most of any industry. But making it the primary explanation can become a dead end: if the only solution is 'get money out of politics,' you've named the problem without a path. Deliberation asks a harder question: given the lobbying environment as it exists, what can organized citizens actually do to shift the balance?",
+        coordination: "This is the coordination problem — and it's the one this platform is specifically designed to address. Diffuse majority preferences lose to concentrated minority interests not because voters are uninformed, but because they have no mechanism to act together with the same intensity as organized money. You've diagnosed the gap accurately. The question is whether structured deliberation can close it.",
+        complexity: "Complexity is an underrated answer. Agreement on 'lower drug prices' dissolves fast when you ask 'how?' — caps, negotiation, importation, patent reform, and reference pricing all have different effects on different drugs and different patients. A poll can capture 'yes, negotiate,' but only deliberation can work through which mechanism, for which drugs, with which safeguards.",
+        politicians: "Partisan capture is real, but it has a cause: politicians respond to the organized and intense, not the diffuse and moderate. The 83% who support drug price negotiation aren't an organized constituency — they're a majority with no common channel. Whether structured deliberation can create that channel, with enough intensity to compete with partisan pressure, is what this platform is testing."
+      },
+      5: {
+        yes: "Good — and that's a real commitment, not just a click. The platform is live and will need participants willing to go through a full deliberation cycle, including phases where the group heads somewhere you didn't expect. That's where the legitimacy of the process actually gets tested. The <a href='/how-it-works' style='color:var(--accent)'>how it works</a> page has the specifics.",
+        maybe: "That's exactly the right response to a new institution. The <a href='/how-it-works' style='color:var(--accent)'>how it works</a> page has the specifics — phase-gated threads, structured signals, a public audit log, and a lobbyist who acts on the result. The question worth sitting with: what would you need to see to move from 'maybe' to 'yes'? That bar is probably the right design target for this platform.",
+        skeptical: "Healthy skepticism. Most civic platforms produce conversation, not outcomes — the history of 'digital democracy' experiments is mostly underwhelming. What's structurally different here is a public audit log that makes every decision independently verifiable, and an execution layer that connects deliberation to actual political action. The platform is being built in public. You can watch."
+      }
+    };
+
     function selectAnswer(btn, step) {
       document.getElementById('step-' + step).querySelectorAll('.answer-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
       answers[step] = btn.dataset.value;
       const stat = document.getElementById('stat-' + step);
-      if (stat) stat.classList.add('visible');
+      if (stat) {
+        stat.classList.add('visible');
+        const insightEl = stat.querySelector('.stat-insight');
+        if (insightEl && INSIGHTS[step] && INSIGHTS[step][answers[step]]) {
+          insightEl.innerHTML = INSIGHTS[step][answers[step]];
+        }
+      }
       const nextBtn = document.getElementById('next-' + step);
       if (nextBtn) nextBtn.disabled = false;
     }
