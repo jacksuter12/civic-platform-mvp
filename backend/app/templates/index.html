@@ -384,6 +384,273 @@
       margin-top: 24px;
       max-width: 680px;
     }
+
+    /* ===== Skeptic section ===== */
+    .skeptic-section {
+      margin: 0;
+      padding: 2rem;
+      background: #1a1f2e;
+      border-radius: 12px;
+      border-left: 4px solid #5b8dd9;
+    }
+    .skeptic-section__heading {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #e8e8e8;
+      margin-bottom: 1rem;
+    }
+    .skeptic-section__text {
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: #9ca3af;
+      margin-bottom: 0.75rem;
+    }
+    .skeptic-section__contrast {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-top: 1.5rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid #2d3348;
+    }
+    .contrast-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .contrast-item__label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #4b5563;
+    }
+    .contrast-item__value {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    .contrast-item--bad .contrast-item__value { color: #4b5563; }
+    .contrast-item--good .contrast-item__value { color: #5b8dd9; }
+    .contrast-item__arrow { font-size: 1.25rem; color: #4b5563; }
+
+    /* ===== Institution narrative ===== */
+    .institution-narrative {
+      margin: 2rem 0 0;
+      padding: 2rem;
+      background: #1a1f2e;
+      border-radius: 12px;
+      border: 1px solid #2d3348;
+    }
+    .institution-narrative__heading {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #e8e8e8;
+      margin-bottom: 1.25rem;
+    }
+    .institution-narrative__content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      align-items: start;
+    }
+    .institution-narrative__text p {
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: #9ca3af;
+      margin-bottom: 0.75rem;
+    }
+    .institution-diagram__label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #4b5563;
+      margin-bottom: 0.75rem;
+    }
+    .institution-diagram__items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .institution-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0.6rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid #2d3348;
+      background: #0f1117;
+      text-align: center;
+      min-width: 80px;
+    }
+    .institution-item--new {
+      border-color: #5b8dd9;
+      background: #0f1a2e;
+    }
+    .institution-item__icon { font-size: 1.25rem; }
+    .institution-item__name {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #e8e8e8;
+      margin-top: 0.25rem;
+    }
+    .institution-item__role { font-size: 0.65rem; color: #6b7280; }
+    .institution-diagram__caption {
+      font-size: 0.78rem;
+      color: #4b5563;
+      font-style: italic;
+    }
+    @media (max-width: 768px) {
+      .institution-narrative__content { grid-template-columns: 1fr; }
+    }
+
+    /* ===== Quiz CTA banner ===== */
+    .quiz-cta {
+      margin: 0;
+      padding: 2.5rem;
+      background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%);
+      border-radius: 12px;
+      text-align: center;
+      color: white;
+    }
+    .quiz-cta__question {
+      font-size: 1.6rem;
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 0.75rem;
+    }
+    .quiz-cta__question em { font-style: italic; color: #93c5fd; }
+    .quiz-cta__subtext {
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: #bfdbfe;
+      max-width: 520px;
+      margin: 0 auto 1.5rem auto;
+    }
+    .quiz-cta__button {
+      display: inline-block;
+      background: white;
+      color: #1e3a5f;
+      font-weight: 700;
+      font-size: 0.95rem;
+      padding: 0.75rem 2rem;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .quiz-cta__button:hover { background: #e8f0fb; text-decoration: none; }
+
+    /* ===== Process flow ===== */
+    .process-flow { margin: 0; }
+    .process-flow__heading {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #e8e8e8;
+      margin-bottom: 0.5rem;
+    }
+    .process-flow__subheading {
+      font-size: 0.95rem;
+      color: #6b7280;
+      margin-bottom: 2rem;
+      max-width: 560px;
+    }
+    .process-flow__steps {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      overflow-x: auto;
+      padding-bottom: 1rem;
+    }
+    .process-flow__connector {
+      flex-shrink: 0;
+      align-self: center;
+      color: #4b5563;
+      font-size: 1.25rem;
+      padding: 0 0.25rem;
+      margin-top: -2rem;
+    }
+    .process-step {
+      flex: 1;
+      min-width: 160px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .process-step__visual {
+      background: #1a1f2e;
+      border: 1px solid #2d3348;
+      border-radius: 8px;
+      padding: 1rem;
+      min-height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .process-step__label { font-weight: 700; font-size: 0.85rem; color: #e8e8e8; }
+    .process-step__description { font-size: 0.78rem; color: #9ca3af; line-height: 1.5; }
+    .word-cloud {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      justify-content: center;
+      align-items: center;
+    }
+    .wc-word { font-weight: 500; line-height: 1; }
+    .wc-size-sm { font-size: 0.65rem; color: #4b5563; }
+    .wc-size-md { font-size: 0.8rem;  color: #6b7280; }
+    .wc-size-lg { font-size: 1rem;    color: #9ca3af; font-weight: 600; }
+    .signal-bar-demo {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .sbd-item {
+      display: grid;
+      grid-template-columns: 52px 1fr 32px;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .sbd-label { font-size: 0.65rem; font-weight: 600; color: #6b7280; }
+    .sbd-bar { height: 8px; background: #2d3348; border-radius: 4px; overflow: hidden; }
+    .sbd-fill  { height: 100%; border-radius: 4px; }
+    .sbd-pct   { font-size: 0.65rem; color: #6b7280; text-align: right; }
+    .sbd-support .sbd-fill { background: #10b981; }
+    .sbd-concern .sbd-fill { background: #f59e0b; }
+    .sbd-block   .sbd-fill { background: #ef4444; }
+    .consensus-card {
+      background: #0f1117;
+      border: 1px solid #10b981;
+      border-radius: 6px;
+      padding: 0.75rem;
+      width: 100%;
+    }
+    .consensus-card__title { font-size: 0.78rem; font-weight: 600; color: #6ee7b7; margin-bottom: 0.35rem; }
+    .consensus-card__meta { font-size: 0.65rem; color: #6b7280; }
+    .lobbyist-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      text-align: center;
+    }
+    .lobbyist-card__icon { font-size: 1.75rem; }
+    .lobbyist-card__text { font-size: 0.78rem; font-weight: 600; color: #5b8dd9; line-height: 1.4; }
+    .process-flow__funding-note {
+      margin-top: 1.5rem;
+      padding: 0.75rem 1rem;
+      background: #1a1a0a;
+      border: 1px solid #78350f;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      color: #d97706;
+    }
+    .process-flow__funding-link { color: #f59e0b; font-weight: 600; margin-left: 0.5rem; }
+    @media (max-width: 768px) {
+      .process-flow__steps { flex-direction: column; }
+      .process-flow__connector { transform: rotate(90deg); align-self: center; margin-top: 0; }
+    }
   </style>
 </head>
 <body>
@@ -393,11 +660,7 @@
   <!-- Hero -->
   <section class="hero">
     <div class="tag">Early Preview — Not Yet Launched</div>
-    <h1>Citizens deserve a<br><span>coordination layer.</span></h1>
-    <p class="subtitle">
-      The Civic Power Consortium is building structured deliberation infrastructure
-      that converts diffuse public preferences into concentrated political force.
-    </p>
+    <h1>We turn common-sense ideas into real power against entrenched lobbying</h1>
     <div class="cta-group">
       <a href="/quiz" class="btn-primary">Take a Quiz!</a>
       <a href="/how-it-works" class="btn-secondary">How It Works</a>
@@ -406,38 +669,211 @@
 
   <hr class="divider">
 
-  <!-- Problem -->
   <div class="section">
-    <div class="section-label">The Problem</div>
-    <h2>Every civic tool was built for a different era.</h2>
-    <p>
-      Elections solve leader selection, not policy specification. NGOs suffer
-      organizational capture. Polling has no execution layer. Social media
-      optimizes for engagement, not deliberation.
-    </p>
-    <p>
-      The result is a coordination gap: diffuse citizen preferences cannot be
-      converted into concentrated political force through any existing mechanism.
-    </p>
+    <section class="skeptic-section">
+      <h2 class="skeptic-section__heading">Not Just Another Discussion Board</h2>
+      <div class="skeptic-section__content">
+        <p class="skeptic-section__text">
+          Most "civic tech" is a digital suggestion box that no one opens.
+          It feels performative because it lacks teeth.
+        </p>
+        <p class="skeptic-section__text">
+          This platform is different because it focuses on leverage,
+          not just "likes." Once a community deliberates and reaches
+          a consensus, a transparent public audit log tracks every
+          decision — and collective resources hire professional
+          lobbyists to represent that specific outcome to legislators.
+        </p>
+        <p class="skeptic-section__text">
+          This isn't a social network. It's a coordination machine
+          designed to out-organize the lobbies that have spent
+          decades winning because they were the only ones at the table.
+        </p>
+        <div class="skeptic-section__contrast">
+          <div class="contrast-item contrast-item--bad">
+            <span class="contrast-item__label">Everywhere else</span>
+            <span class="contrast-item__value">Having a say</span>
+          </div>
+          <div class="contrast-item__arrow">→</div>
+          <div class="contrast-item contrast-item--good">
+            <span class="contrast-item__label">Here</span>
+            <span class="contrast-item__value">Having a force</span>
+          </div>
+        </div>
+      </div>
+    </section>
 
-    <div class="gap-grid">
-      <div class="gap-card">
-        <h4>Elections</h4>
-        <p>Solve leader selection, not policy specification</p>
+    <section class="institution-narrative">
+      <h2 class="institution-narrative__heading">Closing the Power Gap</h2>
+      <div class="institution-narrative__content">
+        <div class="institution-narrative__text">
+          <p>
+            Think of capitalism as water: essential, powerful, and flowing
+            wherever there is a path of least resistance. To make sure water
+            serves a city rather than floods it, we build dams, pipes, and
+            treatment plants. In our society, we have similar institutions —
+            the law, labor unions, community standards — to manage the flow
+            of money and influence.
+          </p>
+          <p>
+            But right now, there is a coordination gap. Imagine millions of
+            people all needing water, but each only holding a single spoon.
+            Meanwhile, a few giant corporations have massive industrial pipes.
+            Individually, a spoonful of political will can't compete. This
+            platform is the collective plumbing we've been missing — gathering
+            individual preferences and concentrating them into a high-pressure
+            stream.
+          </p>
+        </div>
+        <div class="institution-diagram">
+          <div class="institution-diagram__label">
+            The ecosystem this platform joins:
+          </div>
+          <div class="institution-diagram__items">
+            <div class="institution-item institution-item--existing">
+              <span class="institution-item__icon">🏛️</span>
+              <span class="institution-item__name">The State</span>
+              <span class="institution-item__role">Sets rules</span>
+            </div>
+            <div class="institution-item institution-item--existing">
+              <span class="institution-item__icon">🏢</span>
+              <span class="institution-item__name">Corporations</span>
+              <span class="institution-item__role">Allocate capital</span>
+            </div>
+            <div class="institution-item institution-item--existing">
+              <span class="institution-item__icon">✊</span>
+              <span class="institution-item__name">Unions</span>
+              <span class="institution-item__role">Coordinate labor</span>
+            </div>
+            <div class="institution-item institution-item--existing">
+              <span class="institution-item__icon">🗳️</span>
+              <span class="institution-item__name">Elections</span>
+              <span class="institution-item__role">Select leaders</span>
+            </div>
+            <div class="institution-item institution-item--new">
+              <span class="institution-item__icon">⚡</span>
+              <span class="institution-item__name">This Platform</span>
+              <span class="institution-item__role">Converts preferences into force</span>
+            </div>
+          </div>
+          <div class="institution-diagram__caption">
+            Each institution manages a different flow of the same
+            underlying system. This one is new.
+          </div>
+        </div>
       </div>
-      <div class="gap-card">
-        <h4>NGOs</h4>
-        <p>Prone to organizational capture over time</p>
+    </section>
+
+    <section class="process-flow" style="margin-top: 2rem;">
+      <h2 class="process-flow__heading">From noise to political force</h2>
+      <p class="process-flow__subheading">
+        Most civic platforms produce conversation. This one produces
+        a documented decision handed to a professional who acts on it.
+      </p>
+
+      <div class="process-flow__steps">
+
+        <div class="process-step">
+          <div class="process-step__visual">
+            <div class="word-cloud">
+              <span class="wc-word wc-size-lg">drug prices</span>
+              <span class="wc-word wc-size-sm">co-pays</span>
+              <span class="wc-word wc-size-md">insulin</span>
+              <span class="wc-word wc-size-sm">insurance</span>
+              <span class="wc-word wc-size-lg">costs</span>
+              <span class="wc-word wc-size-sm">coverage</span>
+              <span class="wc-word wc-size-md">pharma</span>
+              <span class="wc-word wc-size-sm">reform</span>
+              <span class="wc-word wc-size-lg">pricing</span>
+              <span class="wc-word wc-size-sm">access</span>
+            </div>
+          </div>
+          <div class="process-step__label">Public noise</div>
+          <div class="process-step__description">
+            Diffuse preferences scattered across social media,
+            polls, and dinner tables. Real concern, no mechanism.
+          </div>
+        </div>
+
+        <div class="process-flow__connector">→</div>
+
+        <div class="process-step">
+          <div class="process-step__visual">
+            <div class="signal-bar-demo">
+              <div class="sbd-item sbd-support">
+                <span class="sbd-label">Support</span>
+                <div class="sbd-bar"><div class="sbd-fill" style="width: 58%"></div></div>
+                <span class="sbd-pct">58%</span>
+              </div>
+              <div class="sbd-item sbd-concern">
+                <span class="sbd-label">Concern</span>
+                <div class="sbd-bar"><div class="sbd-fill" style="width: 24%"></div></div>
+                <span class="sbd-pct">24%</span>
+              </div>
+              <div class="sbd-item sbd-block">
+                <span class="sbd-label">Block</span>
+                <div class="sbd-bar"><div class="sbd-fill" style="width: 18%"></div></div>
+                <span class="sbd-pct">18%</span>
+              </div>
+            </div>
+          </div>
+          <div class="process-step__label">Structured signal</div>
+          <div class="process-step__description">
+            Verified participants deliberate in structured phases.
+            Signals replace likes. Phases prevent shortcuts.
+          </div>
+        </div>
+
+        <div class="process-flow__connector">→</div>
+
+        <div class="process-step">
+          <div class="process-step__visual">
+            <div class="consensus-card">
+              <div class="consensus-card__title">
+                Passed: Cap insulin cost-sharing at $35/month
+              </div>
+              <div class="consensus-card__meta">
+                847 participants · 71% yes · Audit log: public
+              </div>
+            </div>
+          </div>
+          <div class="process-step__label">Documented consensus</div>
+          <div class="process-step__description">
+            A formal vote produces a verifiable collective decision —
+            not a petition. Anyone can check the audit log.
+          </div>
+        </div>
+
+        <div class="process-flow__connector">→</div>
+
+        <div class="process-step">
+          <div class="process-step__visual">
+            <div class="lobbyist-card">
+              <div class="lobbyist-card__icon">⚡</div>
+              <div class="lobbyist-card__text">
+                A hired lobbyist delivers the result to the
+                Colorado legislature
+              </div>
+            </div>
+          </div>
+          <div class="process-step__label">Real political force</div>
+          <div class="process-step__description">
+            A professional acts on the documented result.
+            Not a tweet. Not a petition. A verified mandate
+            with a paper trail.
+          </div>
+        </div>
+
       </div>
-      <div class="gap-card">
-        <h4>Polling</h4>
-        <p>Aggregates opinion but has no execution layer</p>
+
+      <div class="process-flow__funding-note">
+        💡 Participant contributions fund the lobbyist directly —
+        every dollar allocated is visible in the public audit log.
+        <a href="/how-it-works#lobbyist" class="process-flow__funding-link">
+          How does this work? →
+        </a>
       </div>
-      <div class="gap-card">
-        <h4>Social Media</h4>
-        <p>Optimizes for outrage, not decisions</p>
-      </div>
-    </div>
+    </section>
   </div>
 
   <hr class="divider">
@@ -530,51 +966,21 @@
     </div>
   </div>
 
-  <hr class="divider">
-
-  <!-- How Donations Work -->
-  <div style="background: #1a1f2e;">
-    <div class="section">
-      <div class="section-label">How Donations Work</div>
-      <h2>The community decides how the money is used. Not us.</h2>
-      <p>
-        Donations go into a domain funding pool — not to specific proposals. The deliberation
-        process determines how that pool gets allocated.
-      </p>
-      <ul class="donations-list">
-        <li>Participants deliberate on a policy issue and vote on proposals.</li>
-        <li>Winning proposals receive funding from the pool.</li>
-        <li>Every allocation decision is recorded in the public audit log and permanently verifiable.</li>
-        <li>The platform does not choose where the money goes — the deliberation outcome does.</li>
-      </ul>
-      <p>
-        This is why the deliberation process matters: the community decides how the
-        money is used. That accountability is what separates this from a donation to
-        an advocacy organization.
-      </p>
-      <div class="mvp-note">
-        <strong style="color: #e8e8e8;">MVP Note:</strong> The current version uses simulated funding (USD_SIM)
-        while we validate the deliberation model. No real money is collected or disbursed during this phase.
-        When real funding is introduced, this page will be updated.
+  <!-- Quiz CTA -->
+  <div class="section">
+    <section class="quiz-cta">
+      <div class="quiz-cta__question">
+        Do you think US healthcare can be cheaper <em>and</em> better?
       </div>
-    </div>
-  </div>
-
-  <hr class="divider">
-
-  <!-- CTA -->
-  <div class="cta-section" id="interest">
-    <h2>We're building in public.</h2>
-    <p>
-      MVP targets one healthcare sub-issue in one U.S. state.
-      Follow the build or express interest in the beta cohort.
-    </p>
-    <div class="interest-form">
-      <input type="email" placeholder="your@email.com">
-      <a href="mailto:jack.suter.desh@gmail.com?subject=Interest in Beta" class="btn-primary">
-        Express Interest
+      <div class="quiz-cta__subtext">
+        Most people do. But there's sharp disagreement on how.
+        Take 2 minutes to find out where you stand —
+        and why deliberation might change your mind.
+      </div>
+      <a href="/quiz" class="quiz-cta__button">
+        Find out where you stand →
       </a>
-    </div>
+    </section>
   </div>
 
   <footer>

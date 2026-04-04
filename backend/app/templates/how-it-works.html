@@ -302,6 +302,42 @@
     .btn-outline-white { display: inline-block; background: transparent; color: white; padding: 14px 32px; border-radius: 4px; font-size: 15px; border: 2px solid rgba(255,255,255,0.5); text-decoration: none; margin: 0 8px; transition: border-color 0.2s; }
     .btn-outline-white:hover { border-color: white; }
 
+    /* ===== DONATIONS ===== */
+    .donations-section { background: #1a1f2e; padding: 80px 0; }
+    .donations-section .section-label { color: #7eb3f5; }
+    .donations-section h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(28px, 4vw, 42px);
+      color: white;
+      margin-bottom: 24px;
+      line-height: 1.2;
+    }
+    .donations-section p { font-size: 17px; color: #9ca3af; margin-bottom: 16px; max-width: 680px; }
+    .donations-list {
+      list-style: none;
+      margin: 28px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .donations-list li {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      font-size: 16px;
+      color: #9ca3af;
+    }
+    .donations-list li::before { content: '→'; color: #5b8dd9; font-weight: 700; flex-shrink: 0; }
+    .mvp-note {
+      font-size: 13px;
+      color: #9ca3af;
+      border: 1px solid #2d3348;
+      border-radius: 6px;
+      padding: 14px 18px;
+      margin-top: 24px;
+      max-width: 680px;
+    }
+
     /* ===== FOOTER ===== */
     footer { border-top: 1px solid var(--border); padding: 32px 24px; text-align: center; font-size: 13px; color: var(--ink-muted); }
     footer a { color: var(--accent); text-decoration: none; }
@@ -682,6 +718,34 @@
 
       <div class="failure-closing">
         <p>We publish these failure modes because we believe transparency about risk is a precondition for trust. If this platform is going to ask for your time, your identity verification, and eventually your money, you deserve to know exactly how it could fail and what we're doing about each one.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- How Donations Work -->
+  <section class="donations-section" id="lobbyist">
+    <div class="container">
+      <div class="section-label">How Donations Work</div>
+      <h2>The community decides how the money is used. Not us.</h2>
+      <p>
+        Donations go into a domain funding pool — not to specific proposals. The deliberation
+        process determines how that pool gets allocated.
+      </p>
+      <ul class="donations-list">
+        <li>Participants deliberate on a policy issue and vote on proposals.</li>
+        <li>Winning proposals receive funding from the pool.</li>
+        <li>Every allocation decision is recorded in the public audit log and permanently verifiable.</li>
+        <li>The platform does not choose where the money goes — the deliberation outcome does.</li>
+      </ul>
+      <p>
+        This is why the deliberation process matters: the community decides how the
+        money is used. That accountability is what separates this from a donation to
+        an advocacy organization.
+      </p>
+      <div class="mvp-note">
+        <strong style="color: #e8e8e8;">MVP Note:</strong> The current version uses simulated funding (USD_SIM)
+        while we validate the deliberation model. No real money is collected or disbursed during this phase.
+        When real funding is introduced, this page will be updated.
       </div>
     </div>
   </section>

@@ -1079,3 +1079,197 @@ a:hover { text-decoration: underline; }
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* ===== Skeptic section ===== */
+.skeptic-section {
+  margin: 3rem 0;
+  padding: 2rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  border-left: 4px solid #1e3a5f;
+}
+.skeptic-section__heading {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 1rem;
+}
+.skeptic-section__text {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: #374151;
+  margin-bottom: 0.75rem;
+}
+.skeptic-section__contrast {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #e5e7eb;
+}
+.contrast-item { display: flex; flex-direction: column; gap: 0.25rem; }
+.contrast-item__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #9ca3af;
+}
+.contrast-item__value { font-size: 1rem; font-weight: 700; }
+.contrast-item--bad .contrast-item__value { color: #6b7280; }
+.contrast-item--good .contrast-item__value { color: #1e3a5f; }
+.contrast-item__arrow { font-size: 1.25rem; color: #9ca3af; }
+
+/* ===== Institution narrative ===== */
+.institution-narrative {
+  margin: 3rem 0;
+  padding: 2rem;
+  background: #f9fafb;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+.institution-narrative__heading {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 1.25rem;
+}
+.institution-narrative__content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+.institution-narrative__text p {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: #374151;
+  margin-bottom: 0.75rem;
+}
+.institution-diagram__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+}
+.institution-diagram__items { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+.institution-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  text-align: center;
+  min-width: 80px;
+}
+.institution-item--new { border-color: #3b82f6; background: #eff6ff; }
+.institution-item__icon { font-size: 1.25rem; }
+.institution-item__name { font-size: 0.72rem; font-weight: 600; color: #111827; margin-top: 0.25rem; }
+.institution-item__role { font-size: 0.65rem; color: #6b7280; }
+.institution-diagram__caption { font-size: 0.78rem; color: #6b7280; font-style: italic; }
+@media (max-width: 768px) {
+  .institution-narrative__content { grid-template-columns: 1fr; }
+}
+
+/* ===== Quiz CTA banner ===== */
+.quiz-cta {
+  margin: 3rem 0;
+  padding: 2.5rem;
+  background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%);
+  border-radius: 12px;
+  text-align: center;
+  color: white;
+}
+.quiz-cta__question { font-size: 1.6rem; font-weight: 700; line-height: 1.3; margin-bottom: 0.75rem; }
+.quiz-cta__question em { font-style: italic; color: #93c5fd; }
+.quiz-cta__subtext {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #bfdbfe;
+  max-width: 520px;
+  margin: 0 auto 1.5rem auto;
+}
+.quiz-cta__button {
+  display: inline-block;
+  background: white;
+  color: #1e3a5f;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 0.75rem 2rem;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.quiz-cta__button:hover { background: #eff6ff; text-decoration: none; }
+
+/* ===== Process flow ===== */
+.process-flow { margin: 4rem 0; }
+.process-flow__heading { font-size: 1.4rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem; }
+.process-flow__subheading { font-size: 0.95rem; color: #6b7280; margin-bottom: 2rem; max-width: 560px; }
+.process-flow__steps {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+}
+.process-flow__connector {
+  flex-shrink: 0;
+  align-self: center;
+  color: #9ca3af;
+  font-size: 1.25rem;
+  padding: 0 0.25rem;
+  margin-top: -2rem;
+}
+.process-step { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 0.5rem; }
+.process-step__visual {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+  min-height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.process-step__label { font-weight: 700; font-size: 0.85rem; color: #111827; }
+.process-step__description { font-size: 0.78rem; color: #374151; line-height: 1.5; }
+.word-cloud { display: flex; flex-wrap: wrap; gap: 0.3rem; justify-content: center; align-items: center; }
+.wc-word { font-weight: 500; line-height: 1; }
+.wc-size-sm { font-size: 0.65rem; color: #9ca3af; }
+.wc-size-md { font-size: 0.8rem;  color: #6b7280; }
+.wc-size-lg { font-size: 1rem;    color: #374151; font-weight: 600; }
+.signal-bar-demo { width: 100%; display: flex; flex-direction: column; gap: 0.35rem; }
+.sbd-item { display: grid; grid-template-columns: 52px 1fr 32px; align-items: center; gap: 0.4rem; }
+.sbd-label { font-size: 0.65rem; font-weight: 600; color: #6b7280; }
+.sbd-bar { height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+.sbd-fill { height: 100%; border-radius: 4px; }
+.sbd-pct { font-size: 0.65rem; color: #6b7280; text-align: right; }
+.sbd-support .sbd-fill { background: #10b981; }
+.sbd-concern .sbd-fill { background: #f59e0b; }
+.sbd-block   .sbd-fill { background: #ef4444; }
+.consensus-card { background: white; border: 1px solid #10b981; border-radius: 6px; padding: 0.75rem; width: 100%; }
+.consensus-card__title { font-size: 0.78rem; font-weight: 600; color: #065f46; margin-bottom: 0.35rem; }
+.consensus-card__meta { font-size: 0.65rem; color: #6b7280; }
+.lobbyist-card { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; text-align: center; }
+.lobbyist-card__icon { font-size: 1.75rem; }
+.lobbyist-card__text { font-size: 0.78rem; font-weight: 600; color: #1e3a5f; line-height: 1.4; }
+.process-flow__funding-note {
+  margin-top: 1.5rem;
+  padding: 0.75rem 1rem;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: #92400e;
+}
+.process-flow__funding-link { color: #92400e; font-weight: 600; margin-left: 0.5rem; }
+@media (max-width: 768px) {
+  .process-flow__steps { flex-direction: column; }
+  .process-flow__connector { transform: rotate(90deg); align-self: center; margin-top: 0; }
+}
