@@ -53,6 +53,12 @@
 .cpc-nav-auth { font-size: 14px; color: #2a5c9a; font-weight: 500; text-decoration: none; white-space: nowrap; }
 .cpc-nav-auth:hover { text-decoration: underline; }
 .cpc-hamburger { display: none; background: none; border: none; font-size: 22px; cursor: pointer; color: #1a1a1a; padding: 4px; line-height: 1; }
+.tooltip-toggle-btn {
+  background: none; border: 1px solid #e5e7eb; border-radius: 4px;
+  padding: 0.25rem 0.6rem; font-size: 0.75rem; color: #6b7280;
+  cursor: pointer; transition: border-color 0.15s; font-family: inherit; white-space: nowrap;
+}
+.tooltip-toggle-btn:hover { border-color: #9ca3af; color: #374151; }
 body { padding-top: 56px !important; }
 @media (max-width: 768px) {
   .cpc-hamburger { display: block; }
@@ -65,6 +71,10 @@ body { padding-top: 56px !important; }
   .cpc-nav-links.open { display: flex; }
   .cpc-nav-link, .cpc-nav-auth { padding: 13px 24px; font-size: 15px; border-bottom: 1px solid #f0f0f0; }
   .cpc-active { border-bottom: 1px solid #f0f0f0; border-left: 3px solid #2a5c9a; padding-left: 21px; }
+  .tooltip-toggle-btn {
+    display: block; width: 100%; text-align: left; padding: 13px 24px;
+    border: none; border-bottom: 1px solid #f0f0f0; border-radius: 0; font-size: 15px;
+  }
 }
 </style>
 <nav id="cpc-nav">
@@ -73,10 +83,26 @@ body { padding-top: 56px !important; }
     <div class="cpc-nav-links" id="cpc-nav-links">
       ${linksHTML}
       ${authLink()}
+      <button id="tooltip-toggle" class="tooltip-toggle-btn" aria-label="Toggle help tooltips">💡 Tips: On</button>
     </div>
     <button class="cpc-hamburger" id="cpc-hamburger" aria-label="Toggle navigation">☰</button>
   </div>
 </nav>`;
+  }
+
+  function initTooltipToggle() {
+    const btn = document.getElementById("tooltip-toggle");
+    if (!btn) return;
+    const saved = localStorage.getItem("tooltips-disabled");
+    if (saved === "true") {
+      document.body.classList.add("tooltips-disabled");
+      btn.textContent = "💡 Tips: Off";
+    }
+    btn.addEventListener("click", function () {
+      const isDisabled = document.body.classList.toggle("tooltips-disabled");
+      localStorage.setItem("tooltips-disabled", isDisabled);
+      btn.textContent = isDisabled ? "💡 Tips: Off" : "💡 Tips: On";
+    });
   }
 
   function init() {
@@ -88,6 +114,7 @@ body { padding-top: 56px !important; }
       links.classList.toggle("open");
       this.textContent = links.classList.contains("open") ? "✕" : "☰";
     });
+    initTooltipToggle();
   }
 
   if (document.readyState === "loading") {

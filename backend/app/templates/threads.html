@@ -51,35 +51,52 @@
       window.location.reload();
     }
 
+    const PHASE_TOOLTIPS = {
+      open:         "This thread is accepting new participants. Cast a signal to show where you stand.",
+      deliberating: "Active discussion phase. Verified participants are posting and responding.",
+      proposing:    "Discussion is closed. Participants are submitting formal proposals to vote on.",
+      voting:       "Voting is open. One vote per participant. Results are hidden until the phase closes.",
+      closed:       "Deliberation complete. Results are public and the audit log is finalized.",
+      archived:     "Historical record. Read-only."
+    };
+
+    const SIGNAL_TOOLTIPS = {
+      support:   "Participants who support the direction of this discussion",
+      concern:   "Participants who have concerns that need addressing",
+      need_info: "Participants who need more information before forming a view",
+      block:     "Participants with a strong objection. Always shown prominently."
+    };
+
     // Render a single thread card as an HTML string
     function renderThreadCard(thread) {
       const sc = thread.signal_counts;
+      const phaseTooltip = PHASE_TOOLTIPS[thread.status] || "";
 
       return `
         <a href="/thread/${thread.id}" style="display:block">
           <div class="thread-card">
             <div class="thread-card-header">
               <span class="thread-title">${thread.title}</span>
-              <span class="${phaseBadgeClass(thread.status)}">
+              <span class="${phaseBadgeClass(thread.status)}" data-tooltip="${phaseTooltip}">
                 ${capitalize(thread.status)}
               </span>
             </div>
 
-            <div class="signal-bar">
+            <div class="signal-bar" data-tooltip="Signals show how participants feel about this thread&#39;s direction — not individual posts. Block signals are always surfaced, even as a minority.">
               ${sc.support > 0 ? `
-                <span class="signal-count signal-support">
+                <span class="signal-count signal-support" data-tooltip="${SIGNAL_TOOLTIPS.support}">
                   ${SIGNAL_ICONS.support} ${sc.support} support
                 </span>` : ""}
               ${sc.concern > 0 ? `
-                <span class="signal-count signal-concern">
+                <span class="signal-count signal-concern" data-tooltip="${SIGNAL_TOOLTIPS.concern}">
                   ${SIGNAL_ICONS.concern} ${sc.concern} concern
                 </span>` : ""}
               ${sc.need_info > 0 ? `
-                <span class="signal-count signal-need_info">
+                <span class="signal-count signal-need_info" data-tooltip="${SIGNAL_TOOLTIPS.need_info}">
                   ${SIGNAL_ICONS.need_info} ${sc.need_info} need info
                 </span>` : ""}
               ${sc.block > 0 ? `
-                <span class="signal-count signal-block">
+                <span class="signal-count signal-block" data-tooltip="${SIGNAL_TOOLTIPS.block}">
                   ${SIGNAL_ICONS.block} ${sc.block} block
                 </span>` : ""}
               ${sc.total === 0 ? `<span>No signals yet</span>` : ""}

@@ -193,15 +193,15 @@
       position: relative; cursor: help;
     }
 
-    .phase-action[data-tooltip]:hover::after {
+    body:not(.tooltips-disabled) .phase-action[data-tooltip]:hover::after {
       content: attr(data-tooltip); position: absolute; bottom: calc(100% + 8px); left: 50%;
       transform: translateX(-50%); background: var(--ink); color: white; font-size: 12px;
-      padding: 6px 10px; border-radius: 4px; white-space: nowrap; z-index: 10; pointer-events: none;
+      padding: 6px 10px; border-radius: 4px; white-space: nowrap; z-index: 200; pointer-events: none;
     }
-    .phase-action[data-tooltip]:hover::before {
+    body:not(.tooltips-disabled) .phase-action[data-tooltip]:hover::before {
       content: ''; position: absolute; bottom: calc(100% + 2px); left: 50%;
       transform: translateX(-50%); border: 5px solid transparent; border-top-color: var(--ink);
-      z-index: 10; pointer-events: none;
+      z-index: 200; pointer-events: none;
     }
 
     .phase-action.active { background: var(--accent-light); color: var(--accent); border-color: var(--accent); font-weight: 600; }
@@ -216,17 +216,17 @@
       border: 2px solid var(--border); border-radius: 8px; padding: 24px;
       position: relative; cursor: help; transition: border-color 0.2s, transform 0.15s;
     }
-    .signal-card:hover { transform: translateY(-2px); }
-    .signal-card[data-tooltip]:hover::after {
+    .signal-card:hover { transform: translateY(-2px); z-index: 1; }
+    body:not(.tooltips-disabled) .signal-card[data-tooltip]:hover::after {
       content: attr(data-tooltip); position: absolute; top: calc(100% + 8px); left: 50%;
       transform: translateX(-50%); background: var(--ink); color: white; font-size: 12px;
       padding: 8px 12px; border-radius: 4px; width: 240px; text-align: center;
-      z-index: 10; line-height: 1.5; pointer-events: none;
+      z-index: 200; line-height: 1.5; pointer-events: none;
     }
-    .signal-card[data-tooltip]:hover::before {
+    body:not(.tooltips-disabled) .signal-card[data-tooltip]:hover::before {
       content: ''; position: absolute; top: calc(100% + 2px); left: 50%;
       transform: translateX(-50%); border: 5px solid transparent;
-      border-bottom-color: var(--ink); z-index: 10; pointer-events: none;
+      border-bottom-color: var(--ink); z-index: 200; pointer-events: none;
     }
 
     .signal-support { border-color: #a5d6a7; background: #f1f8f1; }
@@ -279,10 +279,10 @@
       position: relative; cursor: help; transition: box-shadow 0.2s;
     }
     .principle-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
-    .principle-card[data-tooltip]:hover::after {
+    body:not(.tooltips-disabled) .principle-card[data-tooltip]:hover::after {
       content: attr(data-tooltip); position: absolute; top: calc(100% + 8px); left: 0;
       background: var(--ink); color: white; font-size: 12px; padding: 8px 12px;
-      border-radius: 4px; width: 260px; z-index: 10; line-height: 1.5; pointer-events: none;
+      border-radius: 4px; width: 260px; z-index: 200; line-height: 1.5; pointer-events: none;
     }
 
     .principle-vs { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
