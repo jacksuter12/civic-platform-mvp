@@ -1080,6 +1080,81 @@ a:hover { text-decoration: underline; }
   cursor: not-allowed;
 }
 
+/* ===== Phase explainer card row ===== */
+.phase-explainer {
+  margin: 2rem 0 2.5rem 0;
+}
+
+.phase-explainer__heading {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b7280;
+  margin-bottom: 1rem;
+}
+
+.phase-explainer__cards {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.phase-card {
+  flex: 1;
+  min-width: 150px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.phase-card__icon { font-size: 1.25rem; }
+
+.phase-card__name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #111827;
+}
+
+.phase-card__what,
+.phase-card__why,
+.phase-card__outcome {
+  font-size: 0.78rem;
+  color: #374151;
+  line-height: 1.4;
+}
+
+.phase-card__label {
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.phase-card__arrow {
+  flex-shrink: 0;
+  align-self: center;
+  color: #9ca3af;
+  font-size: 1rem;
+  padding: 0 0.1rem;
+  margin-top: -1rem;
+}
+
+.phase-card--open         { border-left: 3px solid #6b7280; }
+.phase-card--deliberating { border-left: 3px solid #3b82f6; }
+.phase-card--proposing    { border-left: 3px solid #8b5cf6; }
+.phase-card--voting       { border-left: 3px solid #f59e0b; }
+.phase-card--closed       { border-left: 3px solid #10b981; }
+
+@media (max-width: 768px) {
+  .phase-explainer__cards { flex-direction: column; gap: 0.5rem; }
+  .phase-card__arrow { transform: rotate(90deg); align-self: center; }
+}
+
 /* ===== Tooltips ===== */
 .phase-badge[data-tooltip],
 .signal-count[data-tooltip],

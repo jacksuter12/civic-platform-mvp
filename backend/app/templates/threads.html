@@ -20,10 +20,112 @@
         + Start a discussion
       </a>
     </div>
-    <p class="page-subtitle">
-      Threads are phase-gated deliberations. Each moves through Open → Deliberating
-      → Proposing → Voting → Closed.
-    </p>
+    <section class="phase-explainer">
+      <h3 class="phase-explainer__heading">How deliberation works</h3>
+      <div class="phase-explainer__cards">
+
+        <div class="phase-card phase-card--open">
+          <div class="phase-card__icon">🗣️</div>
+          <div class="phase-card__name">Open</div>
+          <div class="phase-card__what">
+            <span class="phase-card__label">What:</span>
+            The thread is live. Anyone can read and cast a signal.
+          </div>
+          <div class="phase-card__why">
+            <span class="phase-card__label">Why:</span>
+            Surfaces who's paying attention before discussion begins.
+          </div>
+          <div class="phase-card__outcome">
+            <span class="phase-card__label">Outcome:</span>
+            A signal distribution — who supports, who has concerns.
+          </div>
+        </div>
+
+        <div class="phase-card__arrow">→</div>
+
+        <div class="phase-card phase-card--deliberating">
+          <div class="phase-card__icon">💬</div>
+          <div class="phase-card__name">Deliberating</div>
+          <div class="phase-card__what">
+            <span class="phase-card__label">What:</span>
+            Verified participants post and respond.
+            Chronological — no algorithmic ranking.
+          </div>
+          <div class="phase-card__why">
+            <span class="phase-card__label">Why:</span>
+            Forces engagement with the issue before anyone
+            can propose a solution.
+          </div>
+          <div class="phase-card__outcome">
+            <span class="phase-card__label">Outcome:</span>
+            A thread record of what was considered and why.
+          </div>
+        </div>
+
+        <div class="phase-card__arrow">→</div>
+
+        <div class="phase-card phase-card--proposing">
+          <div class="phase-card__icon">📋</div>
+          <div class="phase-card__name">Proposing</div>
+          <div class="phase-card__what">
+            <span class="phase-card__label">What:</span>
+            Participants submit formal proposals.
+            Discussion is locked.
+          </div>
+          <div class="phase-card__why">
+            <span class="phase-card__label">Why:</span>
+            Separates deliberation from decision-making.
+            You can't skip ahead.
+          </div>
+          <div class="phase-card__outcome">
+            <span class="phase-card__label">Outcome:</span>
+            A defined set of options to vote on.
+          </div>
+        </div>
+
+        <div class="phase-card__arrow">→</div>
+
+        <div class="phase-card phase-card--voting">
+          <div class="phase-card__icon">🗳️</div>
+          <div class="phase-card__name">Voting</div>
+          <div class="phase-card__what">
+            <span class="phase-card__label">What:</span>
+            One vote per participant per proposal.
+            Immutable once cast. Results hidden until closed.
+          </div>
+          <div class="phase-card__why">
+            <span class="phase-card__label">Why:</span>
+            Prevents strategic vote-switching based on
+            real-time results.
+          </div>
+          <div class="phase-card__outcome">
+            <span class="phase-card__label">Outcome:</span>
+            A documented collective decision.
+          </div>
+        </div>
+
+        <div class="phase-card__arrow">→</div>
+
+        <div class="phase-card phase-card--closed">
+          <div class="phase-card__icon">📣</div>
+          <div class="phase-card__name">Closed</div>
+          <div class="phase-card__what">
+            <span class="phase-card__label">What:</span>
+            Results are published. The audit log is complete.
+            A lobbyist acts on the outcome.
+          </div>
+          <div class="phase-card__why">
+            <span class="phase-card__label">Why:</span>
+            Deliberation without execution is just talk.
+          </div>
+          <div class="phase-card__outcome">
+            <span class="phase-card__label">Outcome:</span>
+            Real political pressure, traceable to this thread.
+          </div>
+        </div>
+
+      </div>
+    </section>
 
     <div id="thread-list-container">
       <div class="loading">Loading threads…</div>
