@@ -15,21 +15,23 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import postgresql as pg
 
 revision: str = "d4e5f6a7b8c9"
 down_revision: Union[str, None] = "c3d4e5f6a7b8"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# Defined once, reused in upgrade() and create_table
+_amendment_status = pg.ENUM(
+    "PENDING", "ACCEPTED", "REJECTED",
+    name="amendment_status",
+)
+
 
 def upgrade() -> None:
-    # --- amendment_status enum ---
-    op.execute("""
-        DO $$ BEGIN
-            CREATE TYPE amendment_status AS ENUM ('PENDING', 'ACCEPTED', 'REJECTED');
-        EXCEPTION WHEN duplicate_object THEN NULL;
-        END $$;
-    """)
+    # checkfirst=True queries pg_type — no-ops if the type already exists
+    _amendment_status.create(op.get_bind(), checkfirst=True)
 
     # --- proposal_comments ---
     op.create_table(
@@ -63,7 +65,7 @@ def upgrade() -> None:
         sa.Column("rationale", sa.String(length=1000), nullable=False),
         sa.Column(
             "status",
-            sa.Enum("PENDING", "ACCEPTED", "REJECTED", name="amendment_status", create_type=False),
+            pg.ENUM("PENDING", "ACCEPTED", "REJECTED", name="amendment_status", create_type=False),
             nullable=False,
             server_default="PENDING",
         ),
