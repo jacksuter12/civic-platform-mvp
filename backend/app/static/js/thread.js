@@ -1263,7 +1263,7 @@ async function init() {
   } catch (ex) {
     container.innerHTML = `
       <div class="error-message">Could not load thread: ${esc(ex.message)}</div>
-      <p style="margin-top:16px"><a href="/">← Back to discussions</a></p>`;
+      <p style="margin-top:16px"><a href="/threads">← Back to discussions</a></p>`;
   }
 }
 

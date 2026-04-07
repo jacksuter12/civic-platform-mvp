@@ -127,7 +127,8 @@ async def create_thread(
     domain_result = await db.execute(
         select(Domain).where(Domain.id == payload.domain_id, Domain.is_active == True)
     )
-    if not domain_result.scalar_one_or_none():
+    domain = domain_result.scalar_one_or_none()
+    if not domain:
         raise HTTPException(status_code=404, detail="Domain not found or inactive.")
 
     thread = Thread(
@@ -152,6 +153,8 @@ async def create_thread(
     return ThreadSummary(
         id=thread.id,
         domain_id=thread.domain_id,
+        domain_name=domain.name,
+        domain_slug=domain.slug,
         title=thread.title,
         status=thread.status,
         signal_counts=SignalCounts(),
@@ -169,7 +172,9 @@ async def get_thread(
     user: OptionalUser,
 ) -> ThreadDetail:
     result = await db.execute(
-        select(Thread).where(Thread.id == thread_id)
+        select(Thread)
+        .options(selectinload(Thread.domain))
+        .where(Thread.id == thread_id)
     )
     thread = result.scalar_one_or_none()
     if not thread:
@@ -199,6 +204,8 @@ async def get_thread(
     return ThreadDetail(
         id=thread.id,
         domain_id=thread.domain_id,
+        domain_name=thread.domain.name,
+        domain_slug=thread.domain.slug,
         title=thread.title,
         prompt=thread.prompt,
         context=thread.context,
@@ -225,7 +232,9 @@ async def advance_thread_phase(
     Validates the state machine transition and writes to audit log.
     Only facilitators may call this endpoint.
     """
-    result = await db.execute(select(Thread).where(Thread.id == thread_id))
+    result = await db.execute(
+        select(Thread).options(selectinload(Thread.domain)).where(Thread.id == thread_id)
+    )
     thread = result.scalar_one_or_none()
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found.")
@@ -264,6 +273,8 @@ async def advance_thread_phase(
     return ThreadSummary(
         id=thread.id,
         domain_id=thread.domain_id,
+        domain_name=thread.domain.name,
+        domain_slug=thread.domain.slug,
         title=thread.title,
         status=thread.status,
         signal_counts=sc,
