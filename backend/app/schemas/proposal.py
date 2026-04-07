@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from decimal import Decimal
 
 from pydantic import Field, model_validator
@@ -16,6 +17,18 @@ class ProposalCreate(CamelBase):
         default=None,
         ge=Decimal("0.01"),
         description="Amount requested from pool. None for non-monetary proposals.",
+    )
+
+
+class ProposalEdit(CamelBase):
+    """Content edit by the proposal author. Only allowed in PROPOSING phase."""
+
+    title: str = Field(min_length=10, max_length=200)
+    description: str = Field(min_length=50, max_length=5000)
+    edit_summary: str = Field(
+        min_length=10,
+        max_length=500,
+        description="What changed and why. Recorded in the version history.",
     )
 
 
@@ -40,11 +53,24 @@ class ProposalSummary(UUIDSchema, TimestampSchema):
     requested_amount: Decimal | None
     vote_summary: VoteSummary
     my_vote: VoteChoice | None = None
+    current_version_number: int = 1
+    versions_count: int = 0
 
 
 class ProposalDetail(ProposalSummary):
     description: str
     created_by: UserPublic
+
+
+class ProposalVersionRead(UUIDSchema, TimestampSchema):
+    """One entry in a proposal's edit history."""
+
+    proposal_id: uuid.UUID
+    author: UserPublic
+    version_number: int
+    title: str
+    description: str
+    edit_summary: str
 
 
 class ProposalStatusUpdate(CamelBase):

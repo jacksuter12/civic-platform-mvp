@@ -3,11 +3,13 @@ from fastapi import APIRouter
 from app.api.v1 import (
     admin,
     allocations,
+    amendments,
     audit,
     auth,
     domains,
     pools,
     posts,
+    proposal_comments,
     proposals,
     signals,
     threads,
@@ -23,6 +25,8 @@ api_router.include_router(threads.router, prefix="/threads", tags=["threads"])
 api_router.include_router(posts.router, prefix="/posts", tags=["posts"])
 api_router.include_router(signals.router, prefix="/signals", tags=["signals"])
 api_router.include_router(proposals.router, prefix="/proposals", tags=["proposals"])
+api_router.include_router(proposal_comments.router, prefix="/proposals", tags=["proposal-comments"])
+api_router.include_router(amendments.router, prefix="/proposals", tags=["amendments"])
 api_router.include_router(votes.router, prefix="/votes", tags=["votes"])
 api_router.include_router(pools.router, prefix="/pools", tags=["pools"])
 api_router.include_router(allocations.router, prefix="/allocations", tags=["allocations"])

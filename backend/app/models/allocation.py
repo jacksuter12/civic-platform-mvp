@@ -1,8 +1,8 @@
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import DECIMAL, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy import DECIMAL, ForeignKey, JSON, String, Text
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPKMixin
@@ -37,7 +37,7 @@ class AllocationDecision(Base, UUIDPKMixin, TimestampMixin):
     )
     rationale: Mapped[str] = mapped_column(Text, nullable=False)
     # Snapshot of vote tallies at decision time — never recalculated
-    vote_summary: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    vote_summary: Mapped[dict] = mapped_column(JSON, nullable=False)
 
     pool: Mapped["FundingPool"] = relationship(  # type: ignore[name-defined]
         "FundingPool", back_populates="allocations"

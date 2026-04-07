@@ -76,9 +76,6 @@ class Thread(Base, UUIDPKMixin, TimestampMixin):
     posts: Mapped[list["Post"]] = relationship(  # type: ignore[name-defined]
         "Post", back_populates="thread", order_by="Post.created_at"
     )
-    signals: Mapped[list["Signal"]] = relationship(  # type: ignore[name-defined]
-        "Signal", back_populates="thread"
-    )
     proposals: Mapped[list["Proposal"]] = relationship(  # type: ignore[name-defined]
         "Proposal", back_populates="thread"
     )

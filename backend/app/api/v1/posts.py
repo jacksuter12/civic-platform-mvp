@@ -51,6 +51,39 @@ class PostOut(UUIDSchema, TimestampSchema):
     replies: list[ReplyOut] = []
 
 
+class PostFlat(UUIDSchema, TimestampSchema):
+    """
+    Flat post representation — no nested replies field.
+    Clients receive the full list and build the tree themselves,
+    enabling arbitrary depth rendering without additional round-trips.
+    """
+    model_config = {"from_attributes": True}
+    thread_id: uuid.UUID
+    parent_id: uuid.UUID | None
+    body: str
+    is_removed: bool
+    author: UserPublic
+
+
+@router.get("/thread/{thread_id}/flat", response_model=list[PostFlat])
+async def list_posts_flat(
+    thread_id: uuid.UUID,
+    db: DB,
+) -> list[Post]:
+    """
+    Return ALL posts for a thread as a flat, chronologically sorted list.
+    parent_id links children to parents. The client builds the tree.
+    Supports arbitrary nesting depth without additional round-trips.
+    """
+    result = await db.execute(
+        select(Post)
+        .options(selectinload(Post.author))
+        .where(Post.thread_id == thread_id)
+        .order_by(Post.created_at)
+    )
+    return list(result.scalars())
+
+
 @router.get("/thread/{thread_id}", response_model=list[PostOut])
 async def list_posts(
     thread_id: uuid.UUID,

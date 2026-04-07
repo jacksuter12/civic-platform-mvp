@@ -20,31 +20,45 @@ class SignalType(str, PyEnum):
     BLOCK = "block"           # I have a strong objection (rare; surfaced prominently)
 
 
+class SignalTargetType(str, PyEnum):
+    """
+    Polymorphic target for signals. Stored as a plain string column so adding
+    new target types never requires an ALTER TYPE migration.
+    """
+
+    THREAD = "thread"
+    POST = "post"
+    PROPOSAL = "proposal"
+    PROPOSAL_COMMENT = "proposal_comment"
+    AMENDMENT = "amendment"
+
+
 class Signal(Base, UUIDPKMixin, TimestampMixin):
     """
-    One signal per user per thread. Updating replaces prior signal.
+    One signal per user per target. Updating replaces prior signal.
     Signals are visible in aggregate (not attributed) to all readers.
+    target_id is a polymorphic UUID reference — no FK enforced at DB level.
     """
 
     __tablename__ = "signals"
     __table_args__ = (
-        UniqueConstraint("thread_id", "user_id", name="uq_signal_thread_user"),
+        UniqueConstraint("user_id", "target_type", "target_id", name="uq_signal_user_target"),
     )
 
-    thread_id: Mapped[uuid.UUID] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("threads.id"), nullable=False, index=True
-    )
     user_id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    target_type: Mapped[SignalTargetType] = mapped_column(
+        String(60), nullable=False, index=True
+    )
+    target_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), nullable=False, index=True
     )
     signal_type: Mapped[SignalType] = mapped_column(
         SAEnum(SignalType, name="signal_type"), nullable=False
     )
     note: Mapped[str | None] = mapped_column(String(280), nullable=True)
 
-    thread: Mapped["Thread"] = relationship(  # type: ignore[name-defined]
-        "Thread", back_populates="signals"
-    )
     user: Mapped["User"] = relationship(  # type: ignore[name-defined]
         "User", back_populates="signals"
     )

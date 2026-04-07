@@ -11,11 +11,19 @@ from app.schemas.proposal import (
     AllocationCreate,
     ProposalCreate,
     ProposalDetail,
+    ProposalEdit,
     ProposalStatusUpdate,
     ProposalSummary,
+    ProposalVersionRead,
     VoteCreate,
     VoteSummary,
 )
+from app.schemas.proposal_comment import (
+    ProposalCommentCreate,
+    ProposalCommentRead,
+    ProposalCommentRemove,
+)
+from app.schemas.amendment import AmendmentCreate, AmendmentRead, AmendmentReview
 from app.schemas.audit import AuditLogEntry, AuditLogPage
 
 __all__ = [
@@ -35,10 +43,18 @@ __all__ = [
     "AllocationCreate",
     "ProposalCreate",
     "ProposalDetail",
+    "ProposalEdit",
     "ProposalStatusUpdate",
     "ProposalSummary",
+    "ProposalVersionRead",
     "VoteCreate",
     "VoteSummary",
+    "ProposalCommentCreate",
+    "ProposalCommentRead",
+    "ProposalCommentRemove",
+    "AmendmentCreate",
+    "AmendmentRead",
+    "AmendmentReview",
     "AuditLogEntry",
     "AuditLogPage",
 ]

@@ -21,7 +21,7 @@ from app.models.audit import AuditEventType
 from app.models.domain import Domain
 from app.models.post import Post
 from app.models.proposal import Proposal
-from app.models.signal import Signal, SignalType
+from app.models.signal import Signal, SignalTargetType, SignalType
 from app.models.thread import Thread, ThreadStatus
 from app.schemas.thread import (
     SignalCounts,
@@ -37,7 +37,10 @@ router = APIRouter()
 async def _signal_counts(db: DB, thread_id: uuid.UUID) -> SignalCounts:
     rows = await db.execute(
         select(Signal.signal_type, func.count(Signal.id))
-        .where(Signal.thread_id == thread_id)
+        .where(
+            Signal.target_type == SignalTargetType.THREAD,
+            Signal.target_id == thread_id,
+        )
         .group_by(Signal.signal_type)
     )
     counts = {row[0]: row[1] for row in rows}
@@ -179,7 +182,9 @@ async def get_thread(
     if user:
         sig_result = await db.execute(
             select(Signal).where(
-                Signal.thread_id == thread.id, Signal.user_id == user.id
+                Signal.user_id == user.id,
+                Signal.target_type == SignalTargetType.THREAD,
+                Signal.target_id == thread.id,
             )
         )
         sig = sig_result.scalar_one_or_none()

@@ -1,8 +1,8 @@
 import uuid
 from enum import Enum as PyEnum
 
-from sqlalchemy import Enum as SAEnum, ForeignKey, String
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy import Enum as SAEnum, ForeignKey, JSON, String
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin, UUIDPKMixin
@@ -26,6 +26,7 @@ class AuditEventType(str, PyEnum):
     PROPOSAL_CREATED = "proposal_created"
     PROPOSAL_SUBMITTED = "proposal_submitted"
     PROPOSAL_STATUS_CHANGED = "proposal_status_changed"
+    PROPOSAL_EDITED = "proposal_edited"
     # Voting
     VOTE_CAST = "vote_cast"
     # Allocation
@@ -36,6 +37,13 @@ class AuditEventType(str, PyEnum):
     FACILITATOR_REQUEST_DENIED = "facilitator_request_denied"
     # Profile
     DISPLAY_NAME_CHANGED = "display_name_changed"
+    # Proposal comments
+    PROPOSAL_COMMENT_CREATED = "proposal_comment_created"
+    PROPOSAL_COMMENT_REMOVED = "proposal_comment_removed"
+    # Amendments
+    AMENDMENT_SUBMITTED = "amendment_submitted"
+    AMENDMENT_ACCEPTED = "amendment_accepted"
+    AMENDMENT_REJECTED = "amendment_rejected"
     # LLM (future)
     LLM_SUMMARY_GENERATED = "llm_summary_generated"
 
@@ -68,4 +76,4 @@ class AuditLog(Base, UUIDPKMixin, TimestampMixin):
         PG_UUID(as_uuid=True), nullable=False, index=True
     )
     # JSON payload capturing the full event details at time of action
-    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)

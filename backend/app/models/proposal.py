@@ -2,7 +2,7 @@ import uuid
 from decimal import Decimal
 from enum import Enum as PyEnum
 
-from sqlalchemy import DECIMAL, Enum as SAEnum, ForeignKey, String, Text
+from sqlalchemy import DECIMAL, Enum as SAEnum, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -46,6 +46,12 @@ class Proposal(Base, UUIDPKMixin, TimestampMixin):
         nullable=False,
         index=True,
     )
+    # Incremented on each content edit. Starts at 1 (the live state is always
+    # "the current version"). A snapshot of the prior state is written to
+    # proposal_versions before each edit.
+    current_version_number: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1
+    )
 
     # Relationships
     thread: Mapped["Thread"] = relationship(  # type: ignore[name-defined]
@@ -59,4 +65,13 @@ class Proposal(Base, UUIDPKMixin, TimestampMixin):
     )
     allocation: Mapped["AllocationDecision | None"] = relationship(  # type: ignore[name-defined]
         "AllocationDecision", back_populates="proposal", uselist=False
+    )
+    comments: Mapped[list["ProposalComment"]] = relationship(  # type: ignore[name-defined]
+        "ProposalComment", back_populates="proposal", order_by="ProposalComment.created_at"
+    )
+    amendments: Mapped[list["Amendment"]] = relationship(  # type: ignore[name-defined]
+        "Amendment", back_populates="proposal", order_by="Amendment.created_at"
+    )
+    versions: Mapped[list["ProposalVersion"]] = relationship(  # type: ignore[name-defined]
+        "ProposalVersion", back_populates="proposal", order_by="ProposalVersion.version_number"
     )

@@ -7,6 +7,391 @@
   <link rel="stylesheet" href="/static/css/main.css">
   <script src="/static/js/auth.js"></script>
   <script src="/static/js/nav.js"></script>
+  <style>
+    /* ================================================================
+       Thread-specific styles — supplements main.css
+       ================================================================ */
+
+    /* --- Signal bar (polymorphic system) --- */
+    .signal-bar-wrap { margin: 8px 0; }
+
+    .sig-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+
+    .sig-btn {
+      padding: 4px 10px;
+      font-size: 13px;
+      border: 1px solid #ccc;
+      border-left-width: 3px;
+      border-radius: 4px;
+      background: #fff;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .sig-btn:hover:not(:disabled) { background: #f5f5f5; }
+    .sig-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .sig-btn-support   { border-left-color: #4caf50; }
+    .sig-btn-concern   { border-left-color: #ff9800; }
+    .sig-btn-need_info { border-left-color: #2196f3; }
+    .sig-btn-block     { border-left-color: #e53935; }
+    .sig-active.sig-btn-support   { background: #e8f5e9; border-color: #4caf50; font-weight: 600; }
+    .sig-active.sig-btn-concern   { background: #fff3e0; border-color: #ff9800; font-weight: 600; }
+    .sig-active.sig-btn-need_info { background: #e3f2fd; border-color: #2196f3; font-weight: 600; }
+    .sig-active.sig-btn-block     { background: #ffebee; border-color: #e53935; font-weight: 600; }
+    .sig-count { font-size: 12px; opacity: 0.75; }
+
+    .sig-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .sig-chip {
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: #f0f0f0;
+      color: #555;
+    }
+    .sig-chip-support   { background: #e8f5e9; color: #2e7d32; }
+    .sig-chip-concern   { background: #fff3e0; color: #e65100; }
+    .sig-chip-need_info { background: #e3f2fd; color: #1565c0; }
+    .sig-chip-block     { background: #ffebee; color: #c62828; }
+    .sig-none { font-size: 12px; color: #bbb; font-style: italic; }
+
+    .sig-block-warn {
+      display: inline-block;
+      font-size: 12px;
+      color: #c62828;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+    .sig-note { font-size: 12px; color: #888; margin-top: 4px; }
+
+    /* --- Post tree --- */
+    .post-root { margin-bottom: 20px; }
+    .post-root-actions { margin-bottom: 4px; }
+
+    .post-root-summary {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #f9f9f9;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: default;
+    }
+    .post-root-summary .post-author { font-weight: 600; }
+    .post-preview {
+      flex: 1;
+      color: #555;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 400px;
+    }
+    .post-meta { color: #888; font-size: 12px; white-space: nowrap; }
+
+    .post-item { box-sizing: border-box; }
+
+    .post-actions { display: flex; gap: 8px; margin-top: 6px; align-items: center; }
+
+    .post-reply-btn {
+      background: none;
+      border: none;
+      color: #1565c0;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 0;
+      text-decoration: underline;
+    }
+    .post-reply-btn:hover { color: #0d47a1; }
+
+    .post-children { margin-top: 8px; }
+
+    .children-toggle {
+      background: none;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 2px 0;
+      margin-top: 4px;
+      display: block;
+    }
+    .children-toggle:hover { color: #333; }
+
+    .collapse-link {
+      background: none;
+      border: none;
+      color: #1565c0;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 0;
+      text-decoration: underline;
+      white-space: nowrap;
+    }
+    .collapse-link:hover { color: #0d47a1; }
+
+    .max-depth-msg { font-size: 11px; color: #aaa; font-style: italic; }
+
+    .reply-slot { margin-top: 8px; }
+
+    .inline-reply-form { margin-top: 8px; }
+    .inline-reply-form textarea,
+    .comment-add-form textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 13px;
+      resize: vertical;
+      display: block;
+      margin-bottom: 0;
+    }
+    .inline-reply-form textarea:focus,
+    .comment-add-form textarea:focus { border-color: #1565c0; outline: none; }
+
+    /* --- Forms --- */
+    #new-post-form textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 14px;
+      resize: vertical;
+      display: block;
+    }
+    #new-post-form textarea:focus { border-color: #1565c0; outline: none; }
+
+    .form-footer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+    .form-error { color: #c62828; font-size: 13px; flex: 1; }
+
+    .phase-locked {
+      background: #f5f5f5;
+      border-radius: 4px;
+      padding: 10px 14px;
+      color: #888;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+
+    /* --- Buttons --- */
+    .btn-secondary {
+      padding: 8px 16px;
+      background: #fff;
+      color: #333;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.15s;
+    }
+    .btn-secondary:hover { background: #f0f0f0; }
+
+    .btn-sm { padding: 4px 10px !important; font-size: 13px !important; }
+
+    .btn-accept {
+      padding: 6px 14px;
+      background: #2e7d32;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .btn-accept:hover:not(:disabled) { background: #1b5e20; }
+    .btn-accept:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-reject {
+      padding: 6px 14px;
+      background: #c62828;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .btn-reject:hover:not(:disabled) { background: #b71c1c; }
+    .btn-reject:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* --- Version history --- */
+    .version-label { font-size: 12px; color: #888; margin: 6px 0 2px; }
+    .version-details { margin: 4px 0 8px; }
+    .version-details > summary {
+      font-size: 13px;
+      color: #1565c0;
+      cursor: pointer;
+      user-select: none;
+    }
+    .version-list { margin-top: 8px; }
+    .version-list-loading { font-size: 13px; color: #aaa; padding: 6px 0; }
+    .version-entry {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+      padding: 6px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 13px;
+    }
+    .version-entry:last-child { border-bottom: none; }
+    .version-num { font-weight: 600; color: #333; min-width: 24px; }
+    .version-time { color: #888; font-size: 12px; min-width: 80px; }
+    .version-summary { color: #555; }
+
+    /* --- Proposal subsections --- */
+    .proposal-edit-slot { margin-top: 8px; }
+    .proposal-edit-form {
+      margin-top: 8px;
+      padding: 16px;
+      background: #f9f9f9;
+      border-radius: 4px;
+      border: 1px solid #e0e0e0;
+    }
+    .proposal-edit-form .form-field { margin-bottom: 12px; }
+    .proposal-edit-form label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .proposal-edit-form input[type="text"],
+    .proposal-edit-form textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 13px;
+      resize: vertical;
+    }
+    .proposal-edit-form input[type="text"]:focus,
+    .proposal-edit-form textarea:focus { border-color: #1565c0; outline: none; }
+
+    .proposal-comments-section { margin-top: 16px; border-top: 1px solid #f0f0f0; padding-top: 12px; }
+    .proposal-amendments-section { margin-top: 16px; border-top: 1px solid #f0f0f0; padding-top: 12px; }
+
+    .subsection-heading {
+      font-size: 13px;
+      font-weight: 600;
+      color: #555;
+      margin: 0 0 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .comment-add-form { margin-bottom: 12px; }
+
+    .comments-tree { margin-top: 4px; }
+
+    /* --- Amendments --- */
+    .amendments-list { margin-top: 8px; }
+
+    .amendment-card {
+      border: 1px solid #e0e0e0;
+      border-left-width: 4px;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      background: #fff;
+    }
+    .amendment-pending  { border-left-color: #ff9800; }
+    .amendment-accepted { border-left-color: #4caf50; }
+    .amendment-rejected { border-left-color: #e53935; opacity: 0.75; }
+
+    .amendment-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .amendment-title { font-weight: 600; font-size: 14px; }
+    .amendment-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      white-space: nowrap;
+    }
+    .badge-pending  { background: #fff3e0; color: #e65100; }
+    .badge-accepted { background: #e8f5e9; color: #2e7d32; }
+    .badge-rejected { background: #ffebee; color: #c62828; }
+    .amendment-meta { font-size: 12px; color: #888; margin-left: auto; white-space: nowrap; }
+
+    .amendment-body { font-size: 13px; margin-bottom: 8px; }
+    .amendment-original,
+    .amendment-proposed,
+    .amendment-rationale { margin: 5px 0; }
+    .amendment-label { font-weight: 600; color: #555; margin-right: 4px; }
+    .amendment-text-original { color: #b71c1c; font-family: monospace; font-size: 12px; }
+    .amendment-text-proposed { color: #1b5e20; font-family: monospace; font-size: 12px; }
+
+    .amendment-accepted-note {
+      font-size: 12px;
+      color: #2e7d32;
+      background: #e8f5e9;
+      padding: 6px 10px;
+      border-radius: 4px;
+      margin: 8px 0;
+    }
+    .amendment-review-btns { display: flex; gap: 8px; margin-top: 10px; }
+
+    .amendment-form-slot { margin-top: 8px; }
+    .amendment-form {
+      margin-top: 8px;
+      padding: 16px;
+      background: #f9f9f9;
+      border-radius: 4px;
+      border: 1px solid #e0e0e0;
+    }
+    .amendment-form .form-field { margin-bottom: 12px; }
+    .amendment-form label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .amendment-form input[type="text"],
+    .amendment-form textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 13px;
+      resize: vertical;
+    }
+    .amendment-form input[type="text"]:focus,
+    .amendment-form textarea:focus { border-color: #1565c0; outline: none; }
+
+    /* --- Vote tally --- */
+    .vote-tally {
+      display: flex;
+      gap: 16px;
+      font-size: 13px;
+      margin: 8px 0;
+      padding: 8px 12px;
+      background: #f9f9f9;
+      border-radius: 4px;
+      flex-wrap: wrap;
+    }
+    .vote-tally .vote-yes     { color: #2e7d32; }
+    .vote-tally .vote-no      { color: #c62828; }
+    .vote-tally .vote-abstain { color: #888; }
+    .vote-tally .vote-total   { color: #555; margin-left: auto; }
+
+    /* --- Facilitator panel (new layout classes) --- */
+    .facilitator-badge-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    .facilitator-desc { color: #666; font-size: 14px; margin-bottom: 12px; }
+
+    #advance-btn {
+      /* mirrors .btn-advance from main.css */
+    }
+    #advance-error { color: #c62828; font-size: 13px; flex: 1; }
+  </style>
 </head>
 <body>
 
@@ -18,689 +403,7 @@
 
   <script src="/static/js/utils.js"></script>
   <script src="/static/js/api.js"></script>
-  <script>
-    // Module-level state — kept in sync after posts/signals/proposals update
-    let currentThread    = null;
-    let currentPosts     = [];
-    let currentProposals = [];
-
-    // ===== Signal section =====
-
-    // Renders the full content of the signals detail-section (bar + optional buttons).
-    // Called on initial load and after each cast to update counts + active state.
-    function renderSignalSectionContent(sc, mySignal) {
-      const buttonsHtml = auth.isSignedIn() ? renderSignalButtons(mySignal) : "";
-      return `
-        <div class="section-heading">Community Signals · ${sc.total} total</div>
-        ${renderSignalBar(sc)}
-        ${buttonsHtml}
-      `;
-    }
-
-    function renderSignalButtons(mySignal) {
-      const SIGNALS = [
-        { type: "support",   label: "Support",   icon: "↑",
-          desc: "I support the direction of this discussion" },
-        { type: "concern",   label: "Concern",   icon: "⚑",
-          desc: "I have concerns that need addressing" },
-        { type: "need_info", label: "Need info", icon: "?",
-          desc: "I need more information before forming a view" },
-        { type: "block",     label: "Block",     icon: "✕",
-          desc: "I have a strong objection" },
-      ];
-
-      const btns = SIGNALS.map(({ type, label, icon, desc }) => {
-        const active = mySignal === type ? " active" : "";
-        return `
-          <button
-            class="signal-btn signal-btn-${type}${active}"
-            data-signal="${type}"
-            type="button"
-            title="${escapeHtml(desc)}"
-          ><span class="signal-btn-icon">${icon}</span>${label}</button>
-        `;
-      }).join("");
-
-      const activeLabel = mySignal
-        ? `Your signal: <strong>${mySignal.replace("_", " ")}</strong>. Click another to update.`
-        : "Cast a signal to register your position.";
-
-      return `
-        <div class="signal-cast-label">${activeLabel}</div>
-        <div class="signal-buttons">${btns}</div>
-        <div class="signal-cast-error" id="signal-cast-error"></div>
-        <p class="signal-cast-note">Signals are anonymous and aggregated. You can update yours at any time.</p>
-      `;
-    }
-
-    // Signal distribution bar — percentage segments
-    function renderSignalBar(sc) {
-      if (sc.total === 0) {
-        return `<p class="no-signals">No signals cast yet.</p>`;
-      }
-
-      const pct = (n) => ((n / sc.total) * 100).toFixed(1);
-
-      const segments = [
-        sc.support   > 0 ? `<div class="signal-segment signal-segment-support"   style="width:${pct(sc.support)}%"   title="${sc.support} support"></div>`   : "",
-        sc.concern   > 0 ? `<div class="signal-segment signal-segment-concern"   style="width:${pct(sc.concern)}%"   title="${sc.concern} concern"></div>`   : "",
-        sc.need_info > 0 ? `<div class="signal-segment signal-segment-need_info" style="width:${pct(sc.need_info)}%" title="${sc.need_info} need info"></div>` : "",
-        sc.block     > 0 ? `<div class="signal-segment signal-segment-block"     style="width:${pct(sc.block)}%"     title="${sc.block} block"></div>`     : "",
-      ].join("");
-
-      const legend = [
-        sc.support   > 0 ? `<span class="legend-item"><span class="legend-dot legend-dot-support"></span>${sc.support} support</span>`     : "",
-        sc.concern   > 0 ? `<span class="legend-item"><span class="legend-dot legend-dot-concern"></span>${sc.concern} concern</span>`     : "",
-        sc.need_info > 0 ? `<span class="legend-item"><span class="legend-dot legend-dot-need_info"></span>${sc.need_info} need info</span>` : "",
-        sc.block     > 0 ? `<span class="legend-item"><span class="legend-dot legend-dot-block"></span>${sc.block} block</span>`           : "",
-      ].join("");
-
-      const blockWarning = sc.block > 0
-        ? `<div class="block-warning">
-             ${sc.block} participant${sc.block !== 1 ? "s" : ""} ha${sc.block !== 1 ? "ve" : "s"} blocked this thread.
-             Blocks are a strong signal that concerns are unresolved.
-           </div>`
-        : "";
-
-      return `
-        <div class="signal-distribution-bar">${segments}</div>
-        <div class="signal-legend">${legend}</div>
-        ${blockWarning}
-      `;
-    }
-
-    // Render a single post (level 1 or 2)
-    function renderPost(post, isReply = false) {
-      const cls = isReply ? "reply" : "post";
-      const body = post.is_removed
-        ? `<p class="post-removed">[Post removed by moderator]</p>`
-        : `<p class="post-body">${escapeHtml(post.body)}</p>`;
-
-      const replies = (!isReply && post.replies && post.replies.length > 0)
-        ? `<div class="replies-list">
-             ${post.replies.map(r => renderPost(r, true)).join("")}
-           </div>`
-        : "";
-
-      return `
-        <div class="${cls}">
-          <div class="post-header">
-            <span class="post-author">${escapeHtml(post.author.display_name)}</span>
-            <span class="post-time">${timeAgo(post.created_at)}</span>
-          </div>
-          ${body}
-          ${replies}
-        </div>
-      `;
-    }
-
-    // Escape user-generated HTML to prevent XSS
-    function escapeHtml(str) {
-      return str
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
-
-    // ===== Post form =====
-
-    const POSTING_PHASES = ["open", "deliberating"];
-
-    const PHASE_LOCK_MESSAGES = {
-      proposing: "This thread is in the proposing phase — posts are locked.",
-      voting:    "This thread is in the voting phase — posts are locked.",
-      closed:    "This thread is closed — no new posts can be added.",
-      archived:  "This thread is archived.",
-    };
-
-    function renderPostForm(thread, posts) {
-      if (!auth.hasTier("participant")) return "";
-
-      if (!POSTING_PHASES.includes(thread.status)) {
-        const msg = PHASE_LOCK_MESSAGES[thread.status]
-          || "Posting is not allowed in the current phase.";
-        return `<div class="phase-locked-message">${msg}</div>`;
-      }
-
-      const replyOptions = posts.filter(p => !p.is_removed);
-      const replySelector = replyOptions.length > 0 ? `
-        <div class="form-field">
-          <label for="post-reply-to">Reply to (optional)</label>
-          <select id="post-reply-to" class="post-reply-select">
-            <option value="">— Write a top-level post —</option>
-            ${replyOptions.map(p => {
-              const preview = p.body.length > 60 ? p.body.slice(0, 60) + "…" : p.body;
-              return `<option value="${p.id}">${escapeHtml(p.author.display_name)} — ${escapeHtml(preview)}</option>`;
-            }).join("")}
-          </select>
-        </div>` : "";
-
-      return `
-        <form id="post-form" class="post-form" novalidate>
-          <div class="post-form-heading">Write a post</div>
-          ${replySelector}
-          <div class="form-field">
-            <textarea
-              id="post-body"
-              placeholder="Share your perspective… (10–3000 characters)"
-              minlength="10"
-              maxlength="3000"
-              rows="4"
-            ></textarea>
-          </div>
-          <div class="post-form-footer">
-            <div class="post-form-error" id="post-form-error"></div>
-            <button type="submit" class="btn-primary" id="post-submit-btn">Post</button>
-          </div>
-        </form>`;
-    }
-
-    function renderDiscussionContent(thread, posts) {
-      const postsHtml = posts.length === 0
-        ? `<div class="empty-state">No posts yet. Be the first to contribute.</div>`
-        : `<div class="posts-list">${posts.map(p => renderPost(p)).join("")}</div>`;
-
-      return `
-        <div class="section-heading">
-          Discussion · ${posts.length} post${posts.length !== 1 ? "s" : ""}
-        </div>
-        ${postsHtml}
-        ${renderPostForm(thread, posts)}`;
-    }
-
-    // ===== Proposals =====
-
-    const PROPOSAL_PHASES     = ["proposing", "voting", "closed", "archived"];
-    const VOTE_VISIBLE_PHASES = ["voting", "closed", "archived"];
-
-    const PROPOSAL_STATUS_LABELS = {
-      submitted:    "Submitted",
-      under_review: "Under Review",
-      voting:       "Open for Vote",
-      passed:       "Passed",
-      rejected:     "Rejected",
-      implemented:  "Implemented",
-    };
-
-    function renderProposalCard(proposal, showVotes, canVote) {
-      const label  = PROPOSAL_STATUS_LABELS[proposal.status] || proposal.status;
-      const amount = proposal.requested_amount
-        ? `<span>$${Number(proposal.requested_amount).toLocaleString()} requested</span>`
-        : "";
-
-      const votesHtml = showVotes ? `
-        <div class="proposal-votes">
-          <span class="vote-yes">↑ Yes: ${proposal.vote_summary.yes}</span>
-          <span class="vote-no">↓ No: ${proposal.vote_summary.no}</span>
-          <span class="vote-abstain">– Abstain: ${proposal.vote_summary.abstain}</span>
-          <span class="vote-total">${proposal.vote_summary.total} total</span>
-        </div>` : "";
-
-      let voteHtml = "";
-      if (canVote) {
-        if (proposal.my_vote) {
-          const choiceLabel = { yes: "Yes", no: "No", abstain: "Abstain" }[proposal.my_vote] || proposal.my_vote;
-          voteHtml = `<div class="vote-cast-notice">You voted: <strong>${choiceLabel}</strong> · Votes are final</div>`;
-        } else {
-          voteHtml = `
-            <div class="vote-buttons" data-proposal-id="${proposal.id}">
-              <button class="vote-btn vote-btn-yes" data-vote="yes" data-proposal-id="${proposal.id}">↑ Yes</button>
-              <button class="vote-btn vote-btn-no" data-vote="no" data-proposal-id="${proposal.id}">↓ No</button>
-              <button class="vote-btn vote-btn-abstain" data-vote="abstain" data-proposal-id="${proposal.id}">– Abstain</button>
-              <span class="vote-error" id="vote-error-${proposal.id}"></span>
-            </div>`;
-        }
-      }
-
-      return `
-        <div class="proposal-card">
-          <div class="proposal-card-header">
-            <h3 class="proposal-title">${escapeHtml(proposal.title)}</h3>
-            <span class="proposal-status-badge proposal-status-${proposal.status}">${label}</span>
-          </div>
-          <p class="proposal-description">${escapeHtml(proposal.description)}</p>
-          <div class="proposal-meta">
-            <span>${timeAgo(proposal.created_at)}</span>
-            ${amount}
-          </div>
-          ${votesHtml}
-          ${voteHtml}
-        </div>`;
-    }
-
-    function renderProposalForm() {
-      if (!auth.hasTier("participant") || currentThread.status !== "proposing") return "";
-      return `
-        <form id="proposal-form" class="proposal-form" novalidate>
-          <div class="proposal-form-heading">Submit a Proposal</div>
-          <p class="proposal-form-note">
-            Proposals are formal submissions visible to all participants.
-            A facilitator will review before opening to vote.
-          </p>
-          <div class="form-field">
-            <label for="proposal-title">Title <span class="field-hint">— 10–200 characters</span></label>
-            <input
-              type="text"
-              id="proposal-title"
-              placeholder="A clear, specific title for your proposal"
-              minlength="10"
-              maxlength="200"
-            >
-          </div>
-          <div class="form-field">
-            <label for="proposal-description">Description <span class="field-hint">— 50–5000 characters</span></label>
-            <textarea
-              id="proposal-description"
-              placeholder="Describe what you're proposing, why it matters, and how it would work…"
-              minlength="50"
-              maxlength="5000"
-              rows="6"
-            ></textarea>
-          </div>
-          <div class="post-form-footer">
-            <div class="post-form-error" id="proposal-form-error"></div>
-            <button type="submit" class="btn-primary" id="proposal-submit-btn">Submit Proposal</button>
-          </div>
-        </form>`;
-    }
-
-    function renderProposalsSectionContent(thread, proposals) {
-      const showVotes = VOTE_VISIBLE_PHASES.includes(thread.status);
-      const canVote   = thread.status === "voting" && auth.hasTier("participant");
-      const cardsHtml = proposals.map(p => renderProposalCard(p, showVotes, canVote)).join("");
-      const emptyHtml = proposals.length === 0
-        ? `<div class="empty-state">No proposals submitted yet.</div>`
-        : "";
-
-      return `
-        <div class="section-heading proposals-heading">
-          Proposals · ${proposals.length} submitted
-        </div>
-        ${cardsHtml || emptyHtml}
-        ${renderProposalForm()}`;
-    }
-
-    // ===== Facilitator panel =====
-
-    const PHASE_SEQUENCE = ["open", "deliberating", "proposing", "voting", "closed", "archived"];
-
-    const PHASE_LABELS = {
-      open:         "Open",
-      deliberating: "Deliberating",
-      proposing:    "Proposing",
-      voting:       "Voting",
-      closed:       "Closed",
-      archived:     "Archived",
-    };
-
-    const PHASE_NEXT_DESCRIPTION = {
-      open:         "Move to Deliberating — participants can begin discussing the question.",
-      deliberating: "Move to Proposing — participants can now submit formal proposals.",
-      proposing:    "Move to Voting — proposals are locked; participants cast votes.",
-      voting:       "Move to Closed — voting ends; outcomes are recorded in the audit log.",
-    };
-
-    function nextPhase(status) {
-      const i = PHASE_SEQUENCE.indexOf(status);
-      return (i >= 0 && i < PHASE_SEQUENCE.length - 1) ? PHASE_SEQUENCE[i + 1] : null;
-    }
-
-    function renderFacilitatorPanel(thread) {
-      if (!auth.hasTier("facilitator")) return "";
-      const terminal = ["closed", "archived"];
-      if (terminal.includes(thread.status)) return "";
-
-      const next = nextPhase(thread.status);
-      if (!next) return "";
-
-      const nextLabel = PHASE_LABELS[next] || next;
-      const description = PHASE_NEXT_DESCRIPTION[thread.status] || "";
-
-      return `
-        <div class="facilitator-panel" id="facilitator-panel">
-          <div class="facilitator-panel-header">
-            <span class="facilitator-badge">Facilitator Controls</span>
-          </div>
-          <div class="facilitator-current">
-            Current phase: <strong>${PHASE_LABELS[thread.status] || thread.status}</strong>
-          </div>
-          <div class="facilitator-next-description">${description}</div>
-          <form id="advance-form" novalidate>
-            <div class="form-field">
-              <label for="advance-reason">
-                Reason for advancing
-                <span class="field-hint">— required, visible to all participants in the audit log (10–500 characters)</span>
-              </label>
-              <textarea
-                id="advance-reason"
-                placeholder="Explain why the thread is moving to ${nextLabel}…"
-                minlength="10"
-                maxlength="500"
-                rows="3"
-              ></textarea>
-            </div>
-            <div class="advance-form-footer">
-              <div class="advance-form-error" id="advance-form-error"></div>
-              <button
-                type="submit"
-                class="btn-advance"
-                id="advance-submit-btn"
-                disabled
-              >Advance to ${nextLabel} →</button>
-            </div>
-          </form>
-        </div>`;
-    }
-
-    // ===== Main render =====
-
-    function renderThread(thread, posts, proposals) {
-      const sc = thread.signal_counts;
-
-      const contextHtml = thread.context
-        ? `<p class="context-text">${escapeHtml(thread.context)}</p>`
-        : "";
-
-      document.title = `${thread.title} — Civic Platform`;
-
-      return `
-        <div class="thread-header">
-          <div class="thread-header-top">
-            <h1 class="thread-detail-title">${escapeHtml(thread.title)}</h1>
-            <span class="${phaseBadgeClass(thread.status)}">${capitalize(thread.status)}</span>
-          </div>
-          <div class="thread-header-meta">
-            Started by ${escapeHtml(thread.created_by.display_name)}
-            · ${timeAgo(thread.created_at)}
-            · ${thread.post_count} post${thread.post_count !== 1 ? "s" : ""}
-            · ${thread.proposal_count} proposal${thread.proposal_count !== 1 ? "s" : ""}
-          </div>
-        </div>
-
-        ${renderFacilitatorPanel(thread)}
-
-        <div class="detail-section" id="signal-section">
-          ${renderSignalSectionContent(sc, thread.my_signal)}
-        </div>
-
-        <div class="detail-section">
-          <div class="section-heading">Deliberation Question</div>
-          <p class="prompt-text">${escapeHtml(thread.prompt)}</p>
-          ${contextHtml}
-        </div>
-
-        <div class="detail-section" id="discussion-section">
-          ${renderDiscussionContent(thread, posts)}
-        </div>
-
-        ${PROPOSAL_PHASES.includes(thread.status) ? `
-        <div class="detail-section proposals-section" id="proposals-section">
-          ${renderProposalsSectionContent(thread, proposals)}
-        </div>` : ""}
-      `;
-    }
-
-    // ===== Signal button interactions =====
-
-    // Uses event delegation on the container — survives innerHTML re-renders.
-    function setupSignalButtons(threadId) {
-      const container = document.getElementById("thread-container");
-      container.addEventListener("click", async (e) => {
-        const btn = e.target.closest("[data-signal]");
-        if (!btn) return;
-
-        const signalType = btn.dataset.signal;
-        const allBtns = document.querySelectorAll(".signal-btn");
-        const errEl   = document.getElementById("signal-cast-error");
-
-        allBtns.forEach(b => { b.disabled = true; });
-        if (errEl) errEl.textContent = "";
-
-        try {
-          await castSignal(threadId, signalType);
-          // Re-fetch for accurate counts and updated my_signal
-          const updated = await getThread(threadId);
-          const section = document.getElementById("signal-section");
-          if (section) {
-            section.innerHTML = renderSignalSectionContent(
-              updated.signal_counts, updated.my_signal
-            );
-          }
-        } catch (err) {
-          allBtns.forEach(b => { b.disabled = false; });
-          const errEl = document.getElementById("signal-cast-error");
-          if (errEl) errEl.textContent = err.message || "Could not cast signal.";
-        }
-      });
-    }
-
-    // ===== Post form interactions =====
-
-    function setupPostForm(threadId) {
-      const container = document.getElementById("thread-container");
-      container.addEventListener("submit", async (e) => {
-        if (!e.target.closest("#post-form")) return;
-        e.preventDefault();  // inside guard — proposal form handled separately
-
-        const textarea  = document.getElementById("post-body");
-        const replySelect = document.getElementById("post-reply-to");
-        const submitBtn = document.getElementById("post-submit-btn");
-        const errEl     = document.getElementById("post-form-error");
-
-        const body     = textarea ? textarea.value.trim() : "";
-        const parentId = replySelect ? (replySelect.value || null) : null;
-
-        if (body.length < 10) {
-          if (errEl) errEl.textContent = "Posts must be at least 10 characters.";
-          return;
-        }
-
-        if (errEl) errEl.textContent = "";
-        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Posting…"; }
-
-        try {
-          await createPost(threadId, body, parentId);
-          const freshPosts = await getPosts(threadId);
-          currentPosts = freshPosts;
-          const section = document.getElementById("discussion-section");
-          if (section) {
-            section.innerHTML = renderDiscussionContent(currentThread, freshPosts);
-          }
-        } catch (err) {
-          if (errEl) errEl.textContent = err.message || "Could not post. Please try again.";
-          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Post"; }
-        }
-      });
-    }
-
-    // ===== Proposal form interactions =====
-
-    function setupProposalForm(threadId) {
-      const container = document.getElementById("thread-container");
-      container.addEventListener("submit", async (e) => {
-        if (!e.target.closest("#proposal-form")) return;
-        e.preventDefault();
-
-        const titleInput = document.getElementById("proposal-title");
-        const descInput  = document.getElementById("proposal-description");
-        const submitBtn  = document.getElementById("proposal-submit-btn");
-        const errEl      = document.getElementById("proposal-form-error");
-
-        const title       = titleInput ? titleInput.value.trim() : "";
-        const description = descInput  ? descInput.value.trim()  : "";
-
-        if (title.length < 10) {
-          if (errEl) errEl.textContent = "Title must be at least 10 characters.";
-          return;
-        }
-        if (description.length < 50) {
-          if (errEl) errEl.textContent = "Description must be at least 50 characters.";
-          return;
-        }
-
-        if (errEl) errEl.textContent = "";
-        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Submitting…"; }
-
-        try {
-          await createProposal(threadId, title, description);
-          const freshProposals = await getProposals(threadId);
-          currentProposals = freshProposals;
-          const section = document.getElementById("proposals-section");
-          if (section) {
-            section.innerHTML = renderProposalsSectionContent(currentThread, freshProposals);
-          }
-        } catch (err) {
-          if (errEl) errEl.textContent = err.message || "Could not submit proposal.";
-          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Submit Proposal"; }
-        }
-      });
-    }
-
-    // ===== Facilitator advance form =====
-
-    function setupAdvanceForm(threadId) {
-      const container = document.getElementById("thread-container");
-
-      // Enable/disable submit button as reason is typed
-      container.addEventListener("input", (e) => {
-        if (e.target.id !== "advance-reason") return;
-        const btn = document.getElementById("advance-submit-btn");
-        if (btn) btn.disabled = e.target.value.trim().length < 10;
-      });
-
-      container.addEventListener("submit", async (e) => {
-        if (!e.target.closest("#advance-form")) return;
-        e.preventDefault();
-
-        const reasonEl  = document.getElementById("advance-reason");
-        const submitBtn = document.getElementById("advance-submit-btn");
-        const errEl     = document.getElementById("advance-form-error");
-        const reason    = reasonEl ? reasonEl.value.trim() : "";
-
-        if (reason.length < 10) {
-          if (errEl) errEl.textContent = "Reason must be at least 10 characters.";
-          return;
-        }
-
-        const next = nextPhase(currentThread.status);
-        if (!next) return;
-        const nextLabel = PHASE_LABELS[next] || next;
-
-        const confirmed = window.confirm(
-          `Advance thread to "${nextLabel}"?\n\nThis action is permanent and cannot be undone. All participants will be affected immediately.`
-        );
-        if (!confirmed) return;
-
-        if (errEl) errEl.textContent = "";
-        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Advancing…"; }
-
-        try {
-          await advancePhase(threadId, next, reason);
-          // Full re-render: phase change affects every section
-          const [freshThread, freshPosts, freshProposals] = await Promise.all([
-            getThread(threadId),
-            getPosts(threadId),
-            getProposals(threadId),
-          ]);
-          currentThread    = freshThread;
-          currentPosts     = freshPosts;
-          currentProposals = freshProposals;
-          container.innerHTML = renderThread(freshThread, freshPosts, freshProposals);
-          // Re-attach all handlers (new DOM)
-          setupSignalButtons(threadId);
-          setupPostForm(threadId);
-          setupProposalForm(threadId);
-          setupAdvanceForm(threadId);
-          setupVoteButtons(threadId);
-        } catch (err) {
-          if (errEl) errEl.textContent = err.message || "Could not advance phase.";
-          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = `Advance to ${nextLabel} →`; }
-        }
-      });
-    }
-
-    // ===== Vote buttons =====
-
-    function setupVoteButtons(threadId) {
-      const container = document.getElementById("thread-container");
-      container.addEventListener("click", async (e) => {
-        const btn = e.target.closest("[data-vote]");
-        if (!btn) return;
-
-        const proposalId = btn.dataset.proposalId;
-        const choice     = btn.dataset.vote;
-        const errEl      = document.getElementById(`vote-error-${proposalId}`);
-        const voteDiv    = btn.closest(".vote-buttons");
-
-        if (voteDiv) {
-          voteDiv.querySelectorAll(".vote-btn").forEach(b => { b.disabled = true; });
-        }
-        if (errEl) errEl.textContent = "";
-
-        const choiceLabel = { yes: "Yes", no: "No", abstain: "Abstain" }[choice] || choice;
-        const confirmed = window.confirm(
-          `Cast vote: ${choiceLabel}?\n\nVotes are permanent and cannot be changed after submission.`
-        );
-        if (!confirmed) {
-          if (voteDiv) voteDiv.querySelectorAll(".vote-btn").forEach(b => { b.disabled = false; });
-          return;
-        }
-
-        try {
-          await castVote(proposalId, choice);
-          const freshProposals = await getProposals(threadId);
-          currentProposals = freshProposals;
-          const section = document.getElementById("proposals-section");
-          if (section) {
-            section.innerHTML = renderProposalsSectionContent(currentThread, freshProposals);
-          }
-        } catch (err) {
-          if (errEl) errEl.textContent = err.message || "Could not cast vote.";
-          if (voteDiv) {
-            voteDiv.querySelectorAll(".vote-btn").forEach(b => { b.disabled = false; });
-          }
-        }
-      });
-    }
-
-    // ===== Init =====
-
-    async function init() {
-      const container = document.getElementById("thread-container");
-      const threadId = window.location.pathname.split("/thread/")[1];
-
-      if (!threadId) {
-        container.innerHTML = `<div class="error-message">Invalid thread URL.</div>`;
-        return;
-      }
-
-      try {
-        const [thread, posts, proposals] = await Promise.all([
-          getThread(threadId),
-          getPosts(threadId),
-          getProposals(threadId),
-        ]);
-        currentThread    = thread;
-        currentPosts     = posts;
-        currentProposals = proposals;
-        container.innerHTML = renderThread(thread, posts, proposals);
-        setupSignalButtons(threadId);
-        setupPostForm(threadId);
-        setupProposalForm(threadId);
-        setupAdvanceForm(threadId);
-        setupVoteButtons(threadId);
-      } catch (err) {
-        container.innerHTML = `
-          <div class="error-message">Could not load thread: ${err.message}</div>
-          <p style="margin-top:16px"><a href="/">← Back to discussions</a></p>
-        `;
-      }
-    }
-
-    init();
-  </script>
+  <script src="/static/js/thread.js"></script>
 
 </body>
 </html>
