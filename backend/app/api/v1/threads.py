@@ -14,6 +14,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 
 from app.api.deps import DB, FacilitatorUser, OptionalUser, ParticipantUser, RegisteredUser
 from app.core.audit import log_event
@@ -77,7 +78,7 @@ async def list_threads(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[ThreadSummary]:
-    q = select(Thread)
+    q = select(Thread).options(selectinload(Thread.domain))
     if domain_slug:
         domain_result = await db.execute(
             select(Domain).where(Domain.slug == domain_slug)
@@ -102,6 +103,8 @@ async def list_threads(
             ThreadSummary(
                 id=t.id,
                 domain_id=t.domain_id,
+                domain_name=t.domain.name,
+                domain_slug=t.domain.slug,
                 title=t.title,
                 status=t.status,
                 signal_counts=sc,

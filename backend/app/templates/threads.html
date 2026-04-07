@@ -7,20 +7,107 @@
   <link rel="stylesheet" href="/static/css/main.css">
   <script src="/static/js/auth.js"></script>
   <script src="/static/js/nav.js"></script>
+  <style>
+    /* ---- Search & filter bar ---- */
+    .threads-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+    .threads-search {
+      flex: 1;
+      min-width: 180px;
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+    }
+    .threads-search:focus { border-color: #1565c0; }
+    .threads-filter {
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+      background: #fff;
+      cursor: pointer;
+      outline: none;
+    }
+    .threads-filter:focus { border-color: #1565c0; }
+    .threads-results-count {
+      font-size: 13px;
+      color: #888;
+      padding: 4px 0;
+      white-space: nowrap;
+    }
+
+    /* ---- Domain tag on thread card ---- */
+    .thread-domain-tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #1565c0;
+      background: #e3f2fd;
+      border-radius: 4px;
+      padding: 2px 7px;
+      margin-bottom: 6px;
+    }
+
+    /* ---- No-results state ---- */
+    .no-results {
+      padding: 32px 0;
+      text-align: center;
+      color: #888;
+      font-size: 14px;
+    }
+    .no-results a {
+      color: #1565c0;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
 
   <div id="nav-placeholder"></div>
 
   <main class="container">
-    <div style="display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:8px;">
+    <div style="display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:16px;">
       <h1 class="page-title" style="margin-bottom:0;">Active Discussions</h1>
       <a id="create-thread-btn" href="/new-thread"
          style="display:none; padding:7px 16px; background:#1a1a1a; color:#fff; border-radius:6px; font-size:14px; font-weight:500; text-decoration:none; white-space:nowrap;">
         + Start a discussion
       </a>
     </div>
-    <section class="phase-explainer">
+
+    <!-- Search & filter toolbar -->
+    <div class="threads-toolbar">
+      <input id="search-input" class="threads-search" type="search"
+             placeholder="Search discussions…" autocomplete="off">
+      <select id="domain-filter" class="threads-filter">
+        <option value="">All domains</option>
+      </select>
+      <select id="phase-filter" class="threads-filter">
+        <option value="">All phases</option>
+        <option value="open">Open</option>
+        <option value="deliberating">Deliberating</option>
+        <option value="proposing">Proposing</option>
+        <option value="voting">Voting</option>
+        <option value="closed">Closed</option>
+        <option value="archived">Archived</option>
+      </select>
+      <span id="results-count" class="threads-results-count"></span>
+    </div>
+
+    <div id="thread-list-container">
+      <div class="loading">Loading threads…</div>
+    </div>
+
+    <!-- How deliberation works — moved below thread cards -->
+    <section class="phase-explainer" style="margin-top:40px;">
       <h3 class="phase-explainer__heading">How deliberation works</h3>
       <div class="phase-explainer__cards">
 
@@ -126,10 +213,6 @@
 
       </div>
     </section>
-
-    <div id="thread-list-container">
-      <div class="loading">Loading threads…</div>
-    </div>
   </main>
 
   <script src="/static/js/utils.js"></script>
@@ -137,20 +220,14 @@
   <script>
     // ===== Page Logic =====
 
+    let allThreads = [];  // full list from API — filter client-side
+
     async function updateNav() {
       if (!auth.isSignedIn()) return;
       let user = auth.getUser();
       if (!user) {
-        try {
-          user = await getMe();
-          auth.setUser(user);
-        } catch (_) {}
+        try { user = await getMe(); auth.setUser(user); } catch (_) {}
       }
-    }
-
-    function handleSignOut() {
-      auth.clearToken();
-      window.location.reload();
     }
 
     const PHASE_TOOLTIPS = {
@@ -169,7 +246,6 @@
       block:     "Participants with a strong objection. Always shown prominently."
     };
 
-    // Render a single thread card as an HTML string
     function renderThreadCard(thread) {
       const sc = thread.signal_counts;
       const phaseTooltip = PHASE_TOOLTIPS[thread.status] || "";
@@ -184,14 +260,18 @@
               </span>
             </div>
 
+            <div>
+              <span class="thread-domain-tag">${thread.domain_name}</span>
+            </div>
+
             <div class="signal-bar" data-tooltip="Signals show how participants feel about this thread&#39;s direction — not individual posts. Block signals are always surfaced, even as a minority.">
               ${sc.support > 0 ? `
                 <span class="signal-count signal-support" data-tooltip="${SIGNAL_TOOLTIPS.support}">
-                  ${SIGNAL_ICONS.support} ${sc.support} support
+                  ${SIGNAL_ICONS.support} ${sc.support} agree
                 </span>` : ""}
               ${sc.concern > 0 ? `
                 <span class="signal-count signal-concern" data-tooltip="${SIGNAL_TOOLTIPS.concern}">
-                  ${SIGNAL_ICONS.concern} ${sc.concern} concern
+                  ${SIGNAL_ICONS.concern} ${sc.concern} disagree
                 </span>` : ""}
               ${sc.need_info > 0 ? `
                 <span class="signal-count signal-need_info" data-tooltip="${SIGNAL_TOOLTIPS.need_info}">
@@ -214,40 +294,99 @@
       `;
     }
 
-    // Main load function
+    // ===== Filter & search =====
+
+    function getFiltered() {
+      const query  = document.getElementById("search-input").value.trim().toLowerCase();
+      const domain = document.getElementById("domain-filter").value;
+      const phase  = document.getElementById("phase-filter").value;
+
+      return allThreads.filter(t => {
+        if (domain && t.domain_slug !== domain) return false;
+        if (phase  && t.status      !== phase)  return false;
+        if (query  && !t.title.toLowerCase().includes(query)) return false;
+        return true;
+      });
+    }
+
+    function renderList() {
+      const filtered   = getFiltered();
+      const container  = document.getElementById("thread-list-container");
+      const countEl    = document.getElementById("results-count");
+
+      if (allThreads.length > 0) {
+        countEl.textContent = filtered.length === allThreads.length
+          ? `${allThreads.length} discussion${allThreads.length !== 1 ? "s" : ""}`
+          : `${filtered.length} of ${allThreads.length}`;
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="no-results">
+            No discussions match your filters.
+            <a onclick="clearFilters()">Clear filters</a>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="thread-list">
+          ${filtered.map(renderThreadCard).join("")}
+        </div>`;
+    }
+
+    function clearFilters() {
+      document.getElementById("search-input").value  = "";
+      document.getElementById("domain-filter").value = "";
+      document.getElementById("phase-filter").value  = "";
+      renderList();
+    }
+
+    // ===== Domain dropdown population =====
+
+    function populateDomainFilter(threads) {
+      const seen   = new Map();  // slug → name
+      threads.forEach(t => seen.set(t.domain_slug, t.domain_name));
+      const select = document.getElementById("domain-filter");
+      [...seen.entries()]
+        .sort((a, b) => a[1].localeCompare(b[1]))
+        .forEach(([slug, name]) => {
+          const opt = document.createElement("option");
+          opt.value = slug;
+          opt.textContent = name;
+          select.appendChild(opt);
+        });
+    }
+
+    // ===== Main load =====
+
     async function loadThreads() {
       const container = document.getElementById("thread-list-container");
-
       try {
-        const threads = await getThreads();
+        allThreads = await getThreads({ limit: 100 });
 
-        if (threads.length === 0) {
-          container.innerHTML = `
-            <div class="empty-state">
-              No threads yet. A facilitator can create the first one.
-            </div>`;
+        if (allThreads.length === 0) {
+          container.innerHTML = `<div class="empty-state">No discussions yet. A facilitator can create the first one.</div>`;
           return;
         }
 
-        container.innerHTML = `
-          <div class="thread-list">
-            ${threads.map(renderThreadCard).join("")}
-          </div>`;
+        populateDomainFilter(allThreads);
+        renderList();
+
+        // Wire up live filtering
+        document.getElementById("search-input").addEventListener("input",  renderList);
+        document.getElementById("domain-filter").addEventListener("change", renderList);
+        document.getElementById("phase-filter").addEventListener("change",  renderList);
 
       } catch (err) {
-        container.innerHTML = `
-          <div class="error-message">
-            Could not load threads: ${err.message}
-          </div>`;
+        container.innerHTML = `<div class="error-message">Could not load threads: ${err.message}</div>`;
       }
     }
 
-    // Show create button for signed-in users
     if (auth.isSignedIn()) {
       document.getElementById("create-thread-btn").style.display = "inline-block";
     }
 
-    // Run on page load
     updateNav();
     loadThreads();
   </script>

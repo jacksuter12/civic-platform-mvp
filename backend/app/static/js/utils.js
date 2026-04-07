@@ -49,7 +49,7 @@ function showError(containerId, message) {
  */
 const SIGNAL_ICONS = {
   support:   "↑",
-  concern:   "!",
+  concern:   "↓",
   need_info: "?",
   block:     "✕",
 };

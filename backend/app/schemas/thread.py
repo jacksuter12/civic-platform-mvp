@@ -36,6 +36,8 @@ class ThreadSummary(UUIDSchema, TimestampSchema):
     """Lightweight list item."""
 
     domain_id: uuid.UUID
+    domain_name: str
+    domain_slug: str
     title: str
     status: ThreadStatus
     signal_counts: SignalCounts
