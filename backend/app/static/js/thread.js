@@ -259,7 +259,7 @@ function renderNewPostForm() {
     return msg ? `<div class="phase-locked">${msg}</div>` : "";
   }
   return `
-    <form id="new-post-form" class="post-form" data-thread-id="${esc(S.threadId)}" novalidate>
+    <form id="new-post-form" class="post-form" data-action-form="new-post" data-thread-id="${esc(S.threadId)}" novalidate>
       <textarea id="new-post-body" placeholder="Write a post… (10–3000 characters)" minlength="10" maxlength="3000" rows="4"></textarea>
       <div class="form-footer">
         <span class="form-error" id="new-post-error"></span>
@@ -553,7 +553,7 @@ function renderFacilitatorPanel() {
         <span>Current phase: <strong>${PHASE_LABELS[status] || status}</strong></span>
       </div>
       <div class="facilitator-desc">${PHASE_NEXT_DESC[status] || ""}</div>
-      <form id="advance-form" novalidate>
+      <form id="advance-form" data-action-form="advance-phase" novalidate>
         <div class="form-field">
           <label for="advance-reason">Reason for advancing <span class="field-hint">— required, recorded in audit log (10–500 characters)</span></label>
           <textarea id="advance-reason" placeholder="Explain why the thread is moving to ${nextLabel}…" minlength="10" maxlength="500" rows="3"></textarea>
@@ -958,7 +958,7 @@ async function handleSubmit(e) {
   e.preventDefault();
 
   // ---- New top-level post ----
-  if (form.id === "new-post-form") {
+  if (actionForm === "new-post") {
     const body = form.querySelector("#new-post-body")?.value.trim() || "";
     const errEl = document.getElementById("new-post-error");
     if (body.length < 10) { if (errEl) errEl.textContent = "Posts must be at least 10 characters."; return; }
@@ -1126,7 +1126,7 @@ async function handleSubmit(e) {
   }
 
   // ---- Phase advance ----
-  if (form.id === "advance-form") {
+  if (actionForm === "advance-phase") {
     const reason = document.getElementById("advance-reason")?.value.trim() || "";
     const errEl  = document.getElementById("advance-error");
     if (reason.length < 10) { if (errEl) errEl.textContent = "Reason must be at least 10 characters."; return; }
