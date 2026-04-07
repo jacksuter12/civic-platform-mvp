@@ -112,3 +112,8 @@ async def new_thread_page() -> FileResponse:
 @app.get("/admin")
 async def admin_page() -> FileResponse:
     return FileResponse("app/templates/admin.html")
+
+
+@app.get("/audit")
+async def audit_page() -> FileResponse:
+    return FileResponse("app/templates/audit.html")

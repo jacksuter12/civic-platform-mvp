@@ -9,6 +9,7 @@
     { label: "How It Works", href: "/how-it-works" },
     { label: "Quiz",         href: "/quiz" },
     { label: "Platform",     href: "/threads" },
+    { label: "Audit Log",    href: "/audit" },
   ];
 
   function authLink() {

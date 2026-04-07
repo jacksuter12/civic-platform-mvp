@@ -214,6 +214,19 @@ async function castVote(proposalId, choice) {
   });
 }
 
+// ===== Audit Log =====
+
+async function getAuditLog({ eventType, targetType, targetId, actorId, limit = 50, offset = 0 } = {}) {
+  const params = new URLSearchParams();
+  if (eventType)  params.set("event_type",  eventType);
+  if (targetType) params.set("target_type", targetType);
+  if (targetId)   params.set("target_id",   targetId);
+  if (actorId)    params.set("actor_id",    actorId);
+  params.set("limit",  limit);
+  params.set("offset", offset);
+  return apiFetch(`/audit?${params}`);
+}
+
 // ===== Domains =====
 
 async function getDomains() {

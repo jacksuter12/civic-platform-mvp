@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transparency Log — Civic Platform</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/nav.js"></script>
+  <style>
+    .audit-intro {
+      background: #f9f9f9;
+      border-left: 3px solid #1565c0;
+      border-radius: 0 4px 4px 0;
+      padding: 14px 18px;
+      margin-bottom: 24px;
+      font-size: 14px;
+      color: #444;
+      line-height: 1.6;
+    }
+    .audit-intro strong { color: #1a1a1a; }
+
+    /* ---- Filter bar ---- */
+    .audit-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+    .audit-filter {
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff;
+      outline: none;
+    }
+    .audit-filter:focus { border-color: #1565c0; }
+    .audit-search {
+      flex: 1;
+      min-width: 200px;
+    }
+    .audit-clear {
+      font-size: 13px;
+      color: #1565c0;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px 4px;
+      text-decoration: underline;
+    }
+    .audit-count {
+      font-size: 13px;
+      color: #888;
+      margin-left: auto;
+      white-space: nowrap;
+    }
+
+    /* ---- Entry list ---- */
+    .audit-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .audit-entry {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 13px;
+    }
+    .audit-entry-header {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+    .audit-event-type {
+      font-weight: 600;
+      color: #1a1a1a;
+      font-size: 13px;
+    }
+    .audit-target-badge {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: #f0f0f0;
+      color: #555;
+      border-radius: 3px;
+      padding: 2px 6px;
+    }
+    .audit-time {
+      color: #aaa;
+      font-size: 12px;
+      margin-left: auto;
+      white-space: nowrap;
+    }
+
+    .audit-ids {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 6px;
+      font-size: 12px;
+      color: #888;
+    }
+    .audit-id-label { font-weight: 600; color: #555; margin-right: 3px; }
+    .audit-id-val {
+      font-family: monospace;
+      font-size: 11px;
+      color: #666;
+    }
+    .audit-id-link {
+      font-family: monospace;
+      font-size: 11px;
+      color: #1565c0;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .audit-id-link:hover { color: #0d47a1; }
+
+    .audit-payload {
+      background: #f9f9f9;
+      border-radius: 4px;
+      padding: 8px 10px;
+      font-size: 12px;
+      color: #555;
+      line-height: 1.7;
+    }
+    .audit-payload-key { font-weight: 600; color: #333; }
+
+    /* ---- Pagination ---- */
+    .audit-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    .audit-page-btn {
+      padding: 8px 20px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: #fff;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .audit-page-btn:hover:not(:disabled) { background: #f5f5f5; }
+    .audit-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .audit-page-info { font-size: 13px; color: #888; }
+  </style>
+</head>
+<body>
+
+  <div id="nav-placeholder"></div>
+
+  <main class="container">
+    <h1 class="page-title">Transparency Log</h1>
+
+    <div class="audit-intro">
+      <strong>Every significant action on this platform is recorded here.</strong>
+      This log is append-only, public, and unauthenticated — no login required to verify it.
+      Use it to answer questions like: <em>What happened to a thread? What did a facilitator do?
+      Can this decision be reconstructed from the record alone?</em>
+    </div>
+
+    <!-- Filter toolbar -->
+    <div class="audit-toolbar">
+      <select id="event-type-filter" class="audit-filter">
+        <option value="">All event types</option>
+      </select>
+      <select id="target-type-filter" class="audit-filter">
+        <option value="">All target types</option>
+        <option value="thread">Thread</option>
+        <option value="post">Post</option>
+        <option value="proposal">Proposal</option>
+        <option value="vote">Vote</option>
+        <option value="signal">Signal</option>
+        <option value="amendment">Amendment</option>
+        <option value="proposal_comment">Comment</option>
+        <option value="user">User</option>
+        <option value="facilitator_request">Facilitator Request</option>
+      </select>
+      <input id="id-search" class="audit-filter audit-search" type="search"
+             placeholder="Filter by target or actor ID (UUID)…" autocomplete="off">
+      <button class="audit-clear" onclick="clearFilters()">Clear</button>
+      <span id="audit-count" class="audit-count"></span>
+    </div>
+
+    <div id="audit-container">
+      <div class="loading">Loading audit log…</div>
+    </div>
+
+    <div class="audit-pagination" id="pagination" style="display:none">
+      <button class="audit-page-btn" id="prev-btn" onclick="changePage(-1)" disabled>← Previous</button>
+      <span class="audit-page-info" id="page-info"></span>
+      <button class="audit-page-btn" id="next-btn" onclick="changePage(1)">Next →</button>
+    </div>
+  </main>
+
+  <script src="/static/js/utils.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script>
+    const PAGE_SIZE = 50;
+    let currentOffset = 0;
+    let currentTotal  = 0;
+
+    // ---- Human-readable event type labels ----
+    const EVENT_LABELS = {
+      user_registered:               "User Registered",
+      user_tier_changed:             "Tier Changed",
+      user_deactivated:              "User Deactivated",
+      thread_created:                "Thread Created",
+      thread_phase_advanced:         "Phase Advanced",
+      post_created:                  "Post Created",
+      post_removed:                  "Post Removed",
+      signal_cast:                   "Signal Cast",
+      signal_updated:                "Signal Updated",
+      proposal_created:              "Proposal Created",
+      proposal_submitted:            "Proposal Submitted",
+      proposal_status_changed:       "Proposal Status Changed",
+      proposal_edited:               "Proposal Edited",
+      vote_cast:                     "Vote Cast",
+      allocation_decided:            "Allocation Decided",
+      facilitator_request_submitted: "Facilitator Request Submitted",
+      facilitator_request_approved:  "Facilitator Request Approved",
+      facilitator_request_denied:    "Facilitator Request Denied",
+      display_name_changed:          "Display Name Changed",
+      proposal_comment_created:      "Comment Created",
+      proposal_comment_removed:      "Comment Removed",
+      amendment_submitted:           "Amendment Submitted",
+      amendment_accepted:            "Amendment Accepted",
+      amendment_rejected:            "Amendment Rejected",
+      llm_summary_generated:         "LLM Summary Generated",
+    };
+
+    // Colour-code event types by category
+    const EVENT_COLORS = {
+      thread_created:                "#1565c0",
+      thread_phase_advanced:         "#6a1b9a",
+      post_created:                  "#2e7d32",
+      post_removed:                  "#c62828",
+      signal_cast:                   "#e65100",
+      signal_updated:                "#e65100",
+      proposal_created:              "#00695c",
+      proposal_submitted:            "#00695c",
+      proposal_status_changed:       "#00695c",
+      proposal_edited:               "#00695c",
+      vote_cast:                     "#1565c0",
+      allocation_decided:            "#4a148c",
+      facilitator_request_submitted: "#4e342e",
+      facilitator_request_approved:  "#2e7d32",
+      facilitator_request_denied:    "#c62828",
+    };
+
+    function eventLabel(type) {
+      return EVENT_LABELS[type] || type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    function eventColor(type) {
+      return EVENT_COLORS[type] || "#555";
+    }
+
+    // Render payload as readable key: value lines, skipping very long values
+    function renderPayload(payload) {
+      const entries = Object.entries(payload);
+      if (entries.length === 0) return "";
+      const lines = entries.map(([k, v]) => {
+        const label = k.replace(/_/g, " ");
+        const val   = typeof v === "object" ? JSON.stringify(v) : String(v);
+        const display = val.length > 120 ? val.slice(0, 120) + "…" : val;
+        return `<span class="audit-payload-key">${esc(label)}:</span> ${esc(display)}`;
+      }).join("<br>");
+      return `<div class="audit-payload">${lines}</div>`;
+    }
+
+    // Clicking an actor/target ID sets it as a filter
+    function filterById(id) {
+      document.getElementById("id-search").value = id;
+      currentOffset = 0;
+      loadAudit();
+    }
+
+    function renderEntry(entry) {
+      const label     = eventLabel(entry.event_type);
+      const color     = eventColor(entry.event_type);
+      const timeStr   = new Date(entry.created_at).toLocaleString();
+      const timeAgoStr = timeAgo(entry.created_at);
+      const payload   = renderPayload(entry.payload || {});
+
+      const actorHtml = entry.actor_id
+        ? `<span><span class="audit-id-label">Actor:</span>
+           <span class="audit-id-link" onclick="filterById('${esc(entry.actor_id)}')"
+                 title="Filter by this actor">${esc(entry.actor_id)}</span></span>`
+        : `<span><span class="audit-id-label">Actor:</span> <span class="audit-id-val">system</span></span>`;
+
+      const targetHtml = `<span><span class="audit-id-label">Target:</span>
+        <span class="audit-id-link" onclick="filterById('${esc(entry.target_id)}')"
+              title="Filter by this target">${esc(entry.target_id)}</span></span>`;
+
+      return `
+        <div class="audit-entry">
+          <div class="audit-entry-header">
+            <span class="audit-event-type" style="color:${color}">${esc(label)}</span>
+            <span class="audit-target-badge">${esc(entry.target_type)}</span>
+            <span class="audit-time" title="${esc(timeStr)}">${esc(timeAgoStr)}</span>
+          </div>
+          <div class="audit-ids">${actorHtml}${targetHtml}</div>
+          ${payload}
+        </div>`;
+    }
+
+    // ---- Filters ----
+
+    function getFilters() {
+      const eventType  = document.getElementById("event-type-filter").value;
+      const targetType = document.getElementById("target-type-filter").value;
+      const raw        = document.getElementById("id-search").value.trim();
+      // UUID pattern — could be actor or target
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw);
+      return {
+        eventType:  eventType  || undefined,
+        targetType: targetType || undefined,
+        // Ambiguous: search as target_id first; actor filter is separate
+        targetId:   (isUuid && raw) ? raw : undefined,
+        actorId:    undefined,
+      };
+    }
+
+    function clearFilters() {
+      document.getElementById("event-type-filter").value = "";
+      document.getElementById("target-type-filter").value = "";
+      document.getElementById("id-search").value = "";
+      currentOffset = 0;
+      loadAudit();
+    }
+
+    // ---- Pagination ----
+
+    function changePage(dir) {
+      currentOffset = Math.max(0, currentOffset + dir * PAGE_SIZE);
+      loadAudit();
+      window.scrollTo(0, 0);
+    }
+
+    function updatePagination(total) {
+      currentTotal = total;
+      const totalPages   = Math.ceil(total / PAGE_SIZE);
+      const currentPage  = Math.floor(currentOffset / PAGE_SIZE) + 1;
+      const pagination   = document.getElementById("pagination");
+      const pageInfo     = document.getElementById("page-info");
+      const prevBtn      = document.getElementById("prev-btn");
+      const nextBtn      = document.getElementById("next-btn");
+
+      pagination.style.display = totalPages > 1 ? "flex" : "none";
+      pageInfo.textContent      = `Page ${currentPage} of ${totalPages}`;
+      prevBtn.disabled          = currentOffset === 0;
+      nextBtn.disabled          = currentOffset + PAGE_SIZE >= total;
+    }
+
+    // ---- Main load ----
+
+    async function loadAudit() {
+      const container = document.getElementById("audit-container");
+      const countEl   = document.getElementById("audit-count");
+      container.innerHTML = `<div class="loading">Loading…</div>`;
+
+      try {
+        const filters = getFilters();
+        const page    = await getAuditLog({ ...filters, limit: PAGE_SIZE, offset: currentOffset });
+
+        countEl.textContent = `${page.total.toLocaleString()} event${page.total !== 1 ? "s" : ""}`;
+        updatePagination(page.total);
+
+        if (page.entries.length === 0) {
+          container.innerHTML = `<div class="empty-state">No events match these filters.</div>`;
+          return;
+        }
+
+        container.innerHTML = `<div class="audit-list">${page.entries.map(renderEntry).join("")}</div>`;
+
+      } catch (err) {
+        container.innerHTML = `<div class="error-message">Could not load audit log: ${esc(err.message)}</div>`;
+      }
+    }
+
+    // ---- Populate event type dropdown from known enum ----
+    function populateEventTypes() {
+      const select = document.getElementById("event-type-filter");
+      Object.entries(EVENT_LABELS)
+        .sort((a, b) => a[1].localeCompare(b[1]))
+        .forEach(([value, label]) => {
+          const opt = document.createElement("option");
+          opt.value = value;
+          opt.textContent = label;
+          select.appendChild(opt);
+        });
+    }
+
+    // ---- Wire up filters ----
+    document.getElementById("event-type-filter").addEventListener("change",  () => { currentOffset = 0; loadAudit(); });
+    document.getElementById("target-type-filter").addEventListener("change", () => { currentOffset = 0; loadAudit(); });
+    document.getElementById("id-search").addEventListener("input", () => { currentOffset = 0; loadAudit(); });
+
+    populateEventTypes();
+    loadAudit();
+  </script>
+
+</body>
+</html>
