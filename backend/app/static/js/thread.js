@@ -99,7 +99,7 @@ const SIG_META = [
  * interactive=true → clickable buttons.
  * interactive=false → read-only count chips.
  */
-function renderSignalBar(targetType, targetId, { interactive = false } = {}) {
+function renderSignalBar(targetType, targetId, { interactive = false, showLabel = false } = {}) {
   const sig = getSig(targetType, targetId);
   const blockWarn = sig.block > 0
     ? `<span class="sig-block-warn" title="${sig.block} block${sig.block !== 1 ? "s" : ""} — strong unresolved objection">⚠ ${sig.block} block${sig.block !== 1 ? "s" : ""}</span>`
@@ -129,7 +129,7 @@ function renderSignalBar(targetType, targetId, { interactive = false } = {}) {
         data-target-id="${esc(targetId)}"
         data-signal-type="${m.type}"
         title="${active ? "Click to remove your " + m.label + " signal" : m.label}"
-      >${m.icon} ${m.label} <span class="sig-count">${sig[m.type]}</span></button>`;
+      >${m.icon}${showLabel ? " " + m.label : ""} <span class="sig-count">${sig[m.type]}</span></button>`;
   }).join("");
 
   return `
@@ -591,7 +591,7 @@ function renderThreadSignals() {
   // Temporarily load these into state so renderSignalBar picks them up
   S.signals[sigKey("thread", S.threadId)] = counts;
 
-  return renderSignalBar("thread", S.threadId, { interactive });
+  return renderSignalBar("thread", S.threadId, { interactive, showLabel: true });
 }
 
 // ===================================================================
@@ -696,7 +696,7 @@ async function hydrateSignals() {
     const interactive = el.closest("#signal-section")
       ? canSignal()
       : canSignal() && !["closed", "archived"].includes(S.thread?.status);
-    el.outerHTML = renderSignalBar(type, id, { interactive });
+    el.outerHTML = renderSignalBar(type, id, { interactive, showLabel: type === "thread" });
   });
 }
 
@@ -763,7 +763,7 @@ async function handleClick(e) {
       const fresh = await getSignalsBatch(targetType, [targetId]);
       S.signals[sigKey(targetType, targetId)] = fresh[targetId];
       const bar = document.querySelector(`[data-signal-bar][data-target-type="${targetType}"][data-target-id="${targetId}"]`);
-      if (bar) bar.outerHTML = renderSignalBar(targetType, targetId, { interactive: true });
+      if (bar) bar.outerHTML = renderSignalBar(targetType, targetId, { interactive: true, showLabel: targetType === "thread" });
     } catch (ex) {
       btn.disabled = false;
     }
@@ -779,7 +779,7 @@ async function handleClick(e) {
       const fresh = await getSignalsBatch(targetType, [targetId]);
       S.signals[sigKey(targetType, targetId)] = fresh[targetId];
       const bar = document.querySelector(`[data-signal-bar][data-target-type="${targetType}"][data-target-id="${targetId}"]`);
-      if (bar) bar.outerHTML = renderSignalBar(targetType, targetId, { interactive: true });
+      if (bar) bar.outerHTML = renderSignalBar(targetType, targetId, { interactive: true, showLabel: targetType === "thread" });
     } catch (ex) {
       btn.disabled = false;
     }
