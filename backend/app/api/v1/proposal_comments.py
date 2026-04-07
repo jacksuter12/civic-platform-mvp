@@ -11,7 +11,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
-from app.api.deps import DB, FacilitatorUser, ParticipantUser
+from app.api.deps import DB, FacilitatorUser, RegisteredUser
 from app.core.audit import log_event
 from app.models.audit import AuditEventType
 from app.models.proposal import Proposal
@@ -52,11 +52,11 @@ async def _get_proposal_and_thread(
 async def create_proposal_comment(
     proposal_id: uuid.UUID,
     payload: ProposalCommentCreate,
-    user: ParticipantUser,
+    user: RegisteredUser,
     db: DB,
 ) -> ProposalCommentRead:
     """
-    Submit a comment on a proposal. PARTICIPANT tier required.
+    Submit a comment on a proposal. REGISTERED tier required.
     Only allowed while the parent thread is in PROPOSING phase.
     """
     proposal, thread = await _get_proposal_and_thread(proposal_id, db)

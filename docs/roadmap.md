@@ -82,12 +82,13 @@ but not post.
 - [x] Admin page (/admin) — approve/deny facilitator requests, tier promotion, audit log entries
 - [x] 15 policy domains seeded (healthcare + 14 more: education, defense, fiscal policy, etc.)
 - [x] FacilitatorRequest model, migration, API routes (submit, list, approve, deny)
+- [x] Facilitator phase-advance controls — phase advance UI on thread detail, required reason field (10–500 chars), audit log entry THREAD_PHASE_ADVANCED, facilitator-only
+- [x] Proposal creation — form on thread detail, PROPOSING phase only, participant tier only, audit log entry PROPOSAL_CREATED
+- [x] Voting — yes/no/abstain buttons on thread detail, VOTING phase only, participant tier only, one-vote enforcement via DB unique constraint, VOTE_CAST audit log entry, vote tallies visible to all
+- [x] Public audit log API — GET /api/v1/audit, filterable by event_type/target_type/target_id/actor_id, paginated, no auth required
 
 **Remaining:**
-- [ ] Proposal creation — form visible in PROPOSING phase, participant tier
-- [ ] Voting — yes/no/abstain buttons in VOTING phase, one vote per proposal
-- [ ] Facilitator phase controls — phase advance UI with required reason field
-- [ ] Public audit log page — filterable, read-only, unauthenticated
+- [ ] Public audit log page (/audit) — HTML UI for the existing API, filterable, read-only, unauthenticated
 - [ ] Full admin capabilities — create domains, funding pools, record allocations
 - [ ] End-to-end test: full thread lifecycle with 3 test users
 

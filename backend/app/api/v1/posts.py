@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from typing import Annotated
 
-from app.api.deps import DB, FacilitatorUser, ParticipantUser
+from app.api.deps import DB, FacilitatorUser, RegisteredUser
 from app.core.audit import log_event
 from app.models.audit import AuditEventType
 from app.models.post import Post
@@ -107,7 +107,7 @@ async def list_posts(
 
 @router.post("", response_model=PostOut, status_code=status.HTTP_201_CREATED)
 async def create_post(
-    payload: PostCreate, user: ParticipantUser, db: DB
+    payload: PostCreate, user: RegisteredUser, db: DB
 ) -> Post:
     thread_result = await db.execute(
         select(Thread).where(Thread.id == payload.thread_id)

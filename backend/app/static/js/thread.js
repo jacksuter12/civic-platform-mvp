@@ -77,7 +77,7 @@ function nextPhase(s) {
   return (i >= 0 && i < PHASE_SEQ.length - 1) ? PHASE_SEQ[i + 1] : null;
 }
 
-const canPost    = () => auth.hasTier("participant") && ["open", "deliberating"].includes(S.thread?.status);
+const canPost    = () => auth.hasTier("registered") && ["open", "deliberating"].includes(S.thread?.status);
 const canSignal  = () => auth.isSignedIn();
 const inProposing = () => S.thread?.status === "proposing";
 const inVoting    = () => S.thread?.status === "voting";
@@ -88,10 +88,10 @@ const showProposals = () => ["proposing", "voting", "closed", "archived"].includ
 // ===================================================================
 
 const SIG_META = [
-  { type: "support",   label: "Support",  icon: "↑" },
-  { type: "concern",   label: "Concern",  icon: "!" },
-  { type: "need_info", label: "Info?",    icon: "?" },
-  { type: "block",     label: "Block",    icon: "✕" },
+  { type: "support",   label: "Agree",      icon: "↑" },
+  { type: "concern",   label: "Disagree",  icon: "↓" },
+  { type: "need_info", label: "Need Info", icon: "?" },
+  { type: "block",     label: "Block",     icon: "✕" },
 ];
 
 /**
@@ -175,7 +175,7 @@ function renderPost(post, depth, childrenOf, { maxDepth = MAX_DEPTH, commentMode
     : atMaxDepth ? `<span class="max-depth-msg">Max depth reached</span>` : "";
 
   // Comment reply (comments only)
-  const commentReplyBtn = commentMode && inProposing() && auth.hasTier("participant")
+  const commentReplyBtn = commentMode && inProposing() && auth.hasTier("registered")
     ? `<button class="post-reply-btn" data-action="open-comment-reply" data-post-id="${esc(post.id)}" data-proposal-id="${esc(post.proposal_id)}">Reply</button>`
     : "";
 
@@ -247,6 +247,9 @@ function countDescendants(id, childrenOf) {
 
 function renderNewPostForm() {
   if (!canPost()) {
+    if (!auth.isSignedIn()) {
+      return `<div class="phase-locked"><a href="/signin">Sign in</a> to join the discussion.</div>`;
+    }
     const msgs = {
       proposing: "Posts are locked during the proposing phase.",
       voting:    "Posts are locked during the voting phase.",
@@ -254,7 +257,6 @@ function renderNewPostForm() {
       archived:  "This thread is archived.",
     };
     const status = S.thread?.status;
-    if (!auth.hasTier("participant")) return "";
     const msg = msgs[status] || "";
     return msg ? `<div class="phase-locked">${msg}</div>` : "";
   }
@@ -351,7 +353,7 @@ function renderVoteSection(proposal) {
 
 function renderProposalComments(proposalId) {
   const comments = S.pData[proposalId]?.comments || [];
-  const canComment = inProposing() && auth.hasTier("participant");
+  const canComment = inProposing() && auth.hasTier("registered");
   const readOnly   = ["voting", "closed", "archived"].includes(S.thread?.status);
 
   const { roots, childrenOf } = buildTree(comments.map(c => ({ ...c, proposal_id: proposalId })));
@@ -618,6 +620,7 @@ function renderPage() {
 
   document.getElementById("thread-container").innerHTML = `
     <div class="thread-header">
+      <a href="/threads" class="back-link">← All Discussions</a>
       <div class="thread-header-top">
         <h1 class="thread-detail-title">${esc(t.title)}</h1>
         <span class="${phaseBadgeClass(t.status)}">${capitalize(t.status)}</span>

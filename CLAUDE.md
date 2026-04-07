@@ -28,11 +28,14 @@ into legitimate collective allocation. No outrage dynamics by design.
 - Audit log: append-only, public API endpoint
 
 **What is NOT yet built (Phase 3 remaining):**
-- Proposal creation UI (PROPOSING phase)
-- Voting UI (VOTING phase)
-- Facilitator phase-advance controls (with required reason field)
-- Public audit log page (filterable, unauthenticated)
+- Public audit log page /audit — HTML UI (API backend exists at GET /api/v1/audit, filterable, public)
 - Full admin capabilities (create domains, funding pools, record allocations)
+- End-to-end test: full thread lifecycle with 3 test users
+
+**Phase 3 features that ARE built:**
+- Facilitator phase-advance controls — UI on thread detail, required reason field, THREAD_PHASE_ADVANCED audit log
+- Proposal creation — PROPOSING phase only, participant tier, PROPOSAL_CREATED audit log
+- Voting — yes/no/abstain, VOTING phase only, one vote per user (DB unique constraint), vote tallies, VOTE_CAST audit log
 
 **What is explicitly deferred:**
 - LLM integration (Phase 5 — do not add until Phase 4 deliberation is validated)
