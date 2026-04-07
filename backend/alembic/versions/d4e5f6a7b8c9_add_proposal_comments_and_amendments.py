@@ -63,7 +63,7 @@ def upgrade() -> None:
         sa.Column("rationale", sa.String(length=1000), nullable=False),
         sa.Column(
             "status",
-            sa.Enum("PENDING", "ACCEPTED", "REJECTED", name="amendment_status"),
+            sa.Enum("PENDING", "ACCEPTED", "REJECTED", name="amendment_status", create_type=False),
             nullable=False,
             server_default="PENDING",
         ),
