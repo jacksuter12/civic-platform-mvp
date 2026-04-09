@@ -44,6 +44,14 @@ class AuditEventType(str, PyEnum):
     AMENDMENT_SUBMITTED = "amendment_submitted"
     AMENDMENT_ACCEPTED = "amendment_accepted"
     AMENDMENT_REJECTED = "amendment_rejected"
+    # Annotations
+    ANNOTATION_CREATED = "annotation_created"
+    ANNOTATION_UPDATED = "annotation_updated"
+    ANNOTATION_DELETED = "annotation_deleted"
+    ANNOTATION_REACTION_ADDED = "annotation_reaction_added"
+    ANNOTATION_REACTION_REMOVED = "annotation_reaction_removed"
+    USER_ANNOTATOR_GRANTED = "user_annotator_granted"
+    USER_ANNOTATOR_REVOKED = "user_annotator_revoked"
     # LLM (future)
     LLM_SUMMARY_GENERATED = "llm_summary_generated"
 

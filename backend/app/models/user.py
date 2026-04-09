@@ -40,6 +40,10 @@ class User(Base, UUIDPKMixin, TimestampMixin):
         DateTime(timezone=True), nullable=True
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Orthogonal capability flag — independent of the registered/participant/facilitator/admin
+    # tier hierarchy. A user can be any tier and either have or not have this flag.
+    # Admin tier implicitly carries annotator capability; see has_annotator_capability().
+    is_annotator: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Relationships
     threads_created: Mapped[list["Thread"]] = relationship(  # type: ignore[name-defined]
@@ -57,6 +61,20 @@ class User(Base, UUIDPKMixin, TimestampMixin):
     proposals: Mapped[list["Proposal"]] = relationship(  # type: ignore[name-defined]
         "Proposal", back_populates="created_by"
     )
+    annotations: Mapped[list["Annotation"]] = relationship(  # type: ignore[name-defined]
+        "Annotation", back_populates="author", foreign_keys="Annotation.author_id"
+    )
+    annotation_reactions: Mapped[list["AnnotationReaction"]] = relationship(  # type: ignore[name-defined]
+        "AnnotationReaction", back_populates="user"
+    )
 
     def has_tier(self, required: UserTier) -> bool:
         return TIER_ORDER[self.tier] >= TIER_ORDER[required]
+
+    def has_annotator_capability(self) -> bool:
+        """
+        Returns True if the user may create and react to annotations.
+        Admin tier implicitly carries this capability without requiring
+        is_annotator=True to be set explicitly.
+        """
+        return self.is_annotator or self.tier == UserTier.ADMIN
