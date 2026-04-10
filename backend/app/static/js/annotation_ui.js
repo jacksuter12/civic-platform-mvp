@@ -96,6 +96,23 @@
     return AnnotationAnchor.getAnnotatableRoot();
   }
 
+  /**
+   * Return a user-friendly error string for an API error.
+   * Token-expiry errors get a "please sign in" message instead of the
+   * raw JWT error text.
+   */
+  function _errorMessage(e) {
+    const raw = (e && e.message) || "";
+    const isExpired =
+      raw.toLowerCase().includes("expired") ||
+      raw.toLowerCase().includes("invalid token") ||
+      !auth.isSignedIn();
+    if (isExpired) {
+      return "Your session has expired \u2014 please sign in again to leave comments.";
+    }
+    return raw || "Something went wrong. Please try again.";
+  }
+
   /** Format a UTC datetime string as a relative time label. */
   function _timeAgo(dateStr) {
     if (!dateStr) return "";
@@ -903,8 +920,7 @@
       try {
         await onSubmit(anchorData, body);
       } catch (e) {
-        errorEl.textContent =
-          e.message || "Something went wrong. Please try again.";
+        errorEl.textContent = _errorMessage(e);
         errorEl.style.display = "block";
         submitBtn.disabled = false;
         submitBtn.textContent = origLabel;
@@ -997,7 +1013,7 @@
         _applyHighlights();
         _updateToggleCount();
       } catch (e) {
-        errorEl.textContent = e.message || "Failed to delete.";
+        errorEl.textContent = _errorMessage(e);
         errorEl.style.display = "inline";
         yesBtn.disabled = false;
         yesBtn.textContent = "Yes, delete";
@@ -1051,7 +1067,7 @@
       // Show brief inline error
       const errEl = document.createElement("span");
       errEl.className = "annotation-composer-error";
-      errEl.textContent = e.message || "Reaction failed.";
+      errEl.textContent = _errorMessage(e);
       if (reactionsEl.parentNode) {
         reactionsEl.parentNode.insertBefore(errEl, reactionsEl.nextSibling);
         setTimeout(() => {
