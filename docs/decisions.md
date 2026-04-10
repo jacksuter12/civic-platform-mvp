@@ -24,7 +24,7 @@ Each entry follows this template. Copy it when adding new decisions.
 
 ---
 
-## 2025-02-28 — Problem Framing: Coordination Gap, Not Ideology
+## 2026-02-28 — Problem Framing: Coordination Gap, Not Ideology
 **Status:** Active
 **Domain:** Strategy
 **Context:** The project needed a precise, falsifiable problem statement to anchor all downstream design work.
@@ -36,7 +36,7 @@ Each entry follows this template. Copy it when adding new decisions.
 
 ---
 
-## 2025-02-28 — Axiom Independence
+## 2026-02-28 — Axiom Independence
 **Status:** Active
 **Domain:** Strategy
 **Context:** The initial analysis was organized around the axiom "Optimizes for outcomes, not outrage." The builder clarified they are not committed to this or any slogan.
@@ -47,7 +47,7 @@ Each entry follows this template. Copy it when adding new decisions.
 
 ---
 
-## 2025-03-07 — Web-First Frontend (Replacing React Native Mobile App)
+## 2026-03-07 — Web-First Frontend (Replacing React Native Mobile App)
 **Status:** Active
 **Domain:** Technical
 **Context:** The initial scaffold included a React Native + Expo mobile app targeting iOS. The builder is a solo beginner developer. Mobile development requires managing the Apple Developer Program, Xcode, EAS Build, TestFlight, App Store review, privacy policies, and the React Native toolchain — each a potential multi-day blocker.
@@ -59,7 +59,7 @@ Each entry follows this template. Copy it when adding new decisions.
 
 ---
 
-## 2025-03-07 — Three-Project Claude Structure
+## 2026-03-07 — Three-Project Claude Structure
 **Status:** Active
 **Domain:** Strategy
 **Context:** Needed to organize the Claude workflow across multiple domains (strategy, development, mechanism design) without overloading any single project's context window or mixing unrelated concerns.
@@ -71,7 +71,7 @@ Each entry follows this template. Copy it when adding new decisions.
 
 ---
 
-## 2025-03-07 — Hybrid Agentic Workflow (AI Builds, Human Steers)
+## 2026-03-07 — Hybrid Agentic Workflow (AI Builds, Human Steers)
 **Status:** Active
 **Domain:** Strategy
 **Context:** The initial project setup was heavily learning-oriented, with system instructions focused on teaching the builder line-by-line. The builder identified that this approach makes human learning the bottleneck on progress, when the irreplaceable human contribution is judgment (about governance, mechanisms, legitimacy), not code.
@@ -83,7 +83,7 @@ Each entry follows this template. Copy it when adding new decisions.
 
 ---
 
-## 2025-02-28 — Phase-Gated Deliberation Model
+## 2026-02-28 — Phase-Gated Deliberation Model
 **Status:** Active
 **Domain:** Mechanism / Strategy
 **Context:** Core architectural decision about how deliberation is structured on the platform.
@@ -94,8 +94,8 @@ Each entry follows this template. Copy it when adding new decisions.
 
 ---
 
-## 2025-02-28 — Structured Signals Instead of Upvotes/Downvotes
-**Status:** Active
+## 2026-02-28 — Structured Signals Instead of Upvotes/Downvotes
+**Status:** Active. Partially superseded by "Reactions Permitted on Individual Contributions" (2026-04-09) — the blanket no-reactions rule is narrowed; see that entry.
 **Domain:** Mechanism
 **Context:** Traditional forums use upvotes/downvotes, which create popularity contests and outrage incentives. The platform needed an alternative that captures richer information about participant sentiment.
 **Decision:** Four signal types: support, concern, need_info, block. One signal per user per thread (not per post). Signals are changeable (upsert pattern). Changes are logged to the audit log.
@@ -105,7 +105,7 @@ Each entry follows this template. Copy it when adding new decisions.
 
 ---
 
-## 2025-02-28 — Append-Only Public Audit Log
+## 2026-02-28 — Append-Only Public Audit Log
 **Status:** Active
 **Domain:** Technical / Governance
 **Context:** Transparency is the platform's primary claim to legitimacy. Every significant action must be independently verifiable.
@@ -116,7 +116,7 @@ Each entry follows this template. Copy it when adding new decisions.
 
 ---
 
-## 2025-02-28 — Identity Tiers
+## 2026-02-28 — Identity Tiers
 **Status:** Active (updated 2026-04-03 — see also: Thread Creation Tier and Facilitator Request Flow decisions below)
 **Domain:** Mechanism / Technical
 **Context:** The platform needs Sybil resistance without excessive friction. Different levels of engagement require different levels of trust.
@@ -127,7 +127,7 @@ Each entry follows this template. Copy it when adding new decisions.
 
 ---
 
-## 2025-02-28 — LLM Assistant as Read-Only Research Tool
+## 2026-02-28 — LLM Assistant as Read-Only Research Tool
 **Status:** Active
 **Domain:** Technical / Strategy
 **Context:** LLMs could play many roles on a deliberation platform — from summarizing threads to generating proposals to recommending vote choices.
@@ -138,7 +138,7 @@ Each entry follows this template. Copy it when adding new decisions.
 
 ---
 
-## 2025-02-28 — MVP Scope: Single Healthcare Sub-Issue, Single State
+## 2026-02-28 — MVP Scope: Single Healthcare Sub-Issue, Single State
 **Status:** Active
 **Domain:** Strategy
 **Context:** The adversarial analysis warned that launching multi-issue and national "guarantees culture-war capture before the institution has norms or immune systems."
@@ -149,7 +149,7 @@ Each entry follows this template. Copy it when adding new decisions.
 
 ---
 
-## 2025-02-28 — Legal Structure: Single 501(c)(4) for MVP
+## 2026-02-28 — Legal Structure: Single 501(c)(4) for MVP
 **Status:** Active
 **Domain:** Legal
 **Context:** The adversarial analysis identified a likely need for a multi-entity structure (c)(3) + (c)(4) + PAC) at scale, but recommended simplicity for MVP.
@@ -160,7 +160,7 @@ Each entry follows this template. Copy it when adding new decisions.
 
 ---
 
-## 2025-03-07 — Bring On Technical Developer When Project Gains Traction
+## 2026-03-07 — Bring On Technical Developer When Project Gains Traction
 **Status:** Active
 **Domain:** Strategy
 **Context:** The builder is a beginner developer using AI assistance (Claude Code + Claude chat) to build the MVP. Code quality and architectural soundness are managed by AI but not independently verified by a human expert.
@@ -192,6 +192,30 @@ Each entry follows this template. Copy it when adding new decisions.
 **Reasoning:** A structured request flow creates an audit trail (FACILITATOR_REQUEST_SUBMITTED, FACILITATOR_REQUEST_APPROVED/DENIED events in the audit log), makes the facilitator selection process visible, and gives facilitators a documented reason for their appointment. It also prevents the admin from needing direct database access for routine tier promotions, which is a security hygiene improvement.
 **Implications:** The FacilitatorRequest model and migration must be deployed before facilitator promotion is possible through the UI. The admin route requires AdminUser dependency — admins are still seeded directly (no web flow for admin promotion). The audit log now captures the full facilitator lifecycle.
 **Revisit if:** The facilitator selection process needs more formal criteria or a multi-step review (e.g., community endorsement before admin approval).
+
+---
+
+## 2026-04-09 — Reactions Permitted on Individual Contributions
+**Status:** Active. Partially supersedes "Structured Signals Instead of Upvotes/Downvotes" (2026-02-28).
+**Domain:** Mechanism / Technical
+**Context:** The original no-reactions rule conflated two distinct things: reactions that drive display order (pile-ons, bandwagoning, algorithmic amplification) and reactions that serve as editorial feedback on individual contributions. The annotation system for the wiki requires the second kind. The first kind remains prohibited.
+**Options considered:** (a) Maintain the blanket no-reactions rule, (b) Allow reactions on annotations with explicit constraints against ranking use.
+**Decision:** Reactions are permitted on annotations. Reaction types are `endorse` and `needs_work` — not upvote/downvote, not like/dislike. Reactions may in the future extend to posts, replies, and proposals. Reactions must never determine display order, filter visibility, boost, bury, or rank content. Chronological ordering remains the only permitted sort for any feed. Reaction counts may be displayed alongside content but must not influence what content is shown or in what order.
+**Reasoning:** Distinguishes editorial feedback from engagement-driven amplification. Preserves the architectural commitment against ranking-driven discourse while enabling structured feedback for long-form editorial review.
+**Implications:** The annotation system can use endorse/needs_work reactions. Any future feature that uses reaction counts as a sort key, filter, or ranking input should be rejected. CLAUDE.md constraint #4 updated to reflect the new rule.
+**Revisit if:** Evidence emerges that even non-ranking reactions produce harmful dynamics in practice.
+
+---
+
+## 2026-04-09 — Inline Annotation System with Generic Target Model
+**Status:** Active
+**Domain:** Technical / Mechanism
+**Context:** Need a way for permissioned reviewers to give in-place feedback on wiki articles, with reactions and replies. Could be built wiki-specific or as a generic annotation layer.
+**Options considered:** (a) Wiki-specific annotation tables and routes, (b) Generic target-agnostic annotation system from v1.
+**Decision:** Build target-agnostic from v1. The `annotations` table uses `target_type` (wiki|post|proposal|document) and `target_id` so the same backend and frontend serve annotations on any content type. v1 ships on wiki only. Extension to other targets is deferred and requires a separate decision before implementation. Anchoring is text-range based using Hypothesis's open-source libraries (`dom-anchor-text-quote` and friends), with section-level fallback when text anchoring fails.
+**Reasoning:** Building target-agnostic from the start costs nothing extra and avoids a future rewrite. Hypothesis's anchoring libraries are well-tested and in production use. Section-level fallback handles the orphan case (anchor text edited out of the document) without losing the annotation.
+**Implications:** New `annotator` capability on the user tier system. New `annotations` and `annotation_reactions` tables. New API routes under `/api/v1/annotations`. New frontend module loaded on wiki pages. All annotation actions write to the audit log. Soft deletes only.
+**Revisit if:** Text-range anchoring proves too fragile in practice, or the generic target model creates unforeseen complexity.
 
 ---
 

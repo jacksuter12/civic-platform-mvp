@@ -270,3 +270,105 @@ async function approveFacilitatorRequest(requestId) {
 async function denyFacilitatorRequest(requestId) {
   return apiFetch(`/admin/facilitator-requests/${requestId}/deny`, { method: "POST" });
 }
+
+// ===== Annotations =====
+
+/**
+ * List annotations for a target. Public — no auth required.
+ * @param {string} targetType - e.g. "wiki"
+ * @param {string} targetId   - e.g. the article slug
+ * @param {boolean} includeDeleted - admin only; ignored for non-admins
+ */
+async function listAnnotations(targetType, targetId, includeDeleted = false) {
+  const params = new URLSearchParams({
+    target_type: targetType,
+    target_id: targetId,
+    include_deleted: includeDeleted,
+  });
+  return apiFetch(`/annotations?${params}`);
+}
+
+/**
+ * Create an annotation. Requires annotator or admin role.
+ * @param {{targetType, targetId, anchorData, body, parentId}} opts
+ */
+async function createAnnotation({ targetType, targetId, anchorData, body, parentId = null }) {
+  return apiFetch("/annotations", {
+    method: "POST",
+    body: JSON.stringify({
+      target_type: targetType,
+      target_id: targetId,
+      anchor_data: anchorData,
+      body,
+      parent_id: parentId,
+    }),
+  });
+}
+
+/**
+ * Edit an annotation's body. Author or admin only.
+ * @param {string} annotationId
+ * @param {string} body
+ */
+async function updateAnnotation(annotationId, body) {
+  return apiFetch(`/annotations/${annotationId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ body }),
+  });
+}
+
+/**
+ * Soft-delete an annotation. Author or admin only.
+ * @param {string} annotationId
+ */
+async function deleteAnnotation(annotationId) {
+  return apiFetch(`/annotations/${annotationId}`, { method: "DELETE" });
+}
+
+/**
+ * Add or replace a reaction on an annotation. Annotator or admin only.
+ * @param {string} annotationId
+ * @param {"endorse"|"needs_work"} reaction
+ */
+async function addReaction(annotationId, reaction) {
+  return apiFetch(`/annotations/${annotationId}/reactions`, {
+    method: "POST",
+    body: JSON.stringify({ reaction }),
+  });
+}
+
+/**
+ * Remove the current user's reaction from an annotation. Idempotent.
+ * @param {string} annotationId
+ */
+async function removeReaction(annotationId) {
+  return apiFetch(`/annotations/${annotationId}/reactions`, { method: "DELETE" });
+}
+
+// ===== Admin — Annotator capability =====
+
+/**
+ * Grant annotator capability to a user.
+ * Route: POST /admin/users/{userId}/annotator
+ * @param {string} userId
+ * @param {string|null} reason
+ */
+async function grantAnnotator(userId, reason = null) {
+  return apiFetch(`/admin/users/${userId}/annotator`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+}
+
+/**
+ * Revoke annotator capability from a user.
+ * Route: DELETE /admin/users/{userId}/annotator
+ * @param {string} userId
+ * @param {string|null} reason
+ */
+async function revokeAnnotator(userId, reason = null) {
+  return apiFetch(`/admin/users/${userId}/annotator`, {
+    method: "DELETE",
+    body: JSON.stringify({ reason }),
+  });
+}

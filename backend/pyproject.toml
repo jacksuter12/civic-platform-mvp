@@ -13,6 +13,8 @@ dependencies = [
     "httpx>=0.28",
     "sentry-sdk[fastapi]>=2.19",
     "structlog>=24.4",
+    "markdown>=3.7",
+    "jinja2>=3.1",
 ]
 
 [project.optional-dependencies]

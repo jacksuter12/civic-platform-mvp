@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wiki — Civic Power Consortium</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <link rel="stylesheet" href="/static/css/wiki.css">
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/nav.js"></script>
+</head>
+<body>
+
+  <div id="nav-placeholder"></div>
+
+  <main class="container wiki-container">
+
+    <header class="wiki-page-header">
+      <p class="wiki-eyebrow">Reference</p>
+      <h1>Civic Power Consortium — Public Wiki</h1>
+      <p class="wiki-subtitle">
+        A reference for participants. Three sections: how things work, why this
+        platform exists, and what we deliberately leave open.
+        Read what's useful. Skip what isn't.
+      </p>
+    </header>
+
+    <!-- How to Read This intro -->
+    {% if intro_html %}
+    <div class="wiki-intro-block">
+      {{ intro_html | safe }}
+    </div>
+    {% endif %}
+
+    <!-- Article index by section -->
+    <nav class="wiki-toc" aria-label="Wiki articles">
+
+      <section class="wiki-toc-section">
+        <h2 class="wiki-toc-section-title">Section 1: How Things Work</h2>
+        <p class="wiki-toc-section-desc">Descriptive explainers. Politically neutral. No policy recommendations.</p>
+        <ul class="wiki-toc-list">
+          {% for article in articles %}
+          {% if article.section == "section1" %}
+          <li class="wiki-toc-item">
+            <a href="/wiki/{{ article.slug }}" class="wiki-toc-link">{{ article.title }}</a>
+          </li>
+          {% endif %}
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="wiki-toc-section">
+        <h2 class="wiki-toc-section-title">Section 2: Why This Platform Exists</h2>
+        <p class="wiki-toc-section-desc">Acknowledged founding perspective. Not neutral. We say what we think and why.</p>
+        <ul class="wiki-toc-list">
+          {% for article in articles %}
+          {% if article.section == "section2" %}
+          <li class="wiki-toc-item">
+            <a href="/wiki/{{ article.slug }}" class="wiki-toc-link">{{ article.title }}</a>
+          </li>
+          {% endif %}
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="wiki-toc-section">
+        <h2 class="wiki-toc-section-title">Section 3: Open Questions</h2>
+        <p class="wiki-toc-section-desc">Things the platform does not take a position on. These are what deliberation is for.</p>
+        <ul class="wiki-toc-list">
+          {% for article in articles %}
+          {% if article.section == "section3" %}
+          <li class="wiki-toc-item">
+            <a href="/wiki/{{ article.slug }}" class="wiki-toc-link">{{ article.title }}</a>
+          </li>
+          {% endif %}
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="wiki-toc-section">
+        <h2 class="wiki-toc-section-title">Appendix</h2>
+        <ul class="wiki-toc-list">
+          {% for article in articles %}
+          {% if article.section == "appendix" %}
+          <li class="wiki-toc-item">
+            <a href="/wiki/{{ article.slug }}" class="wiki-toc-link">{{ article.title }}</a>
+          </li>
+          {% endif %}
+          {% endfor %}
+        </ul>
+      </section>
+
+    </nav>
+
+  </main>
+
+</body>
+</html>

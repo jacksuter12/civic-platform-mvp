@@ -37,6 +37,7 @@ class UserMe(UserPublic):
     email: str
     display_name_changes_this_month: int = 0
     display_name_changes_remaining: int = 3
+    is_annotator: bool = False
 
 
 class DisplayNameUpdate(CamelBase):

@@ -92,11 +92,22 @@ get_participant = _require_tier(UserTier.PARTICIPANT)
 get_facilitator = _require_tier(UserTier.FACILITATOR)
 get_admin = _require_tier(UserTier.ADMIN)
 
+# Annotation capability dependency — is_annotator flag OR admin tier
+async def get_annotator(user: Annotated[User, Depends(get_current_user)]) -> User:
+    if not user.has_annotator_capability():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Requires annotator capability.",
+        )
+    return user
+
+
 # Type aliases for cleaner route signatures
 CurrentUser = Annotated[User, Depends(get_current_user)]
 RegisteredUser = Annotated[User, Depends(get_registered)]
 ParticipantUser = Annotated[User, Depends(get_participant)]
 FacilitatorUser = Annotated[User, Depends(get_facilitator)]
 AdminUser = Annotated[User, Depends(get_admin)]
+AnnotatorUser = Annotated[User, Depends(get_annotator)]
 OptionalUser = Annotated[Optional[User], Depends(get_optional_user)]
 DB = Annotated[AsyncSession, Depends(get_db)]

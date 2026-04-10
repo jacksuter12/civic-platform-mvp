@@ -1,16 +1,17 @@
-"""Admin routes — facilitator request review and tier management."""
+"""Admin routes — facilitator request review, tier management, annotator capability."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 
-from app.api.deps import AdminUser, DB
+from app.api.deps import DB, AdminUser
 from app.core.audit import log_event
 from app.models.audit import AuditEventType
 from app.models.facilitator_request import FacilitatorRequest, FacilitatorRequestStatus
 from app.models.user import User, UserTier
+from app.schemas.annotation import AnnotatorGrantBody, UserAnnotatorOut
 from app.schemas.facilitator_request import FacilitatorRequestDetail
 
 router = APIRouter()
@@ -61,7 +62,7 @@ async def approve_facilitator_request(
 
     req.status = FacilitatorRequestStatus.APPROVED
     req.reviewed_by_id = admin.id
-    req.reviewed_at = datetime.now(timezone.utc)
+    req.reviewed_at = datetime.now(UTC)
     db.add(req)
     await db.flush()
 
@@ -110,7 +111,7 @@ async def deny_facilitator_request(
 
     req.status = FacilitatorRequestStatus.DENIED
     req.reviewed_by_id = admin.id
-    req.reviewed_at = datetime.now(timezone.utc)
+    req.reviewed_at = datetime.now(UTC)
     db.add(req)
     await db.flush()
 
@@ -125,3 +126,106 @@ async def deny_facilitator_request(
 
     await db.refresh(req, ["user"])
     return FacilitatorRequestDetail.model_validate(req)
+
+
+# ---------------------------------------------------------------------------
+# Annotator capability — grant / revoke  (routes 7 & 8)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/users/{user_id}/annotator", response_model=UserAnnotatorOut)
+async def grant_annotator(
+    user_id: uuid.UUID,
+    admin: AdminUser,
+    db: DB,
+    payload: AnnotatorGrantBody | None = None,
+) -> UserAnnotatorOut:
+    """
+    Grant annotator capability to a user. Idempotent — if already set, returns
+    current state without writing an audit entry.
+    """
+    result = await db.execute(select(User).where(User.id == user_id))
+    target = result.scalar_one_or_none()
+    if target is None:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    if target.is_annotator:
+        return UserAnnotatorOut(
+            id=target.id,
+            display_name=target.display_name,
+            is_annotator=target.is_annotator,
+            tier=target.tier,
+        )
+
+    target.is_annotator = True
+    db.add(target)
+    await db.flush()
+
+    audit_payload: dict = {}
+    if payload and payload.reason:
+        audit_payload["reason"] = payload.reason
+
+    await log_event(
+        db,
+        event_type=AuditEventType.USER_ANNOTATOR_GRANTED,
+        target_type="user",
+        target_id=target.id,
+        payload=audit_payload,
+        actor_id=admin.id,
+    )
+
+    return UserAnnotatorOut(
+        id=target.id,
+        display_name=target.display_name,
+        is_annotator=target.is_annotator,
+        tier=target.tier,
+    )
+
+
+@router.delete("/users/{user_id}/annotator", response_model=UserAnnotatorOut)
+async def revoke_annotator(
+    user_id: uuid.UUID,
+    admin: AdminUser,
+    db: DB,
+    payload: AnnotatorGrantBody | None = None,
+) -> UserAnnotatorOut:
+    """
+    Revoke annotator capability from a user. Idempotent — if already false,
+    returns current state without writing an audit entry.
+    """
+    result = await db.execute(select(User).where(User.id == user_id))
+    target = result.scalar_one_or_none()
+    if target is None:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    if not target.is_annotator:
+        return UserAnnotatorOut(
+            id=target.id,
+            display_name=target.display_name,
+            is_annotator=target.is_annotator,
+            tier=target.tier,
+        )
+
+    target.is_annotator = False
+    db.add(target)
+    await db.flush()
+
+    audit_payload: dict = {}
+    if payload and payload.reason:
+        audit_payload["reason"] = payload.reason
+
+    await log_event(
+        db,
+        event_type=AuditEventType.USER_ANNOTATOR_REVOKED,
+        target_type="user",
+        target_id=target.id,
+        payload=audit_payload,
+        actor_id=admin.id,
+    )
+
+    return UserAnnotatorOut(
+        id=target.id,
+        display_name=target.display_name,
+        is_annotator=target.is_annotator,
+        tier=target.tier,
+    )

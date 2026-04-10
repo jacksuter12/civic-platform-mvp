@@ -1,0 +1,35 @@
+## Article 3.1: Questions We Don't Answer For You
+
+**Section 3: Open Questions**
+
+This is the shortest section of the wiki and in some ways the most important. The platform exists to support deliberation, which means that on the questions deliberation is meant to address, the platform itself should take no position. This article exists to be explicit about what we will and will not do, and to flag a category distinction that deliberators have a recurring problem with: the difference between empirical questions and values questions.
+
+An **empirical question** is a question about what is the case — a question that, in principle, evidence can resolve. How many people lack health insurance in Colorado? How does the price of insulin in the United States compare to its price in Canada? What is the carbon intensity of natural gas relative to coal generation? What was the employment effect of the most recent minimum wage increase in Seattle? These are not always easy to answer. Some have measurement difficulties. Some have multiple reasonable estimates. Some are answered differently by methodologically serious researchers using different assumptions. But they are the kind of question where, in principle, more data and better methods would converge on a single answer. The disagreement is about what is the case.
+
+A **values question** is a question about what should be the case — a question that depends on weightings of legitimate but incommensurable goods. How much economic efficiency should we sacrifice to achieve a given level of equality? How should we balance the freedom of one person against the welfare of another? How much should we discount the well-being of people not yet born? These are not questions that more data can resolve, because reasonable people who agree on all the empirical facts can still disagree based on different value commitments. The disagreement is about what should be done given what is the case.
+
+The distinction matters because **the platform has different obligations on the two kinds of question**.
+
+On empirical questions where there is genuine scientific or economic consensus, the platform should not present the consensus as one of "two sides." Vaccine safety is not a values question. Climate attribution to human activity is not a values question. The administrative cost differential between single-payer and multi-payer healthcare systems is largely an empirical question with a substantial literature, and treating it as if it had no answer would mislead participants. Where consensus exists, the platform should reflect it. The hard part is recognizing when consensus actually exists versus when it has been manufactured by interested parties or eroded by motivated criticism, and we will not always get this right.
+
+On values questions where reasonable people disagree, the platform should take no position. The appropriate role of government in private markets is a values question. The right tradeoff between individual liberty and collective welfare is a values question. How much present cost we should accept for future benefit is a values question. Whether the country should have universal healthcare, single-payer or otherwise, is partly a values question and partly an empirical question, and we should not pretend that it is purely one or the other.
+
+There is a third category that is the hardest to handle: **questions that look like values disagreements but turn out to be partly empirical**. The optimal mechanism for setting drug prices is partly a values question (how should we weigh innovation against access?) and partly an empirical question (how responsive is innovation to expected returns? how much of current pricing funds genuine R&D versus marketing?). The minimum wage debate is partly a values question and partly an empirical question about how employment responds to wage floors at various levels in various labor markets. The efficiency of public versus private provision of specific services is partly a values question and partly an empirical question that depends heavily on the specific service and the specific institutional context.
+
+When these mixed questions come up, the platform's epistemic commitment is to be as clear as we can about which parts are empirical and which parts are values, to flag where we are uncertain about the categorization, and to never present a genuine values question as if it had a scientifically correct answer that participants who disagree are simply ignorant of.
+
+We will get this wrong sometimes. The categorization itself is contested in some cases — what looks like an empirical consensus to one observer can look like a manufactured consensus to another, and the boundary between empirical and values content is sometimes blurry. We will try to be transparent about our reasoning when we make a categorization call. We will publish disagreements about our categorizations rather than hiding them. We will treat any pattern of categorization decisions that consistently favors one political coalition as a warning sign that we are doing something wrong.
+
+Here is the explicit commitment, which we want participants to be able to hold us to:
+
+**If you find that this platform has pre-loaded answers to values questions — if you see us framing a contested values dispute as if one side were obviously right, or presenting a partisan policy preference as if it were the only reasonable conclusion from the evidence — that is a design failure. Tell us. We will treat it as a serious problem and try to fix it.**
+
+The platform's legitimacy depends on participants being able to trust that the deliberative space is for their reasoning, not for ours. We are aware that this trust is hard to earn and easy to lose. The articles in Section 2 of this wiki are explicitly labeled as the founders' perspective, and we have tried to keep the articles in Section 1 cleanly descriptive. The deliberation tools themselves should be even more careful: they are where participants form positions that the platform then carries forward into the political system, and any thumb on the scale at that stage corrupts everything downstream.
+
+### What this means for deliberation
+
+The platform is not neutral about everything. It is not neutral about the value of deliberation, about the importance of accountability, about the design choices encoded in its architecture, or about the diagnosis described in Section 2. It is meant to be neutral about the substantive policy questions that participants are deliberating on, with the limited exception that it will reflect empirical consensus where empirical consensus exists. The line between these is hard to draw and we will not always draw it correctly. Participation includes the right to call us out when we draw it wrong.
+
+### Sources
+
+- This article does not have substantive sources to cite. It is a statement of editorial commitment by the platform's founders. The conceptual distinction between empirical and values questions has a long history in philosophy of science and political philosophy; we have not relied on any single source for it.

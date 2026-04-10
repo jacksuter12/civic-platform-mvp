@@ -87,6 +87,7 @@ async def me(user: RegisteredUser, db: DB) -> dict:
         "tier": user.tier,
         "identity_verified_at": user.identity_verified_at,
         "email": user.email,
+        "is_annotator": user.is_annotator,
         "display_name_changes_this_month": changes,
         "display_name_changes_remaining": max(0, DISPLAY_NAME_CHANGE_LIMIT - changes),
     }
@@ -126,6 +127,7 @@ async def update_me(payload: DisplayNameUpdate, user: RegisteredUser, db: DB) ->
         "tier": user.tier,
         "identity_verified_at": user.identity_verified_at,
         "email": user.email,
+        "is_annotator": user.is_annotator,
         "display_name_changes_this_month": new_changes,
         "display_name_changes_remaining": max(0, DISPLAY_NAME_CHANGE_LIMIT - new_changes),
     }

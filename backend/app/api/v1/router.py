@@ -4,6 +4,7 @@ from app.api.v1 import (
     admin,
     allocations,
     amendments,
+    annotations,
     audit,
     auth,
     domains,
@@ -31,3 +32,4 @@ api_router.include_router(votes.router, prefix="/votes", tags=["votes"])
 api_router.include_router(pools.router, prefix="/pools", tags=["pools"])
 api_router.include_router(allocations.router, prefix="/allocations", tags=["allocations"])
 api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
+api_router.include_router(annotations.router, prefix="/annotations", tags=["annotations"])

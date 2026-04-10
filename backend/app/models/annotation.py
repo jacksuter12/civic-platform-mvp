@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Index, JSON, String, Text, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
@@ -58,7 +58,10 @@ class Annotation(Base, UUIDPKMixin, TimestampMixin):
 
     # Opaque JSON from the Hypothesis anchoring libraries. The backend stores
     # and returns this verbatim; only the frontend interprets it.
-    anchor_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    # with_variant: JSONB on PostgreSQL (GIN-indexable), JSON on SQLite (tests).
+    anchor_data: Mapped[dict] = mapped_column(
+        JSONB().with_variant(JSON(), "sqlite"), nullable=False
+    )
 
     author_id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True

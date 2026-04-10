@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ article.title }} — Civic Power Wiki</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <link rel="stylesheet" href="/static/css/wiki.css">
+  <link rel="stylesheet" href="/static/css/annotations.css">
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/nav.js"></script>
+</head>
+<body>
+
+  <div id="nav-placeholder"></div>
+
+  <main class="container wiki-container">
+
+    <nav class="wiki-breadcrumb" aria-label="Breadcrumb">
+      <a href="/wiki" class="wiki-breadcrumb-link">← Wiki</a>
+      {% if article.section_label %}
+      <span class="wiki-breadcrumb-sep">·</span>
+      <span class="wiki-breadcrumb-section">{{ article.section_label }}</span>
+      {% endif %}
+    </nav>
+
+    <article
+      id="wiki-article-{{ slug }}"
+      class="wiki-article"
+      data-annotation-target-type="wiki"
+      data-annotation-target-id="{{ slug }}">
+
+      {{ content_html | safe }}
+
+    </article>
+
+    <nav class="wiki-article-nav" aria-label="Article navigation">
+      <div class="wiki-article-nav-prev">
+        {% if prev_article %}
+        <a href="/wiki/{{ prev_article.slug }}" class="wiki-nav-link wiki-nav-prev">
+          <span class="wiki-nav-arrow">←</span>
+          <span class="wiki-nav-label">{{ prev_article.title }}</span>
+        </a>
+        {% endif %}
+      </div>
+      <div class="wiki-article-nav-center">
+        <a href="/wiki" class="wiki-nav-index-link">All articles</a>
+      </div>
+      <div class="wiki-article-nav-next">
+        {% if next_article %}
+        <a href="/wiki/{{ next_article.slug }}" class="wiki-nav-link wiki-nav-next">
+          <span class="wiki-nav-label">{{ next_article.title }}</span>
+          <span class="wiki-nav-arrow">→</span>
+        </a>
+        {% endif %}
+      </div>
+    </nav>
+
+  </main>
+
+  <!-- Annotation data layer — loaded only on article pages, not the index -->
+  <!--
+    Load order:
+      1. api.js             — regular script, fetch helpers
+      2. annotations.js     — regular script, defines window.Annotations
+      3. annotation_ui.js   — regular script, defines window.AnnotationUI (DOM layer)
+      4. annotation_anchor.js — ES module, sets window.AnnotationAnchor (deferred, runs after parsing)
+      5. init script        — DOMContentLoaded fires after modules; awaits Annotations.init()
+                              then AnnotationUI.init() so data is ready before the UI renders.
+  -->
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/annotations.js"></script>
+  <script src="/static/js/annotation_ui.js"></script>
+  <script type="module" src="/static/js/annotation_anchor.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async function () {
+      if (window.Annotations) {
+        await window.Annotations.init();
+      }
+      if (window.AnnotationUI) {
+        await window.AnnotationUI.init();
+      }
+    });
+  </script>
+
+</body>
+</html>

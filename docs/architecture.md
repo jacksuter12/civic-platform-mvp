@@ -6,9 +6,7 @@ _Last updated: 2026-04-03. Reflects current deployed state._
 
 ## Thesis
 
-Public deliberation can be translated into legitimate, transparent collective allocation
-without outrage dynamics. This platform enforces that translation structurally, not
-through content moderation alone.
+Public deliberation can be translated into legitimate, transparent collective allocation without outrage dynamics. This platform enforces that translation structurally, not through content moderation alone.
 
 ---
 
@@ -172,6 +170,31 @@ OPEN → DELIBERATING → PROPOSING → VOTING → CLOSED → ARCHIVED
 | Anonymous allocation | Every allocation decision is in the public audit log |
 | Unlimited voting window | Votes immutable once cast; no strategic switching |
 | Minority dissent buried | Block signals always surfaced prominently to facilitator |
+
+---
+
+## Annotation System (v1: Wiki Only)
+
+Annotations allow permissioned reviewers (`annotator` capability) to give in-place
+feedback on content — attaching a comment, reaction, or reply to a specific passage.
+
+**Target model:** The `annotations` table is target-agnostic. Every annotation carries
+a `target_type` field (`wiki` | `post` | `proposal` | `document`) and a `target_id`.
+The same backend routes and frontend module serve annotations on any content type.
+v1 ships on wiki articles only. Extension to posts and proposals is supported by the
+data model but requires a separate decision before implementation.
+
+**Anchoring:** Annotations are anchored to a text range using Hypothesis's open-source
+libraries (`dom-anchor-text-quote` and related). When text anchoring fails (the anchor
+passage has been edited out of the document), the system falls back to section-level
+attachment so the annotation is not silently lost.
+
+**Reactions:** Annotations support `endorse` and `needs_work` reactions. These are
+editorial signals only — they are never used to sort, filter, or rank content. See the
+"Reactions Permitted on Individual Contributions" decision (2026-04-09).
+
+**Audit:** All annotation actions (create, react, reply, soft-delete) write to the
+audit log. Soft deletes only — no hard deletion of annotation records.
 
 ---
 

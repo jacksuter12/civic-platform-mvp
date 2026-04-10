@@ -108,8 +108,13 @@ mypy app --ignore-missing-imports  # type check
 3. **Votes are immutable.** Once cast, a vote cannot be changed.
    The DB has a unique constraint on (proposal_id, voter_id).
 
-4. **No reactions on posts.** No upvotes, downvotes, or likes.
-   Signals are per-thread, not per-post.
+4. **Reactions must never determine display order, visibility, or prominence.**
+   Reactions may exist on annotations and (in the future) on posts and proposals.
+   Chronological ordering is the only permitted sort for any content feed. Reaction
+   counts may be displayed but must not be used as sort keys, filters, or ranking
+   inputs. The original "no upvotes/downvotes" decision was protecting against
+   engagement-driven amplification; the new rule preserves that protection while
+   permitting editorial feedback (endorse/needs_work on annotations).
 
 5. **Phase gates are enforced server-side.** Never trust the client to
    enforce which actions are allowed in which phase.
@@ -141,6 +146,8 @@ mypy app --ignore-missing-imports  # type check
 - Do NOT allow the LLM to post in threads. It is read-only.
 - Do NOT skip the phase gate in any route, even "just for testing."
 - Do NOT add upvotes, downvotes, or engagement metrics on posts.
+- Do NOT use reaction counts to sort, filter, rank, boost, or bury any content.
+  Chronological order only. Reactions are editorial signal, not display signal.
 - Do NOT store PII in the audit log payload.
 - Do NOT commit `.env` files.
 - Do NOT use `git push --force` on `main`.
