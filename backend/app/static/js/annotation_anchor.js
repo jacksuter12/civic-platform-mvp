@@ -5,13 +5,17 @@
  * Data Model selectors (TextQuoteSelector, TextPositionSelector), plus a
  * section-level fallback selector.
  *
- * Loaded as <script type="module"> so it can import from esm.sh. Sets
+ * Loaded as <script type="module"> so it can import native ESM. Sets
  * window.AnnotationAnchor so that regular scripts loaded after this module
  * can call its methods.
  *
  * Library: @apache-annotator/dom@0.2.0
- * Source:  https://esm.sh/@apache-annotator/dom@0.2.0
+ * Source:  https://cdn.jsdelivr.net/npm/@apache-annotator/dom@0.2.0/+esm
  * License: Apache-2.0
+ *
+ * Note: esm.sh was avoided because it incorrectly bundles a regenerator
+ * polyfill for this package, causing a runtime error in modern browsers.
+ * jsDelivr's +esm flag serves the package's own ESM output directly.
  */
 
 import {
@@ -19,7 +23,7 @@ import {
   createTextQuoteSelectorMatcher,
   describeTextPosition,
   createTextPositionSelectorMatcher,
-} from 'https://esm.sh/@apache-annotator/dom@0.2.0';
+} from 'https://cdn.jsdelivr.net/npm/@apache-annotator/dom@0.2.0/+esm';
 
 // ---------------------------------------------------------------------------
 // Internal helpers
