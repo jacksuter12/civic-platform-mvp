@@ -723,6 +723,13 @@
     _floatingBtn.style.left = rect.left + rect.width / 2 + "px";
     _floatingBtn.style.top = Math.max(rect.top - 44, 70) + "px";
 
+    // Prevent mousedown from clearing the text selection, and stop it from
+    // bubbling to _onMouseUp which would remove the button before click fires.
+    _floatingBtn.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
     _floatingBtn.addEventListener("click", async () => {
       const root = _getAnnotatableRoot();
       if (!root) return;
