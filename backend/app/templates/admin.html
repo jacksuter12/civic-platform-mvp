@@ -349,9 +349,17 @@
             id="user-search"
             oninput="filterUsers()"
           >
-          <div id="user-list">${renderUserRows(users)}</div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#666;margin-bottom:14px;cursor:pointer;">
+            <input type="checkbox" id="hide-seed" checked onchange="filterUsers()">
+            Hide seed accounts (@civic.local)
+          </label>
+          <div id="user-list">${renderUserRows(users.filter(u => !isSeedAccount(u)))}</div>
         </div>
       `;
+    }
+
+    function isSeedAccount(u) {
+      return u.email.endsWith("@civic.local");
     }
 
     function renderUserRows(users) {
@@ -395,12 +403,14 @@
 
     function filterUsers() {
       const q = document.getElementById("user-search").value.toLowerCase();
-      const filtered = q
-        ? allUsers.filter(u =>
-            u.display_name.toLowerCase().includes(q) ||
-            u.email.toLowerCase().includes(q)
-          )
-        : allUsers;
+      const hideSeed = document.getElementById("hide-seed").checked;
+      let filtered = hideSeed ? allUsers.filter(u => !isSeedAccount(u)) : allUsers;
+      if (q) {
+        filtered = filtered.filter(u =>
+          u.display_name.toLowerCase().includes(q) ||
+          u.email.toLowerCase().includes(q)
+        );
+      }
       document.getElementById("user-list").innerHTML = renderUserRows(filtered);
     }
 
