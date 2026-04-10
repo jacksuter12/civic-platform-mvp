@@ -124,12 +124,11 @@
   function _updateToggleCount() {
     if (!_toggleBtn) return;
     const all = Annotations.getAll();
-    // Count non-deleted top-level annotations for the badge
     const count = all.filter((a) => !a.deleted_at && !a.parent_id).length;
-    _toggleBtn.textContent = _drawerOpen
-      ? "× Close"
-      : `Comments (${count})`;
-    _toggleBtn.classList.toggle("is-open", _drawerOpen);
+    _toggleBtn.textContent = `Comments (${count})`;
+    // Hide the toggle while the drawer is open — the × in the drawer header
+    // handles closing, so there's no need for a redundant button in the corner.
+    _toggleBtn.style.display = _drawerOpen ? "none" : "";
   }
 
   // ---------------------------------------------------------------------------
@@ -686,8 +685,6 @@
   // ---------------------------------------------------------------------------
 
   function _onMouseUp(e) {
-    if (!_drawerOpen) return;
-
     // Clicks inside the drawer don't trigger the floating button
     if (_drawer && _drawer.contains(e.target)) return;
 
@@ -746,6 +743,8 @@
           root
         );
         _hideFloatingButton();
+        // Open the drawer first if it's closed, then show the composer.
+        if (!_drawerOpen) await _openDrawer();
         _openMainComposer(anchor);
       } catch (e) {
         console.error("annotation_ui: failed to create anchor", e);
