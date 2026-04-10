@@ -40,6 +40,26 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Page content shift — push body content left when drawer is open so the
+   article remains readable alongside the drawer. Matches the drawer's
+   transition duration so both animate in sync.
+   Not applied on narrow screens where the drawer covers the full width anyway.
+   --------------------------------------------------------------------------- */
+body {
+  transition: padding-right 0.28s ease;
+}
+
+body.annotation-drawer-open {
+  padding-right: 380px;
+}
+
+@media (max-width: 600px) {
+  body.annotation-drawer-open {
+    padding-right: 0;
+  }
+}
+
+/* ---------------------------------------------------------------------------
    Drawer — slides in from the right
    --------------------------------------------------------------------------- */
 .annotation-drawer {

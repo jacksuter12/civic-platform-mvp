@@ -180,6 +180,7 @@
   async function _openDrawer() {
     _drawerOpen = true;
     _drawer.classList.add("is-open");
+    document.body.classList.add("annotation-drawer-open");
     sessionStorage.setItem("annotation-drawer-open", "true");
     _updateToggleCount();
     await _renderDrawer();
@@ -190,6 +191,7 @@
   function _closeDrawer() {
     _drawerOpen = false;
     _drawer.classList.remove("is-open");
+    document.body.classList.remove("annotation-drawer-open");
     sessionStorage.setItem("annotation-drawer-open", "false");
     _updateToggleCount();
     _removeHighlights();
