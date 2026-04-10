@@ -712,6 +712,10 @@
   function _showFloatingButton(range) {
     _hideFloatingButton();
 
+    // Clone the range immediately — clicking the button clears the browser
+    // selection before the click handler fires, so we can't re-read it then.
+    const savedRange = range.cloneRange();
+
     const rect = range.getBoundingClientRect();
     _floatingBtn = document.createElement("button");
     _floatingBtn.className = "annotation-float-btn";
@@ -720,19 +724,14 @@
     _floatingBtn.style.top = Math.max(rect.top - 44, 70) + "px";
 
     _floatingBtn.addEventListener("click", async () => {
-      const sel = window.getSelection();
-      if (!sel || sel.isCollapsed) return;
-
-      const selRange = sel.getRangeAt(0);
       const root = _getAnnotatableRoot();
       if (!root) return;
 
       try {
         const anchor = await AnnotationAnchor.createAnchorFromSelection(
-          selRange,
+          savedRange,
           root
         );
-        sel.removeAllRanges();
         _hideFloatingButton();
         _openMainComposer(anchor);
       } catch (e) {
@@ -794,7 +793,7 @@
       parentAnnotation.anchor_data,
       null,
       () => { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); },
-      async (anchor, body) => {
+      async (_anchor, body) => {
         const created = await Annotations.create(
           parentAnnotation.anchor_data,
           body,
