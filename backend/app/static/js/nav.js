@@ -16,7 +16,11 @@
   function authLink() {
     try {
       if (typeof auth !== "undefined" && auth.isSignedIn()) {
-        return `<a href="/account" class="cpc-nav-auth">Account</a>`;
+        const user = auth.getUser();
+        const adminLink = (user && user.tier === "admin")
+          ? `<a href="/admin" class="cpc-nav-link">Admin</a>`
+          : "";
+        return adminLink + `<a href="/account" class="cpc-nav-auth">Account</a>`;
       }
     } catch (_) {}
     return `<a href="/signin" class="cpc-nav-auth">Sign In</a>`;

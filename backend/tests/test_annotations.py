@@ -705,3 +705,87 @@ async def test_create_rejects_non_wiki_target(
         assert resp.status_code == 400
     finally:
         app.dependency_overrides.pop(get_current_user, None)
+
+
+# ---------------------------------------------------------------------------
+# Test 11 — GET /admin/users
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_admin_list_users_returns_all(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    annotator: User,
+    plain_user: User,
+) -> None:
+    """Admin can fetch all users; response includes is_annotator and tier."""
+    app.dependency_overrides[get_current_user] = _auth_as(admin_user)
+    try:
+        resp = await client.get("/api/v1/admin/users")
+        assert resp.status_code == 200
+        data = resp.json()
+        ids = {u["id"] for u in data}
+        assert str(admin_user.id) in ids
+        assert str(annotator.id) in ids
+        assert str(plain_user.id) in ids
+
+        # annotator fixture has is_annotator=True
+        annotator_row = next(u for u in data if u["id"] == str(annotator.id))
+        assert annotator_row["is_annotator"] is True
+        assert annotator_row["tier"] == "registered"
+
+        # plain_user has is_annotator=False
+        plain_row = next(u for u in data if u["id"] == str(plain_user.id))
+        assert plain_row["is_annotator"] is False
+
+        # email is included
+        admin_row = next(u for u in data if u["id"] == str(admin_user.id))
+        assert admin_row["email"] == admin_user.email
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.mark.asyncio
+async def test_non_admin_cannot_list_users(
+    client: AsyncClient, annotator: User
+) -> None:
+    """Non-admin users get 403."""
+    app.dependency_overrides[get_current_user] = _auth_as(annotator)
+    try:
+        resp = await client.get("/api/v1/admin/users")
+        assert resp.status_code == 403
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.mark.asyncio
+async def test_admin_list_users_search_filter(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    annotator: User,
+    plain_user: User,
+) -> None:
+    """Search parameter filters by display_name or email substring."""
+    app.dependency_overrides[get_current_user] = _auth_as(admin_user)
+    try:
+        # Search by display_name substring matching the annotator fixture ("Annotator")
+        resp = await client.get("/api/v1/admin/users", params={"search": "Annotator"})
+        assert resp.status_code == 200
+        data = resp.json()
+        returned_ids = {u["id"] for u in data}
+        assert str(annotator.id) in returned_ids
+        # plain_user display_name is "PlainUser" — should not appear
+        assert str(plain_user.id) not in returned_ids
+
+        # Search by email substring
+        resp2 = await client.get("/api/v1/admin/users", params={"search": "plain@"})
+        assert resp2.status_code == 200
+        data2 = resp2.json()
+        returned_ids2 = {u["id"] for u in data2}
+        assert str(plain_user.id) in returned_ids2
+        assert str(annotator.id) not in returned_ids2
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)

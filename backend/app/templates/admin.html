@@ -76,6 +76,132 @@
     }
     .status-approved { background: #e8f5e9; color: #2e7d32; }
     .status-denied   { background: #fff3f3; color: #c62828; }
+
+    /* Annotator management */
+    .user-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: center;
+      padding: 14px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .user-row:last-child { border-bottom: none; }
+    .user-name { font-size: 15px; font-weight: 600; color: #1a1a1a; }
+    .user-email { font-size: 13px; color: #888; margin-top: 2px; }
+    .user-meta { display: flex; gap: 10px; align-items: center; margin-top: 4px; }
+    .tier-tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #888;
+    }
+    .annotator-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .annotator-yes    { background: #e3f2fd; color: #1565c0; }
+    .annotator-admin  { background: #ede7f6; color: #4527a0; }
+    .annotator-no     { background: #f5f5f5; color: #aaa; }
+    .btn-grant {
+      padding: 6px 14px;
+      background: #1565c0;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .btn-grant:hover:not(:disabled) { background: #0d47a1; }
+    .btn-revoke {
+      padding: 6px 14px;
+      background: #fff;
+      color: #c62828;
+      border: 1px solid #e57373;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .btn-revoke:hover:not(:disabled) { background: #fff3f3; }
+    .btn-grant:disabled, .btn-revoke:disabled { opacity: 0.5; cursor: not-allowed; }
+    .confirm-panel {
+      background: #f9f9f9;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-top: 8px;
+      font-size: 13px;
+    }
+    .confirm-panel p { margin: 0 0 8px; color: #333; }
+    .confirm-panel input {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 13px;
+      font-family: inherit;
+      box-sizing: border-box;
+      margin-bottom: 8px;
+    }
+    .confirm-panel .btn-row { display: flex; gap: 8px; }
+    .btn-confirm-grant {
+      padding: 5px 12px;
+      background: #1565c0;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-confirm-revoke {
+      padding: 5px 12px;
+      background: #c62828;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-cancel-confirm {
+      padding: 5px 12px;
+      background: #fff;
+      color: #555;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .inline-error { font-size: 12px; color: #c62828; margin-top: 4px; }
+    .search-box {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      box-sizing: border-box;
+      margin-bottom: 16px;
+    }
   </style>
 </head>
 <body>
@@ -113,9 +239,11 @@
       content.innerHTML = `
         <h1 class="page-title">Admin</h1>
         <div id="requests-section"><div class="loading">Loading requests…</div></div>
+        <div id="annotator-section" style="margin-top: 48px;"><div class="loading">Loading users…</div></div>
       `;
 
       loadRequests();
+      loadAnnotatorSection();
     }
 
     async function loadRequests() {
@@ -192,6 +320,149 @@
       return String(str)
         .replace(/&/g, "&amp;").replace(/</g, "&lt;")
         .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    // -----------------------------------------------------------------------
+    // Annotator Management
+    // -----------------------------------------------------------------------
+
+    let allUsers = [];
+
+    async function loadAnnotatorSection() {
+      const section = document.getElementById("annotator-section");
+      try {
+        allUsers = await listUsers();
+        renderAnnotatorSection(section, allUsers);
+      } catch (err) {
+        section.innerHTML = `<div class="error-message">Could not load users: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function renderAnnotatorSection(container, users) {
+      container.innerHTML = `
+        <div class="detail-section">
+          <div class="section-heading">Annotator Management</div>
+          <input
+            class="search-box"
+            type="text"
+            placeholder="Search by name or email…"
+            id="user-search"
+            oninput="filterUsers()"
+          >
+          <div id="user-list">${renderUserRows(users)}</div>
+        </div>
+      `;
+    }
+
+    function renderUserRows(users) {
+      if (users.length === 0) {
+        return `<div class="empty-state" style="padding: 24px 0;">No users found.</div>`;
+      }
+      return users.map(u => renderUserRow(u)).join("");
+    }
+
+    function renderUserRow(u) {
+      const isAdmin = u.tier === "admin";
+      let badge, actionBtn;
+
+      if (isAdmin) {
+        badge = `<span class="annotator-badge annotator-admin">Annotator (admin)</span>`;
+        actionBtn = ``;  // non-revocable for admin tier
+      } else if (u.is_annotator) {
+        badge = `<span class="annotator-badge annotator-yes">Annotator</span>`;
+        actionBtn = `<button class="btn-revoke" onclick="showConfirm('${u.id}', 'revoke')">Revoke</button>`;
+      } else {
+        badge = `<span class="annotator-badge annotator-no">No access</span>`;
+        actionBtn = `<button class="btn-grant" onclick="showConfirm('${u.id}', 'grant')">Grant</button>`;
+      }
+
+      return `
+        <div class="user-row" id="urow-${u.id}">
+          <div>
+            <div class="user-name">${escapeHtml(u.display_name)}</div>
+            <div class="user-email">${escapeHtml(u.email)}</div>
+            <div class="user-meta">
+              <span class="tier-tag">${escapeHtml(u.tier)}</span>
+              ${badge}
+            </div>
+            <div id="confirm-${u.id}"></div>
+            <div class="inline-error" id="err-${u.id}"></div>
+          </div>
+          <div id="action-${u.id}">${actionBtn}</div>
+        </div>
+      `;
+    }
+
+    function filterUsers() {
+      const q = document.getElementById("user-search").value.toLowerCase();
+      const filtered = q
+        ? allUsers.filter(u =>
+            u.display_name.toLowerCase().includes(q) ||
+            u.email.toLowerCase().includes(q)
+          )
+        : allUsers;
+      document.getElementById("user-list").innerHTML = renderUserRows(filtered);
+    }
+
+    function showConfirm(userId, action) {
+      const user = allUsers.find(u => u.id === userId);
+      if (!user) return;
+      const label = action === "grant" ? "Grant" : "Revoke";
+      const btnClass = action === "grant" ? "btn-confirm-grant" : "btn-confirm-revoke";
+      const verb = action === "grant"
+        ? `Grant annotator capability to <strong>${escapeHtml(user.display_name)}</strong>?`
+        : `Revoke annotator capability from <strong>${escapeHtml(user.display_name)}</strong>?`;
+
+      document.getElementById(`confirm-${userId}`).innerHTML = `
+        <div class="confirm-panel">
+          <p>${verb}</p>
+          <input type="text" id="reason-${userId}" placeholder="Reason (optional)">
+          <div class="btn-row">
+            <button class="${btnClass}" onclick="doAnnotatorAction('${userId}', '${action}')">
+              ${label}
+            </button>
+            <button class="btn-cancel-confirm" onclick="cancelConfirm('${userId}')">Cancel</button>
+          </div>
+        </div>
+      `;
+      // Hide the action button while confirm panel is open
+      document.getElementById(`action-${userId}`).style.display = "none";
+    }
+
+    function cancelConfirm(userId) {
+      document.getElementById(`confirm-${userId}`).innerHTML = "";
+      document.getElementById(`err-${userId}`).textContent = "";
+      document.getElementById(`action-${userId}`).style.display = "";
+    }
+
+    async function doAnnotatorAction(userId, action) {
+      const reasonInput = document.getElementById(`reason-${userId}`);
+      const reason = reasonInput ? reasonInput.value.trim() || null : null;
+      const errEl = document.getElementById(`err-${userId}`);
+      errEl.textContent = "";
+
+      // Disable confirm buttons
+      const confirmPanel = document.getElementById(`confirm-${userId}`);
+      confirmPanel.querySelectorAll("button").forEach(b => b.disabled = true);
+
+      try {
+        if (action === "grant") {
+          await grantAnnotator(userId, reason);
+        } else {
+          await revokeAnnotator(userId, reason);
+        }
+        // Update local data and re-render the row
+        const user = allUsers.find(u => u.id === userId);
+        if (user) user.is_annotator = action === "grant";
+        const row = document.getElementById(`urow-${userId}`);
+        if (row && user) {
+          row.outerHTML = renderUserRow(user);
+        }
+      } catch (err) {
+        confirmPanel.querySelectorAll("button").forEach(b => b.disabled = false);
+        errEl.textContent = `Error: ${err.message}`;
+        document.getElementById(`action-${userId}`).style.display = "";
+      }
     }
 
     init();

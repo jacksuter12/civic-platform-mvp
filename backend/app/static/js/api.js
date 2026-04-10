@@ -372,3 +372,14 @@ async function revokeAnnotator(userId, reason = null) {
     body: JSON.stringify({ reason }),
   });
 }
+
+/**
+ * List all users (admin only).
+ * Route: GET /admin/users
+ * @param {{ search?: string, limit?: number, offset?: number }} opts
+ */
+async function listUsers({ search = null, limit = 200, offset = 0 } = {}) {
+  const params = new URLSearchParams({ limit, offset });
+  if (search) params.set("search", search);
+  return apiFetch(`/admin/users?${params}`);
+}

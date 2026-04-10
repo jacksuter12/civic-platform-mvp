@@ -42,6 +42,7 @@
 
   // Floating button tracking
   let _floatingBtn = null;
+  let _selectionChangeTimer = null;
 
   // ---------------------------------------------------------------------------
   // Entry point
@@ -79,9 +80,14 @@
       _updateToggleCount();
     }
 
-    // Selection listener (annotators only)
+    // Selection listener (annotators only).
+    // mouseup handles desktop; selectionchange handles iOS where mouseup doesn't
+    // fire for text selection (the native iOS menu swallows it).
     if (_isAnnotator) {
       document.addEventListener("mouseup", _onMouseUp);
+      if ("ontouchstart" in window) {
+        document.addEventListener("selectionchange", _onSelectionChange);
+      }
     }
 
     document.addEventListener("keydown", _onKeyDown);
@@ -201,7 +207,7 @@
     sessionStorage.setItem("annotation-drawer-open", "true");
     _updateToggleCount();
     await _renderDrawer();
-    _applyHighlights();
+    await _applyHighlights();
     _addSectionButtons();
   }
 
@@ -559,6 +565,11 @@
 
   async function _applyHighlights() {
     _removeHighlights();
+    // Re-resolve anchors against the now-clean DOM (no <mark> elements).
+    // _renderDrawer() resolves ranges while marks are present; after
+    // _removeHighlights() those ranges can be stale because the text nodes
+    // they referenced were moved. Resolving here guarantees fresh ranges.
+    _anchorRanges = await Annotations.resolveAnchorsToRanges();
 
     const root = _getAnnotatableRoot();
     if (!root) return;
@@ -725,6 +736,36 @@
     _showFloatingButton(range);
   }
 
+  // selectionchange fires continuously while the user drags selection handles on
+  // iOS. Debounce so we only show the button once the selection has settled.
+  function _onSelectionChange() {
+    clearTimeout(_selectionChangeTimer);
+    _selectionChangeTimer = setTimeout(() => {
+      // Don't interrupt the user if they're typing in the drawer.
+      if (_drawer && _drawer.contains(document.activeElement)) return;
+
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed || !selection.toString().trim()) {
+        _hideFloatingButton();
+        return;
+      }
+
+      const root = _getAnnotatableRoot();
+      if (!root) return;
+
+      try {
+        const range = selection.getRangeAt(0);
+        if (!root.contains(range.commonAncestorContainer)) {
+          _hideFloatingButton();
+          return;
+        }
+        _showFloatingButton(range);
+      } catch (_) {
+        _hideFloatingButton();
+      }
+    }, 400);
+  }
+
   function _showFloatingButton(range) {
     _hideFloatingButton();
 
@@ -737,7 +778,16 @@
     _floatingBtn.className = "annotation-float-btn";
     _floatingBtn.textContent = "Add comment";
     _floatingBtn.style.left = rect.left + rect.width / 2 + "px";
-    _floatingBtn.style.top = Math.max(rect.top - 44, 70) + "px";
+
+    const isTouchDevice = "ontouchstart" in window;
+    if (isTouchDevice) {
+      // On iOS the native selection menu appears above the selection.
+      // Place our button below it to avoid visual conflict.
+      _floatingBtn.style.top =
+        Math.min(rect.bottom + 12, window.innerHeight - 60) + "px";
+    } else {
+      _floatingBtn.style.top = Math.max(rect.top - 44, 70) + "px";
+    }
 
     // preventDefault on mousedown keeps the text selection alive.
     // stopPropagation on both mousedown AND mouseup prevents _onMouseUp
@@ -751,6 +801,13 @@
     _floatingBtn.addEventListener("mouseup", (e) => {
       e.stopPropagation();
     });
+    // touchstart with preventDefault keeps the iOS selection alive when
+    // the user taps our button (without this, tapping would collapse the
+    // selection before the click handler runs and lose the saved range).
+    _floatingBtn.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, { passive: false });
 
     _floatingBtn.addEventListener("click", async () => {
       const root = _getAnnotatableRoot();
@@ -795,8 +852,10 @@
       _addSectionButtons();
       _scrollToAnnotation(created.id);
     });
-    // Scroll the composer into view
+    // Scroll the composer into view and focus the textarea.
     _drawerComposerWrap.scrollIntoView({ behavior: "smooth", block: "end" });
+    const ta = _drawerComposerWrap.querySelector("textarea");
+    if (ta) ta.focus();
   }
 
   function _closeComposer() {

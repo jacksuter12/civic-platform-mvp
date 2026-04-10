@@ -3,15 +3,15 @@
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, HTTPException, Query
+from sqlalchemy import or_, select
 
 from app.api.deps import DB, AdminUser
 from app.core.audit import log_event
 from app.models.audit import AuditEventType
 from app.models.facilitator_request import FacilitatorRequest, FacilitatorRequestStatus
 from app.models.user import User, UserTier
-from app.schemas.annotation import AnnotatorGrantBody, UserAnnotatorOut
+from app.schemas.annotation import AnnotatorGrantBody, UserAdminSummary, UserAnnotatorOut
 from app.schemas.facilitator_request import FacilitatorRequestDetail
 
 router = APIRouter()
@@ -229,3 +229,46 @@ async def revoke_annotator(
         is_annotator=target.is_annotator,
         tier=target.tier,
     )
+
+
+# ---------------------------------------------------------------------------
+# User list for admin UI (route 9)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/users", response_model=list[UserAdminSummary])
+async def list_users(
+    admin: AdminUser,
+    db: DB,
+    search: str | None = Query(default=None, max_length=200),
+    limit: int = Query(default=200, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> list[UserAdminSummary]:
+    """
+    Return all registered users, ordered by display_name ascending.
+    Optional substring search against display_name or email.
+    Admin only.
+    """
+    query = select(User).order_by(User.display_name.asc())
+    if search:
+        pattern = f"%{search}%"
+        query = query.where(
+            or_(
+                User.display_name.ilike(pattern),
+                User.email.ilike(pattern),
+            )
+        )
+    query = query.limit(limit).offset(offset)
+    result = await db.execute(query)
+    users = list(result.scalars())
+    return [
+        UserAdminSummary(
+            id=u.id,
+            display_name=u.display_name,
+            email=u.email,
+            tier=u.tier,
+            is_annotator=u.is_annotator,
+            created_at=u.created_at,
+        )
+        for u in users
+    ]

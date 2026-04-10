@@ -123,3 +123,14 @@ class AnnotatorGrantBody(CamelBase):
     """Optional request body for annotator grant/revoke — reason is advisory."""
 
     reason: str | None = Field(default=None, max_length=500)
+
+
+class UserAdminSummary(CamelBase):
+    """User row returned by GET /admin/users."""
+
+    id: uuid.UUID
+    display_name: str
+    email: str
+    tier: UserTier
+    is_annotator: bool
+    created_at: datetime
