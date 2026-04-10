@@ -61,7 +61,7 @@
     if (!_user) return;
 
     // isAnnotator: the is_annotator flag OR admin tier (matches server logic)
-    _isAnnotator = !!(_user.isAnnotator || _user.tier === "admin");
+    _isAnnotator = !!(_user.is_annotator || _user.tier === "admin");
     _isAdmin = _user.tier === "admin";
 
     // Only activate on pages with an annotatable root
@@ -125,7 +125,7 @@
     if (!_toggleBtn) return;
     const all = Annotations.getAll();
     // Count non-deleted top-level annotations for the badge
-    const count = all.filter((a) => !a.deletedAt && !a.parentId).length;
+    const count = all.filter((a) => !a.deleted_at && !a.parent_id).length;
     _toggleBtn.textContent = _drawerOpen
       ? "× Close"
       : `Comments (${count})`;
@@ -225,14 +225,14 @@
     }
 
     const all = Annotations.getAll();
-    const topLevel = all.filter((a) => !a.parentId);
-    const replies = all.filter((a) => !!a.parentId);
+    const topLevel = all.filter((a) => !a.parent_id);
+    const replies = all.filter((a) => !!a.parent_id);
 
     // Orphaned = top-level annotation whose anchor doesn't resolve
     const orphaned = topLevel.filter((a) => {
-      if (a.anchorData && a.anchorData.type === "section") {
+      if (a.anchor_data && a.anchor_data.type === "section") {
         // Section annotations are orphaned only if the element ID is gone
-        const el = document.getElementById(a.anchorData.section_id);
+        const el = document.getElementById(a.anchor_data.section_id);
         return !el;
       }
       return _anchorRanges.get(a.id) === null;
@@ -278,7 +278,7 @@
 
     orphaned.forEach((annotation) => {
       const myReplies = replies.filter(
-        (r) => r.parentId === annotation.id
+        (r) => r.parent_id === annotation.id
       );
       body.appendChild(_renderCard(annotation, myReplies, true));
     });
@@ -305,7 +305,7 @@
     const sorted = _sortByDocPosition(topLevel);
     sorted.forEach((annotation) => {
       const myReplies = replies.filter(
-        (r) => r.parentId === annotation.id
+        (r) => r.parent_id === annotation.id
       );
       list.appendChild(_renderCard(annotation, myReplies, false));
     });
@@ -325,12 +325,12 @@
         } catch (_) {}
       }
       // Fallback: section anchors — use heading's offsetTop
-      if (a.anchorData && a.anchorData.type === "section") {
-        const elA = document.getElementById(a.anchorData.section_id);
-        const elB = b.anchorData && document.getElementById(b.anchorData.section_id);
+      if (a.anchor_data && a.anchor_data.type === "section") {
+        const elA = document.getElementById(a.anchor_data.section_id);
+        const elB = b.anchor_data && document.getElementById(b.anchor_data.section_id);
         if (elA && elB) return elA.offsetTop - elB.offsetTop;
       }
-      return new Date(a.createdAt) - new Date(b.createdAt);
+      return new Date(a.created_at) - new Date(b.created_at);
     });
   }
 
@@ -339,7 +339,7 @@
   // ---------------------------------------------------------------------------
 
   function _renderCard(annotation, replies, isOrphaned) {
-    const isDeleted = !!annotation.deletedAt;
+    const isDeleted = !!annotation.deleted_at;
     const isOwn = _user && annotation.author.id === _user.id;
 
     const card = document.createElement("div");
@@ -349,7 +349,7 @@
     if (isOrphaned) card.classList.add("is-orphaned");
 
     // Anchor preview
-    card.appendChild(_renderAnchorPreview(annotation.anchorData, isOrphaned));
+    card.appendChild(_renderAnchorPreview(annotation.anchor_data, isOrphaned));
 
     // Meta row
     const meta = document.createElement("div");
@@ -357,7 +357,7 @@
 
     const authorEl = document.createElement("span");
     authorEl.className = "annotation-author";
-    authorEl.textContent = annotation.author.displayName;
+    authorEl.textContent = annotation.author.display_name;
     if (isOwn) {
       const badge = document.createElement("span");
       badge.className = "annotation-you-badge";
@@ -367,8 +367,8 @@
 
     const timeEl = document.createElement("span");
     timeEl.className = "annotation-time";
-    timeEl.textContent = _timeAgo(annotation.createdAt);
-    if (annotation.updatedAt) {
+    timeEl.textContent = _timeAgo(annotation.created_at);
+    if (annotation.updated_at) {
       const edited = document.createElement("span");
       edited.className = "annotation-edited";
       edited.textContent = " · edited";
@@ -400,7 +400,7 @@
       actions.appendChild(reactionsEl);
 
       // Reply (only on top-level; annotators only)
-      if (_isAnnotator && !annotation.parentId) {
+      if (_isAnnotator && !annotation.parent_id) {
         const replyBtn = document.createElement("button");
         replyBtn.className = "annotation-action-btn annotation-reply-btn";
         replyBtn.textContent = "Reply";
@@ -446,7 +446,7 @@
       const repliesEl = document.createElement("div");
       repliesEl.className = "annotation-replies";
       [...replies]
-        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
         .forEach((reply) => {
           repliesEl.appendChild(_renderCard(reply, [], isOrphaned));
         });
@@ -502,9 +502,9 @@
     const el = document.createElement("span");
     el.className = "annotation-reactions";
 
-    const myReaction = annotation.myReaction;
+    const myReaction = annotation.my_reaction;
     // Can react: must be annotator, not own annotation, annotation not deleted
-    const canReact = _isAnnotator && !isOwn && !annotation.deletedAt;
+    const canReact = _isAnnotator && !isOwn && !annotation.deleted_at;
     const ownTitle = "You can\u2019t react to your own comment";
 
     function _makeReactionBtn(reaction, label) {
@@ -527,7 +527,7 @@
     }
 
     const endorseCount = annotation.reactions ? annotation.reactions.endorse : 0;
-    const needsWorkCount = annotation.reactions ? annotation.reactions.needsWork : 0;
+    const needsWorkCount = annotation.reactions ? annotation.reactions.needs_work : 0;
 
     el.appendChild(_makeReactionBtn("endorse", "\u25b2 " + endorseCount));
     el.appendChild(_makeReactionBtn("needs_work", "\u2691 " + needsWorkCount));
@@ -545,17 +545,17 @@
     const root = _getAnnotatableRoot();
     if (!root) return;
 
-    const topLevel = Annotations.getAll().filter((a) => !a.parentId);
+    const topLevel = Annotations.getAll().filter((a) => !a.parent_id);
 
     // Group text-range annotations by exact anchor key so we highlight once
     // per unique range even if multiple annotations share it.
     const textGroups = new Map(); // anchorKey -> { range, annotations[] }
 
     for (const annotation of topLevel) {
-      if (!annotation.anchorData) continue;
+      if (!annotation.anchor_data) continue;
 
-      if (annotation.anchorData.type === "section") {
-        const sectionId = annotation.anchorData.section_id;
+      if (annotation.anchor_data.type === "section") {
+        const sectionId = annotation.anchor_data.section_id;
         const heading = document.getElementById(sectionId);
         if (!heading) continue;
         // Add marker only once per heading
@@ -569,10 +569,10 @@
         marker.addEventListener("click", () => _scrollToSection(sectionId));
         heading.insertBefore(marker, heading.firstChild);
         _highlights.push(marker);
-      } else if (annotation.anchorData.type === "text-range") {
+      } else if (annotation.anchor_data.type === "text-range") {
         const range = _anchorRanges.get(annotation.id);
         if (!range) continue; // orphaned
-        const key = JSON.stringify(annotation.anchorData);
+        const key = JSON.stringify(annotation.anchor_data);
         if (!textGroups.has(key)) {
           textGroups.set(key, { range, annotations: [] });
         }
@@ -642,9 +642,9 @@
     const all = Annotations.getAll();
     const first = all.find(
       (a) =>
-        a.anchorData &&
-        a.anchorData.type === "section" &&
-        a.anchorData.section_id === sectionId
+        a.anchor_data &&
+        a.anchor_data.type === "section" &&
+        a.anchor_data.section_id === sectionId
     );
     if (first) _scrollToAnnotation(first.id);
   }
@@ -791,12 +791,12 @@
 
     _buildComposerForm(
       wrap,
-      parentAnnotation.anchorData,
+      parentAnnotation.anchor_data,
       null,
       () => { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); },
       async (anchor, body) => {
         const created = await Annotations.create(
-          parentAnnotation.anchorData,
+          parentAnnotation.anchor_data,
           body,
           parentAnnotation.id
         );
@@ -1003,14 +1003,14 @@
   // ---------------------------------------------------------------------------
 
   async function _handleReact(annotation, reaction, reactionsEl) {
-    const wasActive = annotation.myReaction === reaction;
+    const wasActive = annotation.my_reaction === reaction;
 
     try {
       let result;
       if (wasActive) {
         await Annotations.unreact(annotation.id);
         // unreact returns null (204); update cache manually
-        annotation.myReaction = null;
+        annotation.my_reaction = null;
         // Re-fetch accurate counts
         await Annotations.fetchForCurrentPage();
         await _renderDrawer();
@@ -1022,10 +1022,10 @@
 
       if (result) {
         // Update the annotation object in-place for the re-render
-        annotation.myReaction = result.myReaction;
+        annotation.my_reaction = result.my_reaction;
         annotation.reactions = {
           endorse: result.endorse,
-          needsWork: result.needsWork,
+          needs_work: result.needs_work,
         };
         // Re-render just the reactions element to avoid full drawer re-render
         const newReactionsEl = _renderReactions(
