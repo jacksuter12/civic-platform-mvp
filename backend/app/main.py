@@ -255,9 +255,9 @@ async def wiki_index(request: Request) -> HTMLResponse:
     # Render the intro article for the index page header
     intro_html = _render_article("how-to-read-this")
     return templates.TemplateResponse(
+        request,
         "wiki_index.html",
         {
-            "request": request,
             "articles": WIKI_ARTICLES,
             "intro_html": intro_html,
         },
@@ -278,9 +278,9 @@ async def wiki_article(request: Request, slug: str) -> HTMLResponse:
     article_meta = WIKI_ARTICLES[idx] if idx is not None else {"title": slug, "section_label": ""}
 
     return templates.TemplateResponse(
+        request,
         "wiki_article.html",
         {
-            "request": request,
             "slug": slug,
             "article": article_meta,
             "content_html": content_html,
