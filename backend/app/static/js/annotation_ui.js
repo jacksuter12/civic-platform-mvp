@@ -723,10 +723,16 @@
     _floatingBtn.style.left = rect.left + rect.width / 2 + "px";
     _floatingBtn.style.top = Math.max(rect.top - 44, 70) + "px";
 
-    // Prevent mousedown from clearing the text selection, and stop it from
-    // bubbling to _onMouseUp which would remove the button before click fires.
+    // preventDefault on mousedown keeps the text selection alive.
+    // stopPropagation on both mousedown AND mouseup prevents _onMouseUp
+    // from seeing these events — if it did, it would see a live selection
+    // and call _showFloatingButton again, removing this button before
+    // the click event fires.
     _floatingBtn.addEventListener("mousedown", (e) => {
       e.preventDefault();
+      e.stopPropagation();
+    });
+    _floatingBtn.addEventListener("mouseup", (e) => {
       e.stopPropagation();
     });
 
