@@ -16,12 +16,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from decimal import Decimal
 
-from app.api.deps import AdminUser, DB
+from app.api.deps import CurrentUser, DB, check_community_membership
 from app.core.audit import log_event
 from app.models.allocation import AllocationDecision
 from app.models.audit import AuditEventType
 from app.models.pool import FundingPool
 from app.models.proposal import Proposal, ProposalStatus
+from app.models.user import UserTier
 from app.models.vote import Vote, VoteChoice
 from sqlalchemy import func
 
@@ -54,7 +55,7 @@ async def list_allocations(
 @router.post("", response_model=AllocationOut, status_code=status.HTTP_201_CREATED)
 async def create_allocation(
     payload: "AllocationPayload",
-    admin: AdminUser,
+    user: CurrentUser,
     db: DB,
 ) -> AllocationDecision:
     # Validate proposal
@@ -85,6 +86,13 @@ async def create_allocation(
                 f"Available: {pool.remaining_amount}."
             ),
         )
+
+    # Community admin (ADMIN tier) required on pool's community
+    if pool.community_id is not None:
+        await check_community_membership(user, pool.community_id, UserTier.ADMIN, db)
+    else:
+        if not user.has_tier(UserTier.ADMIN):
+            raise HTTPException(status_code=403, detail="Requires admin tier.")
 
     # Capture vote summary snapshot
     rows = await db.execute(
@@ -130,7 +138,8 @@ async def create_allocation(
             "vote_summary": vote_summary,
             "rationale": payload.rationale,
         },
-        actor_id=admin.id,
+        actor_id=user.id,
+        community_id=pool.community_id,
     )
 
     return allocation

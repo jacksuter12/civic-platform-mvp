@@ -11,12 +11,13 @@ import uuid
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
-from app.api.deps import DB, FacilitatorUser, RegisteredUser
+from app.api.deps import DB, CurrentUser, check_community_membership
 from app.core.audit import log_event
 from app.models.audit import AuditEventType
 from app.models.proposal import Proposal
 from app.models.proposal_comment import ProposalComment
 from app.models.thread import Thread, ThreadStatus
+from app.models.user import UserTier
 from app.schemas.proposal_comment import (
     ProposalCommentCreate,
     ProposalCommentRead,
@@ -52,7 +53,7 @@ async def _get_proposal_and_thread(
 async def create_proposal_comment(
     proposal_id: uuid.UUID,
     payload: ProposalCommentCreate,
-    user: RegisteredUser,
+    user: CurrentUser,
     db: DB,
 ) -> ProposalCommentRead:
     """
@@ -69,6 +70,10 @@ async def create_proposal_comment(
                 f"Current phase: '{thread.status.value}'."
             ),
         )
+
+    # Community-scoped registered check
+    if thread.community_id is not None:
+        await check_community_membership(user, thread.community_id, UserTier.REGISTERED, db)
 
     if payload.parent_id:
         parent_result = await db.execute(
@@ -103,6 +108,7 @@ async def create_proposal_comment(
             "parent_id": str(payload.parent_id) if payload.parent_id else None,
         },
         actor_id=user.id,
+        community_id=thread.community_id,
     )
 
     await db.refresh(comment)
@@ -169,13 +175,23 @@ async def remove_proposal_comment(
     proposal_id: uuid.UUID,
     comment_id: uuid.UUID,
     payload: ProposalCommentRemove,
-    facilitator: FacilitatorUser,
+    user: CurrentUser,
     db: DB,
 ) -> ProposalCommentRead:
     """
-    Soft-delete a proposal comment. FACILITATOR tier required.
+    Soft-delete a proposal comment. Community-scoped facilitator tier required.
     Reason is required and recorded in the audit log.
     """
+    # Load proposal + thread for community_id and facilitator check
+    proposal, thread = await _get_proposal_and_thread(proposal_id, db)
+    community_id = thread.community_id if thread else None
+
+    if community_id is not None:
+        await check_community_membership(user, community_id, UserTier.FACILITATOR, db)
+    else:
+        if not user.has_tier(UserTier.FACILITATOR):
+            raise HTTPException(status_code=403, detail="Requires facilitator tier.")
+
     result = await db.execute(
         select(ProposalComment).where(
             ProposalComment.id == comment_id,
@@ -202,7 +218,8 @@ async def remove_proposal_comment(
             "proposal_id": str(proposal_id),
             "reason": payload.reason,
         },
-        actor_id=facilitator.id,
+        actor_id=user.id,
+        community_id=community_id,
     )
 
     await db.refresh(comment, ["author"])

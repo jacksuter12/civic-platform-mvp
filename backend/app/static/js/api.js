@@ -39,10 +39,11 @@ async function apiFetch(path, options = {}) {
 
 // ===== Threads =====
 
-async function getThreads({ domainSlug, status, limit = 20, offset = 0 } = {}) {
+async function getThreads({ communitySlug, domainSlug, status, limit = 20, offset = 0 } = {}) {
   const params = new URLSearchParams();
-  if (domainSlug) params.set("domain_slug", domainSlug);
-  if (status)     params.set("status", status);
+  if (communitySlug) params.set("community_slug", communitySlug);
+  if (domainSlug)    params.set("domain_slug", domainSlug);
+  if (status)        params.set("status", status);
   params.set("limit", limit);
   params.set("offset", offset);
   return apiFetch(`/threads?${params}`);
@@ -52,10 +53,10 @@ async function getThread(threadId) {
   return apiFetch(`/threads/${threadId}`);
 }
 
-async function createThread(domainId, title, prompt, context) {
+async function createThread(communityId, domainId, title, prompt, context) {
   return apiFetch("/threads", {
     method: "POST",
-    body: JSON.stringify({ domain_id: domainId, title, prompt, context }),
+    body: JSON.stringify({ community_id: communityId, domain_id: domainId, title, prompt, context }),
   });
 }
 
@@ -229,8 +230,9 @@ async function getAuditLog({ eventType, targetType, targetId, actorId, limit = 5
 
 // ===== Domains =====
 
-async function getDomains() {
-  return apiFetch("/domains");
+async function getDomains(communitySlug) {
+  const params = communitySlug ? `?community_slug=${encodeURIComponent(communitySlug)}` : "";
+  return apiFetch(`/domains${params}`);
 }
 
 // ===== Auth / Me =====
@@ -248,10 +250,12 @@ async function updateDisplayName(displayName) {
 
 // ===== Facilitator Requests =====
 
-async function submitFacilitatorRequest(reason) {
+async function submitFacilitatorRequest(reason, communityId = null) {
+  const body = { reason };
+  if (communityId) body.community_id = communityId;
   return apiFetch("/auth/facilitator-request", {
     method: "POST",
-    body: JSON.stringify({ reason }),
+    body: JSON.stringify(body),
   });
 }
 
@@ -259,8 +263,9 @@ async function getMyFacilitatorRequest() {
   return apiFetch("/auth/facilitator-request");
 }
 
-async function getFacilitatorRequests() {
-  return apiFetch("/admin/facilitator-requests");
+async function getFacilitatorRequests(communitySlug = null) {
+  const params = communitySlug ? `?community_slug=${encodeURIComponent(communitySlug)}` : "";
+  return apiFetch(`/admin/facilitator-requests${params}`);
 }
 
 async function approveFacilitatorRequest(requestId) {
@@ -382,4 +387,41 @@ async function listUsers({ search = null, limit = 200, offset = 0 } = {}) {
   const params = new URLSearchParams({ limit, offset });
   if (search) params.set("search", search);
   return apiFetch(`/admin/users?${params}`);
+}
+
+// ===== Communities =====
+
+async function getCommunity(slug) {
+  return apiFetch(`/communities/${encodeURIComponent(slug)}`);
+}
+
+async function listCommunities() {
+  return apiFetch("/communities");
+}
+
+async function joinCommunity(slug) {
+  return apiFetch(`/communities/${encodeURIComponent(slug)}/join`, { method: "POST" });
+}
+
+async function getCommunityMembers(slug, { limit = 100, offset = 0 } = {}) {
+  const params = new URLSearchParams({ limit, offset });
+  return apiFetch(`/communities/${encodeURIComponent(slug)}/members?${params}`);
+}
+
+async function getCommunityAuditLog(slug, { eventType, targetType, targetId, actorId, limit = 50, offset = 0 } = {}) {
+  const params = new URLSearchParams();
+  if (eventType)  params.set("event_type",  eventType);
+  if (targetType) params.set("target_type", targetType);
+  if (targetId)   params.set("target_id",   targetId);
+  if (actorId)    params.set("actor_id",    actorId);
+  params.set("limit",  limit);
+  params.set("offset", offset);
+  return apiFetch(`/communities/${encodeURIComponent(slug)}/audit?${params}`);
+}
+
+async function createCommunity(data) {
+  return apiFetch("/communities", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }

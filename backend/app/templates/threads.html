@@ -77,7 +77,7 @@
   <main class="container">
     <div style="display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:16px;">
       <h1 class="page-title" style="margin-bottom:0;">Active Discussions</h1>
-      <a id="create-thread-btn" href="/new-thread"
+      <a id="create-thread-btn" href="#"
          style="display:none; padding:7px 16px; background:#1a1a1a; color:#fff; border-radius:6px; font-size:14px; font-weight:500; text-decoration:none; white-space:nowrap;">
         + Start a discussion
       </a>
@@ -249,9 +249,10 @@
     function renderThreadCard(thread) {
       const sc = thread.signal_counts;
       const phaseTooltip = PHASE_TOOLTIPS[thread.status] || "";
+      const slug = thread.community_slug || thread.communitySlug || communitySlug;
 
       return `
-        <a href="/thread/${thread.id}" style="display:block">
+        <a href="/c/${slug}/thread/${thread.id}" style="display:block">
           <div class="thread-card">
             <div class="thread-card-header">
               <span class="thread-title">${thread.title}</span>
@@ -358,12 +359,21 @@
         });
     }
 
+    // ===== Community slug from URL =====
+    // Parses /c/{slug}/threads  → slug
+    function parseCommunitySlug() {
+      const m = window.location.pathname.match(/^\/c\/([^/]+)/);
+      return m ? m[1] : "test";
+    }
+
+    const communitySlug = parseCommunitySlug();
+
     // ===== Main load =====
 
     async function loadThreads() {
       const container = document.getElementById("thread-list-container");
       try {
-        allThreads = await getThreads({ limit: 100 });
+        allThreads = await getThreads({ communitySlug, limit: 100 });
 
         if (allThreads.length === 0) {
           container.innerHTML = `<div class="empty-state">No discussions yet. A facilitator can create the first one.</div>`;
@@ -384,7 +394,9 @@
     }
 
     if (auth.isSignedIn()) {
-      document.getElementById("create-thread-btn").style.display = "inline-block";
+      const btn = document.getElementById("create-thread-btn");
+      btn.href = `/c/${communitySlug}/new-thread`;
+      btn.style.display = "inline-block";
     }
 
     updateNav();

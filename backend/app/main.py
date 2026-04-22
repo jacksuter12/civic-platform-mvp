@@ -6,7 +6,7 @@ import structlog
 import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sentry_sdk.integrations.fastapi import FastApiIntegration
@@ -309,16 +309,6 @@ async def quiz_page() -> FileResponse:
     return FileResponse("app/templates/quiz.html")
 
 
-@app.get("/threads")
-async def threads_page() -> FileResponse:
-    return FileResponse("app/templates/threads.html")
-
-
-@app.get("/thread/{thread_id}")
-async def thread_page(thread_id: str) -> FileResponse:
-    return FileResponse("app/templates/thread.html")
-
-
 @app.get("/signin")
 async def signin_page() -> FileResponse:
     return FileResponse("app/templates/signin.html")
@@ -329,11 +319,6 @@ async def account_page() -> FileResponse:
     return FileResponse("app/templates/account.html")
 
 
-@app.get("/new-thread")
-async def new_thread_page() -> FileResponse:
-    return FileResponse("app/templates/new-thread.html")
-
-
 @app.get("/admin")
 async def admin_page() -> FileResponse:
     return FileResponse("app/templates/admin.html")
@@ -342,3 +327,61 @@ async def admin_page() -> FileResponse:
 @app.get("/audit")
 async def audit_page() -> FileResponse:
     return FileResponse("app/templates/audit.html")
+
+
+# ---------------------------------------------------------------------------
+# Legacy redirects — old flat URLs forward to community-scoped equivalents
+# ---------------------------------------------------------------------------
+
+@app.get("/threads")
+async def threads_redirect() -> RedirectResponse:
+    return RedirectResponse("/c/test/threads", status_code=302)
+
+
+@app.get("/new-thread")
+async def new_thread_redirect() -> RedirectResponse:
+    return RedirectResponse("/c/test/new-thread", status_code=302)
+
+
+@app.get("/thread/{thread_id}")
+async def thread_redirect(thread_id: str) -> RedirectResponse:
+    return RedirectResponse(f"/c/test/thread/{thread_id}", status_code=302)
+
+
+# ---------------------------------------------------------------------------
+# Community-scoped page routes
+# ---------------------------------------------------------------------------
+
+@app.get("/c/{slug}")
+async def community_home_page(slug: str) -> FileResponse:
+    return FileResponse("app/templates/community_home.html")
+
+
+@app.get("/c/{slug}/threads")
+async def community_threads_page(slug: str) -> FileResponse:
+    return FileResponse("app/templates/threads.html")
+
+
+@app.get("/c/{slug}/thread/{thread_id}")
+async def community_thread_page(slug: str, thread_id: str) -> FileResponse:
+    return FileResponse("app/templates/thread.html")
+
+
+@app.get("/c/{slug}/new-thread")
+async def community_new_thread_page(slug: str) -> FileResponse:
+    return FileResponse("app/templates/new-thread.html")
+
+
+@app.get("/c/{slug}/audit")
+async def community_audit_page(slug: str) -> FileResponse:
+    return FileResponse("app/templates/audit.html")
+
+
+@app.get("/c/{slug}/members")
+async def community_members_page(slug: str) -> FileResponse:
+    return FileResponse("app/templates/community_members.html")
+
+
+@app.get("/c/{slug}/admin")
+async def community_admin_page(slug: str) -> FileResponse:
+    return FileResponse("app/templates/community_admin.html")

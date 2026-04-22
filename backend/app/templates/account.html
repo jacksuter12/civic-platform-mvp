@@ -34,6 +34,19 @@
           </div>`;
       }
 
+      // Check if user is already a community facilitator in any community
+      const memberships = user.communityMemberships || user.community_memberships || [];
+      const alreadyFacilitator = memberships.some(m => m.tier === "facilitator" || m.tier === "admin");
+      if (alreadyFacilitator) {
+        return `
+          <div class="detail-section">
+            <div class="section-heading">Facilitator Status</div>
+            <p class="account-field-desc">
+              You are a facilitator in one or more communities. Visit your community's admin panel to manage discussions.
+            </p>
+          </div>`;
+      }
+
       if (facReq && facReq.status === "pending") {
         return `
           <div class="detail-section">
@@ -48,6 +61,10 @@
         ? `<p class="account-limit-warning">Your previous application was not approved. You're welcome to apply again.</p>`
         : "";
 
+      // Get the first community ID for the request
+      const firstMembership = memberships[0];
+      const communitySlugAttr = firstMembership ? ` data-community-slug="${escapeHtml(firstMembership.communitySlug || firstMembership.community_slug || '')}"` : "";
+
       return `
         <div class="detail-section">
           <div class="section-heading">Apply for Facilitator Status</div>
@@ -56,7 +73,7 @@
             Briefly explain why you'd like facilitator access (1–2 sentences).
           </p>
           ${deniedNote}
-          <form id="facilitator-form" onsubmit="handleFacilitatorSubmit(event)">
+          <form id="facilitator-form" onsubmit="handleFacilitatorSubmit(event)"${communitySlugAttr}>
             <div class="form-field">
               <label for="facilitator-reason">Why do you want to facilitate?</label>
               <textarea
@@ -78,10 +95,50 @@
         </div>`;
     }
 
+    function renderCommunityMemberships(memberships) {
+      if (!memberships || memberships.length === 0) {
+        return `
+          <div class="detail-section">
+            <div class="section-heading">Communities</div>
+            <p class="account-field-desc">You haven't joined any communities yet.</p>
+          </div>`;
+      }
+
+      const TIER_COLORS = {
+        admin:       { bg: "#ede7f6", color: "#4527a0" },
+        facilitator: { bg: "#e3f2fd", color: "#1565c0" },
+        participant: { bg: "#e8f5e9", color: "#2e7d32" },
+        registered:  { bg: "#f5f5f5", color: "#555" },
+      };
+
+      const cards = memberships.map(m => {
+        const slug = m.communitySlug || m.community_slug;
+        const name = m.communityName || m.community_name;
+        const tier = m.tier;
+        const c = TIER_COLORS[tier] || TIER_COLORS.registered;
+        return `
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid #f0f0f0;">
+            <a href="/c/${escapeHtml(slug)}" style="font-weight:600; font-size:15px; color:#1a1a1a; text-decoration:none;">
+              ${escapeHtml(name)}
+            </a>
+            <span style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:12px; background:${c.bg}; color:${c.color}; text-transform:uppercase; letter-spacing:0.04em;">
+              ${escapeHtml(tier)}
+            </span>
+          </div>`;
+      }).join("");
+
+      return `
+        <div class="detail-section">
+          <div class="section-heading">Communities</div>
+          ${cards}
+        </div>`;
+    }
+
     function renderAccount(user, facReq) {
       const remaining = user.display_name_changes_remaining;
       const used = user.display_name_changes_this_month;
       const atLimit = remaining === 0;
+      const memberships = user.communityMemberships || user.community_memberships || [];
 
       const limitNote = atLimit
         ? `<p class="account-limit-warning">You've used all 3 display name changes for this 30-day period.</p>`
@@ -91,6 +148,8 @@
         <h1 class="page-title">Account</h1>
 
         ${renderFacilitatorSection(user, facReq)}
+
+        ${renderCommunityMemberships(memberships)}
 
         <div class="detail-section">
           <div class="section-heading">Profile</div>
@@ -157,13 +216,24 @@
       const btn = document.getElementById("facilitator-submit");
       const feedback = document.getElementById("facilitator-feedback");
       const reason = document.getElementById("facilitator-reason").value.trim();
+      const form = document.getElementById("facilitator-form");
+      const communitySlug = form ? form.dataset.communitySlug || null : null;
 
       feedback.style.display = "none";
       btn.disabled = true;
       btn.textContent = "Submitting…";
 
+      // Resolve community UUID from slug if we have one
+      let communityId = null;
+      if (communitySlug) {
+        try {
+          const community = await getCommunity(communitySlug);
+          communityId = community.id;
+        } catch (_) {}
+      }
+
       try {
-        await submitFacilitatorRequest(reason);
+        await submitFacilitatorRequest(reason, communityId);
         // Replace the form section with a pending confirmation
         btn.closest(".detail-section").innerHTML = `
           <div class="section-heading">Facilitator Application</div>

@@ -10,13 +10,17 @@ Validates:
 """
 
 import uuid
+from datetime import datetime, UTC
 
 import pytest
+import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import log_event
 from app.models.audit import AuditEventType, AuditLog
+from app.models.community import Community, CommunityType
+from app.models.community_membership import CommunityMembership
 from app.models.domain import Domain
 from app.models.proposal import Proposal, ProposalStatus
 from app.models.proposal_version import ProposalVersion
@@ -29,16 +33,38 @@ from app.models.user import User, UserTier
 # ---------------------------------------------------------------------------
 
 
+@pytest_asyncio.fixture
+async def community(db_session: AsyncSession) -> Community:
+    c = Community(
+        slug="versioning-community",
+        name="Versioning Test Community",
+        description="Community for proposal versioning tests.",
+        community_type=CommunityType.GEOGRAPHIC,
+        boundary_desc="Test boundary",
+        verification_method="Test verification",
+        is_public=True,
+        is_invite_only=False,
+    )
+    db_session.add(c)
+    await db_session.commit()
+    return c
+
+
 @pytest.fixture
-async def domain(db_session: AsyncSession) -> Domain:
-    d = Domain(slug="health-versions", name="Healthcare", description="Test domain")
+async def domain(db_session: AsyncSession, community: Community) -> Domain:
+    d = Domain(
+        community_id=community.id,
+        slug="health-versions",
+        name="Healthcare",
+        description="Test domain",
+    )
     db_session.add(d)
     await db_session.commit()
     return d
 
 
-@pytest.fixture
-async def author(db_session: AsyncSession) -> User:
+@pytest_asyncio.fixture
+async def author(db_session: AsyncSession, community: Community) -> User:
     u = User(
         supabase_uid="uid-version-author",
         email="version-author@example.com",
@@ -46,12 +72,21 @@ async def author(db_session: AsyncSession) -> User:
         tier=UserTier.PARTICIPANT,
     )
     db_session.add(u)
+    await db_session.flush()
+
+    membership = CommunityMembership(
+        community_id=community.id,
+        user_id=u.id,
+        tier=UserTier.REGISTERED,
+        joined_at=datetime.now(UTC),
+    )
+    db_session.add(membership)
     await db_session.commit()
     return u
 
 
-@pytest.fixture
-async def other_user(db_session: AsyncSession) -> User:
+@pytest_asyncio.fixture
+async def other_user(db_session: AsyncSession, community: Community) -> User:
     u = User(
         supabase_uid="uid-version-other",
         email="version-other@example.com",
@@ -59,13 +94,25 @@ async def other_user(db_session: AsyncSession) -> User:
         tier=UserTier.PARTICIPANT,
     )
     db_session.add(u)
+    await db_session.flush()
+
+    membership = CommunityMembership(
+        community_id=community.id,
+        user_id=u.id,
+        tier=UserTier.REGISTERED,
+        joined_at=datetime.now(UTC),
+    )
+    db_session.add(membership)
     await db_session.commit()
     return u
 
 
 @pytest.fixture
-async def thread_proposing(db_session: AsyncSession, domain: Domain, author: User) -> Thread:
+async def thread_proposing(
+    db_session: AsyncSession, domain: Domain, community: Community, author: User
+) -> Thread:
     t = Thread(
+        community_id=community.id,
         domain_id=domain.id,
         created_by_id=author.id,
         title="Thread for versioning tests",
@@ -78,8 +125,11 @@ async def thread_proposing(db_session: AsyncSession, domain: Domain, author: Use
 
 
 @pytest.fixture
-async def thread_voting(db_session: AsyncSession, domain: Domain, author: User) -> Thread:
+async def thread_voting(
+    db_session: AsyncSession, domain: Domain, community: Community, author: User
+) -> Thread:
     t = Thread(
+        community_id=community.id,
         domain_id=domain.id,
         created_by_id=author.id,
         title="Thread in voting phase",

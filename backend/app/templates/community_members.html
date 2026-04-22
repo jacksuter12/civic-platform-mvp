@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Members — Civic Platform</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/nav.js"></script>
+  <style>
+    .member-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 14px;
+    }
+    .member-row:last-child { border-bottom: none; }
+    .member-name { font-weight: 600; color: #1a1a1a; }
+    .tier-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .tier-admin       { background: #ede7f6; color: #4527a0; }
+    .tier-facilitator { background: #e3f2fd; color: #1565c0; }
+    .tier-participant { background: #e8f5e9; color: #2e7d32; }
+    .tier-registered  { background: #f5f5f5; color: #555; }
+    .members-count    { font-size: 13px; color: #888; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+
+  <div id="nav-placeholder"></div>
+
+  <main class="container">
+    <div id="page-content">
+      <div class="loading">Loading members…</div>
+    </div>
+  </main>
+
+  <script src="/static/js/utils.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script>
+
+    function parseCommunitySlug() {
+      const m = window.location.pathname.match(/^\/c\/([^/]+)/);
+      return m ? m[1] : null;
+    }
+
+    const communitySlug = parseCommunitySlug();
+
+    function esc(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function tierClass(tier) {
+      return { admin: "tier-admin", facilitator: "tier-facilitator", participant: "tier-participant", registered: "tier-registered" }[tier] || "tier-registered";
+    }
+
+    function renderMembers(community, members) {
+      document.title = `Members — ${community.name}`;
+
+      const rows = members.length === 0
+        ? `<div class="empty-state">No members yet.</div>`
+        : members.map(m => `
+          <div class="member-row">
+            <span class="member-name">${esc(m.display_name)}</span>
+            <span class="tier-badge ${tierClass(m.tier)}">${esc(m.tier)}</span>
+          </div>`).join("");
+
+      document.getElementById("page-content").innerHTML = `
+        <div style="margin-bottom:16px;">
+          <a href="/c/${esc(communitySlug)}" style="font-size:13px; color:#1565c0; text-decoration:none;">← ${esc(community.name)}</a>
+        </div>
+        <h1 class="page-title">Members</h1>
+        <p class="members-count">${members.length} member${members.length !== 1 ? "s" : ""}</p>
+        <div class="detail-section">${rows}</div>
+      `;
+    }
+
+    async function init() {
+      if (!communitySlug) {
+        document.getElementById("page-content").innerHTML = `<div class="error-message">Invalid URL.</div>`;
+        return;
+      }
+      try {
+        const [community, members] = await Promise.all([
+          getCommunity(communitySlug),
+          getCommunityMembers(communitySlug),
+        ]);
+        renderMembers(community, members);
+      } catch (err) {
+        document.getElementById("page-content").innerHTML =
+          `<div class="error-message">Could not load members: ${esc(err.message)}</div>`;
+      }
+    }
+
+    init();
+  </script>
+
+</body>
+</html>

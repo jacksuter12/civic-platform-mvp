@@ -7,40 +7,80 @@ This file is read by Claude Code at the start of every session.
 Civic Power Consortium — a nonprofit civic platform converting deliberation
 into legitimate collective allocation. No outrage dynamics by design.
 
-**Domain:** Healthcare (initial content focus). Architecture is domain-agnostic.
+**Architecture:** Multi-community. Each community owns its threads, members,
+facilitators, domains, and audit trail. The platform is multi-tenant
+deliberation infrastructure — the same codebase serves an HOA, a city, a
+union local, or a topical group.
 **Target:** Web-first (plain HTML/CSS/JS → React migration planned).
-**Stage:** MVP — phases 0–2 complete, phase 3 in progress (proposals/voting/facilitator controls remaining).
+**Stage:** MVP — multi-community refactor complete. First real deployment
+target: Redlands, CA (`/c/redlands`).
 **Dev environment:** GitHub Codespaces (primary). No local tooling assumed.
 
 ---
 
-## Current Build Status (as of 2026-04-03)
+## Current Build Status (as of 2026-04-22)
 
 **What's live and working:**
-- All 9 pages deployed: `/` `/how-it-works` `/quiz` `/signin` `/threads` `/thread/{id}` `/new-thread` `/account` `/admin`
-- Auth: Supabase magic link, JWT with client-side expiry detection
-- Thread creation: registered tier can create threads (domain, title, central question, context)
-- Signals: 4-type signal system (support/concern/need_info/block) on thread detail
-- Posts: participant tier, phase-gated
-- Facilitator request flow: account page → admin approval → tier promotion
-- Admin page: approve/deny facilitator requests with audit log entries
-- 15 policy domains seeded (healthcare + 14 others)
-- Audit log: append-only, public API endpoint
 
-**What is NOT yet built (Phase 3 remaining):**
-- Public audit log page /audit — HTML UI (API backend exists at GET /api/v1/audit, filterable, public)
-- Full admin capabilities (create domains, funding pools, record allocations)
+*Infrastructure*
+- Multi-community data model: `Community`, `CommunityMembership` tables
+- `platform_role` field on users (user | platform_admin) for platform-level ops
+- 16 Alembic migrations (head: `c5d6e7f8a9b0`)
+- 58 passing tests
+
+*Pages and routes*
+- `/` `/how-it-works` `/quiz` `/signin` `/account` `/wiki` `/wiki/{slug}`
+  — unchanged from pre-refactor
+- `/c/{slug}` — community home page (public if community.is_public)
+- `/c/{slug}/threads` — thread list scoped to community
+- `/c/{slug}/thread/{id}` — thread detail
+- `/c/{slug}/new-thread` — create thread in community
+- `/c/{slug}/audit` — community-scoped audit log (public if community.is_public)
+- `/c/{slug}/members` — public member list (display name + tier, no PII)
+- `/c/{slug}/admin` — community admin: facilitator requests, member tiers
+- `/admin` — platform admin only: community creation, annotator management
+- `/audit` — platform-level events only (community_id IS NULL)
+- `/threads`, `/thread/{id}`, `/new-thread` — 302 redirect to `/c/test/...`
+
+*Auth and tiers*
+- Supabase magic link, JWT with client-side expiry detection
+- Community membership is the gate for all deliberative actions
+  (not global users.tier — that field is now vestigial)
+- All deliberative write actions require `registered` community membership:
+  create thread, post, signal, propose, vote, submit amendment
+- Phase-advance and moderation require `facilitator` membership in that community
+- Facilitator request flow: account page → community admin approval →
+  CommunityMembership.tier promoted (not users.tier)
+
+*Deliberation features*
+- Signals: 4-type (support/concern/need_info/block), polymorphic targets
+  (thread/post/proposal/comment/amendment), one per user per target
+- Posts: phase-gated (OPEN/DELIBERATING), soft-delete by facilitator
+- Proposals: PROPOSING phase, with versioning, comments, and amendments
+- Voting: yes/no/abstain, VOTING phase, immutable, one per user
+- Phase-advance controls: facilitator UI, required reason, audit log
+- Audit log: append-only, public API, community-scoped + platform-level split
+
+*Wiki and annotations*
+- Wiki at `/wiki/{slug}` — global platform resource, not community-scoped
+- Inline annotations on wiki articles (annotator capability, endorse/needs_work reactions)
+
+**What is NOT yet built:**
+
+- Real communities seeded in DB — `test` community exists; `redlands`,
+  `civic-power-consortium`, `macro-circle` must be created via `/admin`
+- Full admin UI for pools and allocations (API routes exist; no admin UI form yet)
 - End-to-end test: full thread lifecycle with 3 test users
-
-**Phase 3 features that ARE built:**
-- Facilitator phase-advance controls — UI on thread detail, required reason field, THREAD_PHASE_ADVANCED audit log
-- Proposal creation — PROPOSING phase only, participant tier, PROPOSAL_CREATED audit log
-- Voting — yes/no/abstain, VOTING phase only, one vote per user (DB unique constraint), vote tallies, VOTE_CAST audit log
+- Participant tier enforcement (everything at `registered` for now;
+  `participant` tier in schema as reserved future state)
+- Per-community wiki (deferred to Phase 2)
 
 **What is explicitly deferred:**
 - LLM integration (Phase 5 — do not add until Phase 4 deliberation is validated)
 - React migration (no npm/build toolchain yet)
 - Rate limiting, participant verification web flow, render.yaml
+- Personal activity feed (Phase 2)
+- Email-bridge contact feature (Phase 2)
 
 ---
 
@@ -62,16 +102,40 @@ into legitimate collective allocation. No outrage dynamics by design.
 backend/          FastAPI backend
   app/
     models/       SQLAlchemy models (source of truth for data)
+      community.py           Community
+      community_membership.py  CommunityMembership
+      user.py                User (includes platform_role)
+      domain.py              Domain (community-scoped via community_id)
+      thread.py              Thread (community-scoped via community_id)
+      audit.py               AuditLog (community_id nullable)
+      pool.py                FundingPool (community-scoped)
+      facilitator_request.py FacilitatorRequest (community-scoped)
+      post.py, proposal.py, vote.py, signal.py, amendment.py,
+      proposal_comment.py, proposal_version.py,
+      annotation.py, allocation.py
     schemas/      Pydantic schemas (API input/output)
     api/v1/       Route handlers
+      communities.py  Community CRUD, join, members, audit
+      admin.py        Platform admin (annotators, user list)
+      auth.py         Registration, /me (includes memberships), facilitator request
+      threads.py      Community-scoped thread CRUD and phase advance
+      posts.py, signals.py, proposals.py, votes.py, amendments.py,
+      proposal_comments.py, domains.py, pools.py, allocations.py,
+      annotations.py, audit.py
     core/         security.py (JWT), audit.py (log writer)
     db/session.py Async session factory
-    static/       CSS, JS files served to browser
-    templates/    HTML pages served by FastAPI
-  alembic/        DB migrations
-  tests/          pytest
+    static/js/    api.js, nav.js, thread.js, auth.js, utils.js,
+                  annotations.js, annotation_ui.js, annotation_anchor.js
+    templates/    HTML pages
+      community_home.html, community_members.html, community_admin.html
+      threads.html, thread.html, new-thread.html, account.html,
+      admin.html, audit.html, signin.html, wiki_index.html,
+      wiki_article.html, how-it-works.html, quiz.html, index.html
+  alembic/        DB migrations (16 total; head: c5d6e7f8a9b0)
+  tests/          pytest (58 tests)
 
 docs/             Architecture, roadmap, LLM integration guide, decision log
+                  community-model-v0.3.md — multi-community spec (resolved)
 index.html        Public landing page (served via GitHub Pages)
 ```
 
@@ -98,8 +162,11 @@ mypy app --ignore-missing-imports  # type check
 ## Key Architectural Constraints
 
 1. **Audit log is append-only.** Never write UPDATE/DELETE on `audit_logs`.
-   Use `core/audit.log_event()` only. The audit log is a capture detector,
-   not just an accountability surface.
+   Use `core/audit.log_event()` only. Signature:
+   `log_event(db, event_type, target_type, target_id, payload,
+   actor_id=None, community_id=None)`.
+   Pass `community_id` for every community-scoped action. The audit log
+   is a capture detector, not just an accountability surface.
 
 2. **Thread phase transitions are strict.** Use `thread.can_advance_to()`.
    Never update `Thread.status` directly — always go through the API route
@@ -109,12 +176,9 @@ mypy app --ignore-missing-imports  # type check
    The DB has a unique constraint on (proposal_id, voter_id).
 
 4. **Reactions must never determine display order, visibility, or prominence.**
-   Reactions may exist on annotations and (in the future) on posts and proposals.
-   Chronological ordering is the only permitted sort for any content feed. Reaction
-   counts may be displayed but must not be used as sort keys, filters, or ranking
-   inputs. The original "no upvotes/downvotes" decision was protecting against
-   engagement-driven amplification; the new rule preserves that protection while
-   permitting editorial feedback (endorse/needs_work on annotations).
+   Chronological ordering is the only permitted sort for any content feed.
+   Reaction counts may be displayed but must not be used as sort keys,
+   filters, or ranking inputs.
 
 5. **Phase gates are enforced server-side.** Never trust the client to
    enforce which actions are allowed in which phase.
@@ -126,6 +190,27 @@ mypy app --ignore-missing-imports  # type check
    only fetch() calls that return data. This file must survive unchanged
    when the frontend migrates to React.
 
+8. **Community membership is the authorization gate for deliberative actions.**
+   All routes that create, modify, or moderate community content must check
+   `CommunityMembership.tier` for the relevant community — never `users.tier`.
+   Use `community_tier_required(min_tier)` from `api/deps.py`.
+   `users.tier` is vestigial and will be dropped in a future cleanup migration.
+
+9. **Two distinct admin roles — do not conflate them.**
+   - `PlatformAdminUser` (from deps.py): `user.platform_role == 'platform_admin'`.
+     Gates: create/manage communities, grant annotator capability, list all users.
+   - `CommunityAdminUser` (from deps.py): user has `facilitator` or `admin`
+     `CommunityMembership.tier` in the target community. PlatformAdminUser
+     also satisfies this. Gates: approve facilitator requests, manage community
+     member tiers.
+   Do not use the old `AdminUser` dep for new routes — it checks `users.tier`
+   and is only kept for backward compatibility in existing routes being migrated.
+
+10. **Community scope must be passed to every audit event.**
+    Every `log_event()` call inside a community-scoped route must pass
+    `community_id=thread.community_id` (or the equivalent). Platform-level
+    events (community creation, annotator grants) pass `community_id=None`.
+
 ---
 
 ## Conventions
@@ -134,9 +219,14 @@ mypy app --ignore-missing-imports  # type check
 - **Models:** Use SQLAlchemy 2.0 `Mapped[]` / `mapped_column()` style.
 - **Schemas:** Pydantic v2 `model_config = ConfigDict(from_attributes=True)`.
 - **Routes:** Type-annotate all parameters. Use `Annotated[X, Depends(Y)]`.
-- **Audit:** Call `core.audit.log_event()` inside the same transaction as the action.
+- **Audit:** Call `core.audit.log_event()` inside the same transaction as the
+  action. Always pass `community_id` for community-scoped actions.
 - **HTML/JS:** Write one JavaScript function per UI component. Keep DOM
   manipulation out of api.js.
+- **Community resolution:** Routes that need the community resolve it via
+  `get_community(slug, db)` from `api/deps.py`. The community is the
+  slug in the URL path for `/c/{slug}/...` routes, or the `community_id`
+  field on the relevant model (thread, domain, pool) for nested resources.
 
 ---
 
@@ -154,6 +244,18 @@ mypy app --ignore-missing-imports  # type check
 - Do NOT add React, npm, or any build toolchain to the frontend yet.
   Plain HTML/CSS/JS only until the migration is explicitly planned.
 - Do NOT reference or restore anything from the archived mobile/ scaffold.
+- Do NOT check `users.tier` to gate community-scoped actions. Use
+  `CommunityMembership.tier` via `community_tier_required()`. The global
+  tier field is vestigial.
+- Do NOT use the old global `AdminUser` dependency for new routes. Use
+  `PlatformAdminUser` for platform-level operations or `CommunityAdminUser`
+  for community-level operations.
+- Do NOT create new page routes for community content outside the
+  `/c/{slug}/...` URL namespace. The `/c/` prefix is load-bearing —
+  it prevents slug collisions with top-level routes.
+- Do NOT scope the wiki or annotation system to communities. The wiki is
+  a global platform resource at `/wiki/...`. Per-community wikis are a
+  Phase 2 feature that has not been designed yet.
 
 ---
 
@@ -171,9 +273,12 @@ mypy app --ignore-missing-imports  # type check
 
 Tests should verify **legitimacy rules**, not just CRUD:
 - Phase gate enforcement (can't vote while deliberating)
-- Audit log population (every action leaves a record)
+- Audit log population (every action leaves a record with community_id)
 - Vote immutability (can't vote twice)
 - State machine correctness (can't skip phases)
+- Community membership gates (non-members can't write; cross-community
+  facilitators can't advance phases in another community's threads)
 - Audit log reconstructability (can you rebuild a decision from the log alone?)
 
-See `backend/tests/test_threads.py` for examples.
+See `backend/tests/test_threads.py` and `backend/tests/test_communities.py`
+for examples.

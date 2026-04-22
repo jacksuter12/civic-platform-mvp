@@ -3,11 +3,12 @@ import uuid
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
-from app.api.deps import DB, ParticipantUser
+from app.api.deps import DB, CurrentUser, check_community_membership
 from app.core.audit import log_event
 from app.models.audit import AuditEventType
 from app.models.proposal import Proposal, ProposalStatus
 from app.models.thread import Thread, ThreadStatus
+from app.models.user import UserTier
 from app.models.vote import Vote
 from app.schemas.proposal import VoteCreate
 
@@ -16,12 +17,13 @@ router = APIRouter()
 
 @router.post("/{proposal_id}", status_code=status.HTTP_201_CREATED)
 async def cast_vote(
-    proposal_id: uuid.UUID, payload: VoteCreate, user: ParticipantUser, db: DB
+    proposal_id: uuid.UUID, payload: VoteCreate, user: CurrentUser, db: DB
 ) -> dict:
     """
-    Cast a vote on a proposal. One vote per participant per proposal.
-    Votes are immutable — they cannot be changed after casting.
+    Cast a vote on a proposal. One vote per member per proposal. Immutable.
 
+    Requires registered-tier membership in the proposal's community
+    (lowered from participant per decision S1).
     Requires thread.status == VOTING.
     """
     proposal_result = await db.execute(
@@ -31,7 +33,6 @@ async def cast_vote(
     if not proposal:
         raise HTTPException(status_code=404, detail="Proposal not found.")
 
-    # Check thread is in voting phase
     thread_result = await db.execute(
         select(Thread).where(Thread.id == proposal.thread_id)
     )
@@ -41,6 +42,10 @@ async def cast_vote(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Voting is only open when the thread is in 'voting' phase.",
         )
+
+    # Community-scoped registered check (lowered from participant per decision S1)
+    if thread.community_id is not None:
+        await check_community_membership(user, thread.community_id, UserTier.REGISTERED, db)
 
     # Enforce one-vote-per-person
     existing = await db.execute(
@@ -71,10 +76,10 @@ async def cast_vote(
         payload={
             "proposal_id": str(proposal_id),
             "choice": payload.choice.value,
-            # Note: rationale is NOT included in audit payload to preserve some
-            # deliberative privacy. The vote record itself holds it.
+            # rationale omitted from audit payload to preserve deliberative privacy
         },
         actor_id=user.id,
+        community_id=thread.community_id,
     )
 
     return {"id": str(vote.id), "choice": vote.choice.value}

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Community — Civic Platform</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/nav.js"></script>
+  <style>
+    .community-header {
+      padding: 28px 0 20px;
+      border-bottom: 2px solid #e8e8e8;
+      margin-bottom: 28px;
+    }
+    .community-name {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin: 0 0 6px;
+      letter-spacing: -0.02em;
+    }
+    .community-boundary {
+      font-size: 15px;
+      color: #555;
+      margin: 0 0 12px;
+    }
+    .community-stats {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .community-stat {
+      font-size: 13px;
+      color: #888;
+    }
+    .community-stat strong { color: #333; }
+
+    .community-ctas {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 20px 0 0;
+    }
+    .btn-join {
+      padding: 9px 20px;
+      background: #1a1a1a;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .btn-join:hover { background: #333; }
+    .btn-join:disabled { background: #999; cursor: not-allowed; }
+    .btn-outline {
+      padding: 9px 20px;
+      background: #fff;
+      color: #1a1a1a;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .btn-outline:hover { background: #f5f5f5; text-decoration: none; }
+
+    .phase-group { margin-bottom: 32px; }
+    .phase-group-heading {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #888;
+      margin: 0 0 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .thread-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #f5f5f5;
+      text-decoration: none;
+      color: inherit;
+    }
+    .thread-row:hover { background: #fafafa; }
+    .thread-row:last-child { border-bottom: none; }
+    .thread-row-left { flex: 1; min-width: 0; }
+    .thread-row-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #1a1a1a;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .thread-row-meta {
+      font-size: 12px;
+      color: #888;
+      margin-top: 2px;
+    }
+    .thread-row-right { flex-shrink: 0; }
+
+    .community-desc-section {
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 1px solid #e8e8e8;
+    }
+    .community-desc-section p {
+      font-size: 15px;
+      color: #444;
+      line-height: 1.65;
+      margin: 0 0 12px;
+    }
+
+    .join-feedback {
+      font-size: 14px;
+      padding: 10px 14px;
+      border-radius: 6px;
+      margin-top: 8px;
+      display: none;
+    }
+    .join-feedback-success { background: #e8f5e9; color: #2e7d32; }
+    .join-feedback-error   { background: #ffebee; color: #c62828; }
+  </style>
+</head>
+<body>
+
+  <div id="nav-placeholder"></div>
+
+  <main class="container">
+    <div id="page-content">
+      <div class="loading">Loading community…</div>
+    </div>
+  </main>
+
+  <script src="/static/js/utils.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script>
+
+    function parseCommunitySlug() {
+      const m = window.location.pathname.match(/^\/c\/([^/]+)/);
+      return m ? m[1] : null;
+    }
+
+    const communitySlug = parseCommunitySlug();
+
+    function esc(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    const PHASE_ORDER = ["open", "deliberating", "proposing", "voting"];
+    const PHASE_LABELS = {
+      open: "Open", deliberating: "Deliberating",
+      proposing: "Proposing", voting: "Voting",
+      closed: "Closed", archived: "Archived",
+    };
+
+    function renderThread(t) {
+      const sc = t.signal_counts || {};
+      const sigParts = [];
+      if (sc.support  > 0) sigParts.push(`↑ ${sc.support}`);
+      if (sc.concern  > 0) sigParts.push(`↓ ${sc.concern}`);
+      if (sc.block    > 0) sigParts.push(`⚠ ${sc.block} block`);
+      const sigStr = sigParts.join(" · ") || "No signals";
+
+      return `
+        <a href="/c/${esc(communitySlug)}/thread/${esc(t.id)}" class="thread-row">
+          <div class="thread-row-left">
+            <div class="thread-row-title">${esc(t.title)}</div>
+            <div class="thread-row-meta">
+              ${esc(t.domain_name)} · ${t.post_count} post${t.post_count !== 1 ? "s" : ""} · ${sigStr}
+            </div>
+          </div>
+          <div class="thread-row-right">
+            <span class="${phaseBadgeClass(t.status)}">${esc(PHASE_LABELS[t.status] || t.status)}</span>
+          </div>
+        </a>`;
+    }
+
+    function renderActiveThreads(threads) {
+      const active = threads.filter(t => !["closed", "archived"].includes(t.status));
+      if (active.length === 0) {
+        return `<div class="empty-state">No active deliberations yet.</div>`;
+      }
+
+      // Group by phase
+      const byPhase = {};
+      active.forEach(t => {
+        const p = t.status;
+        if (!byPhase[p]) byPhase[p] = [];
+        byPhase[p].push(t);
+      });
+
+      return PHASE_ORDER
+        .filter(p => byPhase[p] && byPhase[p].length > 0)
+        .map(p => `
+          <div class="phase-group">
+            <div class="phase-group-heading">${PHASE_LABELS[p]}</div>
+            ${byPhase[p].map(renderThread).join("")}
+          </div>`)
+        .join("");
+    }
+
+    function renderCompletedThreads(threads) {
+      const closed = threads.filter(t => ["closed", "archived"].includes(t.status));
+      if (closed.length === 0) return "";
+      return `
+        <div class="detail-section" style="margin-top:32px;">
+          <div class="section-heading">Completed Deliberations</div>
+          ${closed.map(renderThread).join("")}
+        </div>`;
+    }
+
+    function renderPage(community, threads) {
+      document.title = `${community.name} — Civic Platform`;
+
+      const memberships = auth.isSignedIn()
+        ? (auth.getUser()?.communityMemberships || auth.getUser()?.community_memberships || [])
+        : [];
+      const myMembership = memberships.find(m =>
+        (m.communitySlug || m.community_slug) === communitySlug
+      );
+
+      let ctasHtml = "";
+      if (!community.is_invite_only && !myMembership) {
+        ctasHtml += `<button class="btn-join" id="join-btn" onclick="handleJoin()">Join This Community</button>`;
+      } else if (myMembership) {
+        ctasHtml += `<a href="/c/${esc(communitySlug)}/new-thread" class="btn-join">+ Start a Discussion</a>`;
+      }
+      ctasHtml += `<a href="/c/${esc(communitySlug)}/audit" class="btn-outline">View Audit Log</a>`;
+      ctasHtml += `<a href="/c/${esc(communitySlug)}/members" class="btn-outline">Members (${community.member_count})</a>`;
+
+      document.getElementById("page-content").innerHTML = `
+        <div class="community-header">
+          <h1 class="community-name">${esc(community.name)}</h1>
+          <p class="community-boundary">${esc(community.boundary_desc)}</p>
+          <div class="community-stats">
+            <span class="community-stat"><strong>${community.member_count}</strong> member${community.member_count !== 1 ? "s" : ""}</span>
+            <span class="community-stat"><strong>${community.active_thread_count}</strong> active deliberation${community.active_thread_count !== 1 ? "s" : ""}</span>
+          </div>
+          <div class="community-ctas">${ctasHtml}</div>
+          <div id="join-feedback" class="join-feedback"></div>
+        </div>
+
+        <div class="detail-section">
+          <div class="section-heading">Active Deliberations</div>
+          ${renderActiveThreads(threads)}
+        </div>
+
+        ${renderCompletedThreads(threads)}
+
+        <div class="community-desc-section">
+          <div class="section-heading">About This Community</div>
+          <p>${esc(community.description)}</p>
+          <p style="font-size:13px; color:#888;">
+            Verification: ${esc(community.verification_method)}
+          </p>
+        </div>
+      `;
+    }
+
+    async function handleJoin() {
+      const btn = document.getElementById("join-btn");
+      const feedback = document.getElementById("join-feedback");
+      if (btn) { btn.disabled = true; btn.textContent = "Joining…"; }
+
+      try {
+        await joinCommunity(communitySlug);
+        if (feedback) {
+          feedback.textContent = "You've joined! Reloading…";
+          feedback.className = "join-feedback join-feedback-success";
+          feedback.style.display = "block";
+        }
+        setTimeout(() => window.location.reload(), 800);
+      } catch (err) {
+        if (btn) { btn.disabled = false; btn.textContent = "Join This Community"; }
+        if (feedback) {
+          feedback.textContent = err.message || "Could not join community.";
+          feedback.className = "join-feedback join-feedback-error";
+          feedback.style.display = "block";
+        }
+      }
+    }
+
+    async function init() {
+      if (!communitySlug) {
+        document.getElementById("page-content").innerHTML = `<div class="error-message">Invalid community URL.</div>`;
+        return;
+      }
+
+      try {
+        const [community, threads] = await Promise.all([
+          getCommunity(communitySlug),
+          getThreads({ communitySlug, limit: 100 }),
+        ]);
+        renderPage(community, threads);
+      } catch (err) {
+        document.getElementById("page-content").innerHTML =
+          `<div class="error-message">Could not load community: ${esc(err.message)}</div>`;
+      }
+    }
+
+    init();
+  </script>
+
+</body>
+</html>

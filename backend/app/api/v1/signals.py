@@ -5,6 +5,9 @@ Signals are polymorphic: one signal per user per target (thread, post,
 proposal, proposal_comment, amendment). Updating a signal replaces the prior
 one (recorded as SIGNAL_UPDATED). Signals are aggregated and shown
 anonymously; individual attribution is not exposed.
+
+Session 3: community_id is resolved from the target object and checked
+for registered-tier membership before write operations.
 """
 
 import uuid
@@ -14,10 +17,16 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
-from app.api.deps import DB, OptionalUser, RegisteredUser
+from app.api.deps import DB, CurrentUser, OptionalUser, check_community_membership
 from app.core.audit import log_event
+from app.models.amendment import Amendment
 from app.models.audit import AuditEventType
+from app.models.post import Post
+from app.models.proposal import Proposal
+from app.models.proposal_comment import ProposalComment
 from app.models.signal import Signal, SignalTargetType, SignalType
+from app.models.thread import Thread
+from app.models.user import UserTier
 
 router = APIRouter()
 
@@ -46,6 +55,61 @@ class SignalCountsOut(BaseModel):
     block: int = 0
     total: int = 0
     my_signal: str | None = None
+
+
+async def _resolve_community_id(
+    target_type: SignalTargetType,
+    target_id: uuid.UUID,
+    db,
+) -> uuid.UUID | None:
+    """Resolve community_id from any signal target type via the parent chain."""
+    if target_type == SignalTargetType.THREAD:
+        r = await db.execute(select(Thread.community_id).where(Thread.id == target_id))
+        return r.scalar_one_or_none()
+
+    if target_type == SignalTargetType.POST:
+        r = await db.execute(select(Post.thread_id).where(Post.id == target_id))
+        thread_id = r.scalar_one_or_none()
+        if thread_id is None:
+            return None
+        r2 = await db.execute(select(Thread.community_id).where(Thread.id == thread_id))
+        return r2.scalar_one_or_none()
+
+    if target_type == SignalTargetType.PROPOSAL:
+        r = await db.execute(select(Proposal.thread_id).where(Proposal.id == target_id))
+        thread_id = r.scalar_one_or_none()
+        if thread_id is None:
+            return None
+        r2 = await db.execute(select(Thread.community_id).where(Thread.id == thread_id))
+        return r2.scalar_one_or_none()
+
+    if target_type == SignalTargetType.PROPOSAL_COMMENT:
+        r = await db.execute(
+            select(ProposalComment.proposal_id).where(ProposalComment.id == target_id)
+        )
+        proposal_id = r.scalar_one_or_none()
+        if proposal_id is None:
+            return None
+        r2 = await db.execute(select(Proposal.thread_id).where(Proposal.id == proposal_id))
+        thread_id = r2.scalar_one_or_none()
+        if thread_id is None:
+            return None
+        r3 = await db.execute(select(Thread.community_id).where(Thread.id == thread_id))
+        return r3.scalar_one_or_none()
+
+    if target_type == SignalTargetType.AMENDMENT:
+        r = await db.execute(select(Amendment.proposal_id).where(Amendment.id == target_id))
+        proposal_id = r.scalar_one_or_none()
+        if proposal_id is None:
+            return None
+        r2 = await db.execute(select(Proposal.thread_id).where(Proposal.id == proposal_id))
+        thread_id = r2.scalar_one_or_none()
+        if thread_id is None:
+            return None
+        r3 = await db.execute(select(Thread.community_id).where(Thread.id == thread_id))
+        return r3.scalar_one_or_none()
+
+    return None
 
 
 @router.get("/batch", response_model=dict[str, SignalCountsOut])
@@ -105,13 +169,16 @@ async def batch_signal_counts(
 
 @router.post("", response_model=SignalOut, status_code=status.HTTP_200_OK)
 async def upsert_signal(
-    payload: SignalUpsert, user: RegisteredUser, db: DB
+    payload: SignalUpsert, user: CurrentUser, db: DB
 ) -> Signal:
     """
     Cast or update a signal on any supported target type.
-    Returns the current signal after upsert.
-    REGISTERED tier can signal; PARTICIPANT required to post.
+    Requires registered-tier membership in the target's community.
     """
+    community_id = await _resolve_community_id(payload.target_type, payload.target_id, db)
+    if community_id is not None:
+        await check_community_membership(user, community_id, UserTier.REGISTERED, db)
+
     existing_result = await db.execute(
         select(Signal).where(
             Signal.user_id == user.id,
@@ -138,6 +205,7 @@ async def upsert_signal(
                 "target_id": str(payload.target_id),
             },
             actor_id=user.id,
+            community_id=community_id,
         )
         return existing
     else:
@@ -161,6 +229,7 @@ async def upsert_signal(
                 "target_id": str(payload.target_id),
             },
             actor_id=user.id,
+            community_id=community_id,
         )
         return signal
 
@@ -169,13 +238,17 @@ async def upsert_signal(
 async def remove_signal(
     target_type: Annotated[SignalTargetType, Query()],
     target_id: Annotated[uuid.UUID, Query()],
-    user: RegisteredUser,
+    user: CurrentUser,
     db: DB,
 ) -> None:
     """
     Remove the current user's signal from a target (toggle-off).
-    Called when the user clicks their already-active signal button.
+    Requires registered-tier membership in the target's community.
     """
+    community_id = await _resolve_community_id(target_type, target_id, db)
+    if community_id is not None:
+        await check_community_membership(user, community_id, UserTier.REGISTERED, db)
+
     result = await db.execute(
         select(Signal).where(
             Signal.user_id == user.id,
@@ -204,4 +277,5 @@ async def remove_signal(
             "target_id": str(target_id),
         },
         actor_id=user.id,
+        community_id=community_id,
     )

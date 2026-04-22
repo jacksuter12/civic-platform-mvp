@@ -9,6 +9,7 @@ Flow:
   5. Route functions declare which tier is required via get_participant, etc.
 """
 
+import uuid
 from typing import Annotated, Optional
 
 import structlog
@@ -177,6 +178,43 @@ def community_tier_required(min_tier: UserTier):
         return user
 
     return check
+
+
+async def check_community_membership(
+    user: "User",
+    community_id: uuid.UUID,
+    min_tier: "UserTier",
+    db: AsyncSession,
+) -> None:
+    """
+    Inline community membership check for routes where the community is resolved
+    from the action target (thread, proposal, etc.) rather than a {slug} path param.
+
+    Platform admins bypass all community checks unconditionally.
+    Raises HTTP 403 if the user is not an active member at min_tier or higher.
+    """
+    if user.platform_role == PlatformRole.PLATFORM_ADMIN:
+        return
+
+    result = await db.execute(
+        select(CommunityMembership).where(
+            CommunityMembership.community_id == community_id,
+            CommunityMembership.user_id == user.id,
+            CommunityMembership.is_active == True,
+        )
+    )
+    membership = result.scalar_one_or_none()
+
+    if membership is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a member of this community.",
+        )
+    if TIER_ORDER[membership.tier] < TIER_ORDER[min_tier]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Requires '{min_tier.value}' tier or higher in this community.",
+        )
 
 
 # Type aliases for cleaner route signatures

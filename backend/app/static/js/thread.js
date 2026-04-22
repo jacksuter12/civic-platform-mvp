@@ -17,16 +17,17 @@
 // ===================================================================
 
 const S = {
-  threadId:   null,
-  thread:     null,
-  me:         null,         // null if not signed in
-  posts:      [],           // flat list from /posts/flat
-  proposals:  [],
-  pData:      {},           // proposalId → { comments: [], amendments: [] }
-  signals:    {},           // "<type>:<id>" → SignalCountsOut
-  collapsed:  new Set(),    // post IDs with collapsed subtree
-  rootCollapsed: new Set(), // root post IDs shown as summary-only
-  openForm:   null,         // id of element currently hosting an inline form
+  threadId:      null,
+  communitySlug: null,
+  thread:        null,
+  me:            null,         // null if not signed in
+  posts:         [],           // flat list from /posts/flat
+  proposals:     [],
+  pData:         {},           // proposalId → { comments: [], amendments: [] }
+  signals:       {},           // "<type>:<id>" → SignalCountsOut
+  collapsed:     new Set(),    // post IDs with collapsed subtree
+  rootCollapsed: new Set(),    // root post IDs shown as summary-only
+  openForm:      null,         // id of element currently hosting an inline form
 };
 
 // ===================================================================
@@ -620,7 +621,7 @@ function renderPage() {
 
   document.getElementById("thread-container").innerHTML = `
     <div class="thread-header">
-      <a href="/threads" class="back-link">← All Discussions</a>
+      <a href="/c/${S.communitySlug}/threads" class="back-link">← All Discussions</a>
       <div class="thread-header-top">
         <h1 class="thread-detail-title">${esc(t.title)}</h1>
         <span class="${phaseBadgeClass(t.status)}">${capitalize(t.status)}</span>
@@ -1221,7 +1222,18 @@ async function reload() {
 
 async function init() {
   const container = document.getElementById("thread-container");
-  S.threadId = (window.location.pathname.split("/thread/")[1] || "").replace(/\/$/, "");
+  const pathname = window.location.pathname;
+
+  // Parse /c/{slug}/thread/{id}
+  const communityMatch = pathname.match(/^\/c\/([^/]+)\/thread\/([^/]+)/);
+  if (communityMatch) {
+    S.communitySlug = communityMatch[1];
+    S.threadId = communityMatch[2].replace(/\/$/, "");
+  } else {
+    // Fallback for legacy /thread/{id} (should only occur before redirects are in place)
+    S.threadId = (pathname.split("/thread/")[1] || "").replace(/\/$/, "");
+    S.communitySlug = "test";
+  }
 
   if (!S.threadId) {
     container.innerHTML = `<div class="error-message">Invalid thread URL.</div>`;
@@ -1263,7 +1275,7 @@ async function init() {
   } catch (ex) {
     container.innerHTML = `
       <div class="error-message">Could not load thread: ${esc(ex.message)}</div>
-      <p style="margin-top:16px"><a href="/threads">← Back to discussions</a></p>`;
+      <p style="margin-top:16px"><a href="/c/${S.communitySlug}/threads">← Back to discussions</a></p>`;
   }
 }
 

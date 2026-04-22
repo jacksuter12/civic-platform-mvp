@@ -1,12 +1,14 @@
 """
 Thread routes — the core deliberation surface.
 
-Key design decisions enforced here:
-- Thread creation requires PARTICIPANT tier (identity verified).
-- Phase advancement requires FACILITATOR tier.
-- Phase transitions follow the strict state machine in thread.VALID_TRANSITIONS.
-- Every phase advance is written to the audit log with a required reason.
-- Signal counts are computed from DB on read (not cached in MVP).
+Session 3 changes:
+- GET /threads requires community_slug; filters to that community only.
+- POST /threads requires registered membership in the specified community.
+- GET /{thread_id} checks community.is_public for unauthenticated access;
+  returns community_slug in the response.
+- PATCH /{thread_id}/advance enforces community-scoped facilitator tier
+  (replacing global FacilitatorUser).
+- All write actions pass community_id to log_event().
 """
 
 import uuid
@@ -16,14 +18,16 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import DB, FacilitatorUser, OptionalUser, ParticipantUser, RegisteredUser
+from app.api.deps import DB, CurrentUser, OptionalUser, check_community_membership
 from app.core.audit import log_event
 from app.models.audit import AuditEventType
+from app.models.community import Community
 from app.models.domain import Domain
 from app.models.post import Post
 from app.models.proposal import Proposal
 from app.models.signal import Signal, SignalTargetType, SignalType
 from app.models.thread import Thread, ThreadStatus
+from app.models.user import UserTier
 from app.schemas.thread import (
     SignalCounts,
     ThreadCreate,
@@ -73,15 +77,36 @@ async def _proposal_count(db: DB, thread_id: uuid.UUID) -> int:
 @router.get("", response_model=list[ThreadSummary])
 async def list_threads(
     db: DB,
+    user: OptionalUser,
+    community_slug: Annotated[str, Query()],
     domain_slug: Annotated[str | None, Query()] = None,
     status_filter: Annotated[ThreadStatus | None, Query(alias="status")] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[ThreadSummary]:
-    q = select(Thread).options(selectinload(Thread.domain))
+    # Resolve community
+    comm_result = await db.execute(
+        select(Community).where(Community.slug == community_slug, Community.is_active == True)
+    )
+    community = comm_result.scalar_one_or_none()
+    if not community:
+        raise HTTPException(status_code=404, detail="Community not found.")
+
+    # Private communities: 404 to unauthenticated callers
+    if not community.is_public and user is None:
+        raise HTTPException(status_code=404, detail="Community not found.")
+
+    q = (
+        select(Thread)
+        .options(selectinload(Thread.domain))
+        .where(Thread.community_id == community.id)
+    )
     if domain_slug:
         domain_result = await db.execute(
-            select(Domain).where(Domain.slug == domain_slug)
+            select(Domain).where(
+                Domain.slug == domain_slug,
+                Domain.community_id == community.id,
+            )
         )
         domain = domain_result.scalar_one_or_none()
         if not domain:
@@ -102,6 +127,8 @@ async def list_threads(
         summaries.append(
             ThreadSummary(
                 id=t.id,
+                community_id=t.community_id,
+                community_slug=community.slug,
                 domain_id=t.domain_id,
                 domain_name=t.domain.name,
                 domain_slug=t.domain.slug,
@@ -120,18 +147,34 @@ async def list_threads(
 @router.post("", response_model=ThreadSummary, status_code=status.HTTP_201_CREATED)
 async def create_thread(
     payload: ThreadCreate,
-    user: RegisteredUser,
+    user: CurrentUser,
     db: DB,
 ) -> ThreadSummary:
-    # Validate domain exists and is active
+    # Validate community exists and is active
+    comm_result = await db.execute(
+        select(Community).where(Community.id == payload.community_id, Community.is_active == True)
+    )
+    community = comm_result.scalar_one_or_none()
+    if not community:
+        raise HTTPException(status_code=404, detail="Community not found or inactive.")
+
+    # Community membership check — registered tier required
+    await check_community_membership(user, community.id, UserTier.REGISTERED, db)
+
+    # Validate domain exists, is active, and belongs to this community
     domain_result = await db.execute(
-        select(Domain).where(Domain.id == payload.domain_id, Domain.is_active == True)
+        select(Domain).where(
+            Domain.id == payload.domain_id,
+            Domain.is_active == True,
+            Domain.community_id == community.id,
+        )
     )
     domain = domain_result.scalar_one_or_none()
     if not domain:
-        raise HTTPException(status_code=404, detail="Domain not found or inactive.")
+        raise HTTPException(status_code=404, detail="Domain not found or does not belong to community.")
 
     thread = Thread(
+        community_id=community.id,
         domain_id=payload.domain_id,
         created_by_id=user.id,
         title=payload.title,
@@ -148,10 +191,13 @@ async def create_thread(
         target_id=thread.id,
         payload={"title": thread.title, "domain_id": str(thread.domain_id)},
         actor_id=user.id,
+        community_id=community.id,
     )
 
     return ThreadSummary(
         id=thread.id,
+        community_id=thread.community_id,
+        community_slug=community.slug,
         domain_id=thread.domain_id,
         domain_name=domain.name,
         domain_slug=domain.slug,
@@ -180,6 +226,18 @@ async def get_thread(
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found.")
 
+    # Community visibility check for unauthenticated users
+    community_slug: str | None = None
+    if thread.community_id is not None:
+        comm_result = await db.execute(
+            select(Community).where(Community.id == thread.community_id)
+        )
+        community = comm_result.scalar_one_or_none()
+        if community:
+            community_slug = community.slug
+            if not community.is_public and user is None:
+                raise HTTPException(status_code=404, detail="Thread not found.")
+
     await db.refresh(thread, ["created_by"])
     sc = await _signal_counts(db, thread.id)
     pc = await _post_count(db, thread.id)
@@ -203,6 +261,8 @@ async def get_thread(
 
     return ThreadDetail(
         id=thread.id,
+        community_id=thread.community_id,
+        community_slug=community_slug,
         domain_id=thread.domain_id,
         domain_name=thread.domain.name,
         domain_slug=thread.domain.slug,
@@ -224,13 +284,12 @@ async def get_thread(
 async def advance_thread_phase(
     thread_id: uuid.UUID,
     payload: ThreadPhaseAdvance,
-    facilitator: FacilitatorUser,
+    user: CurrentUser,
     db: DB,
 ) -> ThreadSummary:
     """
     Advance a thread to the next deliberation phase.
-    Validates the state machine transition and writes to audit log.
-    Only facilitators may call this endpoint.
+    Requires facilitator-tier membership in the thread's community.
     """
     result = await db.execute(
         select(Thread).options(selectinload(Thread.domain)).where(Thread.id == thread_id)
@@ -238,6 +297,15 @@ async def advance_thread_phase(
     thread = result.scalar_one_or_none()
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found.")
+
+    if thread.community_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Thread has no community; cannot advance phase.",
+        )
+
+    # Community-scoped facilitator check
+    await check_community_membership(user, thread.community_id, UserTier.FACILITATOR, db)
 
     if not thread.can_advance_to(payload.target_status):
         raise HTTPException(
@@ -263,15 +331,24 @@ async def advance_thread_phase(
             "to_status": payload.target_status.value,
             "reason": payload.reason,
         },
-        actor_id=facilitator.id,
+        actor_id=user.id,
+        community_id=thread.community_id,
     )
 
     sc = await _signal_counts(db, thread.id)
     pc = await _post_count(db, thread.id)
     rc = await _proposal_count(db, thread.id)
 
+    # Fetch community slug for response
+    comm_slug_result = await db.execute(
+        select(Community.slug).where(Community.id == thread.community_id)
+    )
+    community_slug = comm_slug_result.scalar_one_or_none()
+
     return ThreadSummary(
         id=thread.id,
+        community_id=thread.community_id,
+        community_slug=community_slug,
         domain_id=thread.domain_id,
         domain_name=thread.domain.name,
         domain_slug=thread.domain.slug,

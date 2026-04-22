@@ -231,88 +231,149 @@
         try { user = await getMe(); auth.setUser(user); } catch (_) {}
       }
 
+      // Platform admin only (tier === 'admin' is the proxy for platform_role === 'platform_admin')
       if (!user || user.tier !== "admin") {
-        content.innerHTML = `<div class="error-message">Access denied. Admin only.</div>`;
+        content.innerHTML = `<div class="error-message">Access denied. Platform admin only.</div>`;
         return;
       }
 
       content.innerHTML = `
-        <h1 class="page-title">Admin</h1>
-        <div id="requests-section"><div class="loading">Loading requests…</div></div>
+        <h1 class="page-title">Platform Admin</h1>
+        <div id="community-section" style="margin-bottom: 48px;"><div class="loading">Loading communities…</div></div>
         <div id="annotator-section" style="margin-top: 48px;"><div class="loading">Loading users…</div></div>
       `;
 
-      loadRequests();
+      loadCommunitySection();
       loadAnnotatorSection();
     }
 
-    async function loadRequests() {
-      const section = document.getElementById("requests-section");
+    // -----------------------------------------------------------------------
+    // Community management
+    // -----------------------------------------------------------------------
+
+    async function loadCommunitySection() {
+      const section = document.getElementById("community-section");
       try {
-        const requests = await getFacilitatorRequests();
-        renderRequests(section, requests);
+        const communities = await listCommunities();
+        renderCommunitySection(section, communities);
       } catch (err) {
-        section.innerHTML = `<div class="error-message">Could not load requests: ${err.message}</div>`;
+        section.innerHTML = `<div class="error-message">Could not load communities: ${escapeHtml(err.message)}</div>`;
       }
     }
 
-    function renderRequests(container, requests) {
-      if (requests.length === 0) {
-        container.innerHTML = `
-          <div class="detail-section">
-            <div class="section-heading">Facilitator Requests</div>
-            <div class="empty-state" style="padding: 32px 0;">No pending requests.</div>
-          </div>`;
-        return;
-      }
-
-      const rows = requests.map(r => `
-        <div class="request-row" id="row-${r.id}">
-          <div>
-            <div class="request-name">${escapeHtml(r.user.display_name)}</div>
-            <div class="request-email">${escapeHtml(r.user.email)}</div>
-            <div class="request-tier">Current tier: ${r.user.tier}</div>
-            <div class="request-reason">${escapeHtml(r.reason)}</div>
-            <div class="request-date">Submitted ${timeAgo(r.created_at)}</div>
-          </div>
-          <div class="request-actions">
-            <button class="btn-approve" onclick="handleApprove('${r.id}')">Approve</button>
-            <button class="btn-deny" onclick="handleDeny('${r.id}')">Deny</button>
-          </div>
-        </div>
-      `).join("");
+    function renderCommunitySection(container, communities) {
+      const rows = communities.length === 0
+        ? `<div class="empty-state" style="padding: 16px 0;">No communities yet.</div>`
+        : communities.map(c => `
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid #f0f0f0;">
+            <div>
+              <a href="/c/${escapeHtml(c.slug)}" style="font-weight:600; font-size:15px; color:#1a1a1a;">${escapeHtml(c.name)}</a>
+              <div style="font-size:12px; color:#888; margin-top:2px;">${escapeHtml(c.slug)} · ${c.member_count} members · ${c.active_thread_count} active threads</div>
+            </div>
+            <a href="/c/${escapeHtml(c.slug)}/admin" style="font-size:13px; color:#1565c0; text-decoration:none;">Manage →</a>
+          </div>`).join("");
 
       container.innerHTML = `
         <div class="detail-section">
-          <div class="section-heading">Facilitator Requests — ${requests.length} pending</div>
+          <div class="section-heading">Communities</div>
           ${rows}
+          <div style="margin-top: 24px;">
+            <button class="btn-grant" onclick="showCreateCommunityForm()" id="show-create-btn">+ New Community</button>
+          </div>
+          <div id="create-community-form" style="display:none; margin-top:16px;"></div>
+          <div class="inline-error" id="create-community-error"></div>
         </div>
       `;
     }
 
-    async function handleApprove(id) {
-      const row = document.getElementById(`row-${id}`);
-      row.querySelectorAll("button").forEach(b => b.disabled = true);
-      try {
-        await approveFacilitatorRequest(id);
-        row.querySelector(".request-actions").innerHTML =
-          `<span class="status-tag status-approved">Approved</span>`;
-      } catch (err) {
-        row.querySelectorAll("button").forEach(b => b.disabled = false);
-        alert(`Error: ${err.message}`);
-      }
+    function showCreateCommunityForm() {
+      document.getElementById("show-create-btn").style.display = "none";
+      document.getElementById("create-community-form").style.display = "block";
+      document.getElementById("create-community-form").innerHTML = `
+        <div style="background:#f9f9f9; border:1px solid #e0e0e0; border-radius:8px; padding:16px;">
+          <div style="font-weight:600; font-size:14px; margin-bottom:12px;">Create Community</div>
+          <div style="display:grid; gap:10px;">
+            <div>
+              <label style="font-size:13px; font-weight:600; display:block; margin-bottom:3px;">Slug</label>
+              <input id="c-slug" type="text" placeholder="e.g. redlands" style="width:100%; padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px; box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="font-size:13px; font-weight:600; display:block; margin-bottom:3px;">Name</label>
+              <input id="c-name" type="text" placeholder="e.g. Redlands Healthcare Consortium" style="width:100%; padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px; box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="font-size:13px; font-weight:600; display:block; margin-bottom:3px;">Description</label>
+              <textarea id="c-description" rows="2" style="width:100%; padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px; box-sizing:border-box; resize:vertical;"></textarea>
+            </div>
+            <div>
+              <label style="font-size:13px; font-weight:600; display:block; margin-bottom:3px;">Type</label>
+              <select id="c-type" style="width:100%; padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px;">
+                <option value="geographic">Geographic</option>
+                <option value="organizational">Organizational</option>
+                <option value="institutional">Institutional</option>
+                <option value="topical">Topical</option>
+                <option value="technical">Technical</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:13px; font-weight:600; display:block; margin-bottom:3px;">Boundary description</label>
+              <input id="c-boundary" type="text" placeholder="e.g. Residents of Redlands, CA" style="width:100%; padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px; box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="font-size:13px; font-weight:600; display:block; margin-bottom:3px;">Verification method</label>
+              <input id="c-verification" type="text" placeholder="e.g. Self-attestation" style="width:100%; padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px; box-sizing:border-box;">
+            </div>
+            <div style="display:flex; gap:8px;">
+              <label style="font-size:13px; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                <input type="checkbox" id="c-public" checked> Public
+              </label>
+              <label style="font-size:13px; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                <input type="checkbox" id="c-invite-only"> Invite only
+              </label>
+            </div>
+          </div>
+          <div style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+            <button class="btn-confirm-grant" onclick="doCreateCommunity()" id="confirm-create-btn">Create</button>
+            <button class="btn-cancel-confirm" onclick="cancelCreateCommunity()">Cancel</button>
+          </div>
+        </div>
+      `;
     }
 
-    async function handleDeny(id) {
-      const row = document.getElementById(`row-${id}`);
-      row.querySelectorAll("button").forEach(b => b.disabled = true);
+    function cancelCreateCommunity() {
+      document.getElementById("create-community-form").style.display = "none";
+      document.getElementById("create-community-form").innerHTML = "";
+      document.getElementById("show-create-btn").style.display = "";
+      document.getElementById("create-community-error").textContent = "";
+    }
+
+    async function doCreateCommunity() {
+      const btn = document.getElementById("confirm-create-btn");
+      const errEl = document.getElementById("create-community-error");
+      errEl.textContent = "";
+      btn.disabled = true;
+      btn.textContent = "Creating…";
+
+      const data = {
+        slug:                document.getElementById("c-slug").value.trim(),
+        name:                document.getElementById("c-name").value.trim(),
+        description:         document.getElementById("c-description").value.trim(),
+        community_type:      document.getElementById("c-type").value,
+        boundary_desc:       document.getElementById("c-boundary").value.trim(),
+        verification_method: document.getElementById("c-verification").value.trim(),
+        is_public:           document.getElementById("c-public").checked,
+        is_invite_only:      document.getElementById("c-invite-only").checked,
+      };
+
       try {
-        await denyFacilitatorRequest(id);
-        row.querySelector(".request-actions").innerHTML =
-          `<span class="status-tag status-denied">Denied</span>`;
+        await createCommunity(data);
+        // Reload the section
+        cancelCreateCommunity();
+        loadCommunitySection();
       } catch (err) {
-        row.querySelectorAll("button").forEach(b => b.disabled = false);
-        alert(`Error: ${err.message}`);
+        errEl.textContent = `Error: ${err.message}`;
+        btn.disabled = false;
+        btn.textContent = "Create";
       }
     }
 

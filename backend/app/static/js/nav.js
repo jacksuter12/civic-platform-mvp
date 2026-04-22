@@ -8,19 +8,34 @@
     { label: "Home",         href: "/" },
     { label: "How It Works", href: "/how-it-works" },
     { label: "Quiz",         href: "/quiz" },
-    { label: "Platform",     href: "/threads" },
+    { label: "Platform",     href: "/c/test/threads" },
     { label: "Wiki",         href: "/wiki" },
     { label: "Audit Log",    href: "/audit" },
   ];
+
+  function adminLink(user) {
+    if (!user) return "";
+    // Platform admin gets the global admin panel
+    if (user.tier === "admin") {
+      return `<a href="/admin" class="cpc-nav-link">Admin</a>`;
+    }
+    // Community facilitators/admins get their community admin panel
+    const memberships = user.communityMemberships || user.community_memberships || [];
+    const adminMembership = memberships.find(function (m) {
+      return m.tier === "facilitator" || m.tier === "admin";
+    });
+    if (adminMembership) {
+      const slug = adminMembership.communitySlug || adminMembership.community_slug;
+      return `<a href="/c/${slug}/admin" class="cpc-nav-link">Community Admin</a>`;
+    }
+    return "";
+  }
 
   function authLink() {
     try {
       if (typeof auth !== "undefined" && auth.isSignedIn()) {
         const user = auth.getUser();
-        const adminLink = (user && user.tier === "admin")
-          ? `<a href="/admin" class="cpc-nav-link">Admin</a>`
-          : "";
-        return adminLink + `<a href="/account" class="cpc-nav-auth">Account</a>`;
+        return adminLink(user) + `<a href="/account" class="cpc-nav-auth">Account</a>`;
       }
     } catch (_) {}
     return `<a href="/signin" class="cpc-nav-auth">Sign In</a>`;

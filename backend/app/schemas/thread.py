@@ -10,6 +10,7 @@ from app.schemas.user import UserPublic
 
 
 class ThreadCreate(CamelBase):
+    community_id: uuid.UUID
     domain_id: uuid.UUID
     title: str = Field(min_length=10, max_length=200)
     prompt: str = Field(
@@ -35,6 +36,8 @@ class SignalCounts(CamelBase):
 class ThreadSummary(UUIDSchema, TimestampSchema):
     """Lightweight list item."""
 
+    community_id: uuid.UUID | None = None
+    community_slug: str | None = None
     domain_id: uuid.UUID
     domain_name: str
     domain_slug: str

@@ -15,12 +15,13 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
-from app.api.deps import DB, CurrentUser, ParticipantUser
+from app.api.deps import DB, CurrentUser, check_community_membership
 from app.core.audit import log_event
 from app.models.amendment import Amendment, AmendmentStatus
 from app.models.audit import AuditEventType
 from app.models.proposal import Proposal
 from app.models.thread import Thread, ThreadStatus
+from app.models.user import UserTier
 from app.schemas.amendment import AmendmentCreate, AmendmentRead, AmendmentReview
 from app.schemas.user import UserPublic
 
@@ -51,11 +52,12 @@ async def _get_proposal_and_thread(
 async def submit_amendment(
     proposal_id: uuid.UUID,
     payload: AmendmentCreate,
-    user: ParticipantUser,
+    user: CurrentUser,
     db: DB,
 ) -> AmendmentRead:
     """
-    Submit an amendment to a proposal. PARTICIPANT tier required.
+    Submit an amendment to a proposal. Registered-tier community membership required
+    (lowered from participant per decision S1).
     - Only allowed while the parent thread is in PROPOSING phase.
     - Cannot amend your own proposal.
     """
@@ -70,10 +72,14 @@ async def submit_amendment(
             ),
         )
 
+    # Community-scoped registered check (lowered from participant per decision S1)
+    if thread.community_id is not None:
+        await check_community_membership(user, thread.community_id, UserTier.REGISTERED, db)
+
     if proposal.created_by_id == user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You cannot amend your own proposal. Ask another participant to submit the amendment.",
+            detail="You cannot amend your own proposal. Ask another member to submit the amendment.",
         )
 
     amendment = Amendment(
@@ -98,6 +104,7 @@ async def submit_amendment(
             "title": payload.title,
         },
         actor_id=user.id,
+        community_id=thread.community_id,
     )
 
     await db.refresh(amendment)
@@ -177,7 +184,7 @@ async def review_amendment(
     Acceptance records intent only — the proposal text is NOT automatically
     updated. The proposer must manually revise their proposal text.
     """
-    proposal, _ = await _get_proposal_and_thread(proposal_id, db)
+    proposal, thread = await _get_proposal_and_thread(proposal_id, db)
 
     if proposal.created_by_id != user.id:
         raise HTTPException(
@@ -221,6 +228,7 @@ async def review_amendment(
             "reviewer_note": payload.reviewer_note,
         },
         actor_id=user.id,
+        community_id=thread.community_id,
     )
 
     await db.refresh(amendment, ["author"])

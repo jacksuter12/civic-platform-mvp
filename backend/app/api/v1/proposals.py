@@ -5,9 +5,10 @@ Phase gate: proposals may only be submitted when thread.status == PROPOSING.
 Voting on proposals only permitted when thread.status == VOTING.
 Editing is only allowed by the proposal's author, in PROPOSING phase.
 
-Vote tallies are computed on read in MVP (no caching). Before marking a
-proposal PASSED or REJECTED, a facilitator must advance the thread to CLOSED;
-the system records a vote_summary snapshot at that time.
+Session 3 changes:
+- POST /: ParticipantUser → community-scoped registered check (decision S1).
+- PATCH /{id}/status: FacilitatorUser → community-scoped facilitator check.
+- All write actions pass community_id to log_event().
 """
 
 import uuid
@@ -17,12 +18,13 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
 
-from app.api.deps import CurrentUser, DB, FacilitatorUser, OptionalUser, ParticipantUser
+from app.api.deps import CurrentUser, DB, OptionalUser, check_community_membership
 from app.core.audit import log_event
 from app.models.audit import AuditEventType
 from app.models.proposal import Proposal, ProposalStatus
 from app.models.proposal_version import ProposalVersion
 from app.models.thread import Thread, ThreadStatus
+from app.models.user import UserTier
 from app.models.vote import Vote, VoteChoice
 from app.schemas.proposal import (
     ProposalCreate,
@@ -117,7 +119,7 @@ async def list_proposals(
 async def create_proposal(
     payload: ProposalCreate,
     thread_id: uuid.UUID,
-    user: ParticipantUser,
+    user: CurrentUser,
     db: DB,
 ) -> ProposalSummary:
     thread_result = await db.execute(select(Thread).where(Thread.id == thread_id))
@@ -130,6 +132,10 @@ async def create_proposal(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Proposals can only be submitted when thread is in 'proposing' phase. Current: '{thread.status.value}'.",
         )
+
+    # Community-scoped registered check (lowered from participant per decision S1)
+    if thread.community_id is not None:
+        await check_community_membership(user, thread.community_id, UserTier.REGISTERED, db)
 
     proposal = Proposal(
         thread_id=thread_id,
@@ -150,6 +156,7 @@ async def create_proposal(
         target_id=proposal.id,
         payload={"title": proposal.title, "thread_id": str(thread_id)},
         actor_id=user.id,
+        community_id=thread.community_id,
     )
 
     return _build_summary(proposal, VoteSummary(), versions_count=0)
@@ -165,9 +172,6 @@ async def edit_proposal(
     """
     Edit a proposal's title and description. Only the proposal's author may
     call this, and only while the parent thread is in PROPOSING phase.
-
-    Before updating, a snapshot of the current state is written to
-    proposal_versions, and current_version_number is incremented.
     """
     result = await db.execute(select(Proposal).where(Proposal.id == proposal_id))
     proposal = result.scalar_one_or_none()
@@ -205,7 +209,6 @@ async def edit_proposal(
     )
     db.add(version)
 
-    # Apply the edit
     proposal.title = payload.title
     proposal.description = payload.description
     proposal.current_version_number += 1
@@ -224,6 +227,7 @@ async def edit_proposal(
             "thread_id": str(thread.id),
         },
         actor_id=user.id,
+        community_id=thread.community_id,
     )
 
     vs = await _vote_summary(db, proposal.id)
@@ -239,7 +243,6 @@ async def list_proposal_versions(
     """
     Return the full version history for a proposal in reverse chronological order.
     Public endpoint — no auth required.
-    Each entry is a snapshot of the state that was replaced by an edit.
     """
     result = await db.execute(select(Proposal).where(Proposal.id == proposal_id))
     if not result.scalar_one_or_none():
@@ -274,13 +277,24 @@ async def list_proposal_versions(
 async def update_proposal_status(
     proposal_id: uuid.UUID,
     payload: ProposalStatusUpdate,
-    facilitator: FacilitatorUser,
+    user: CurrentUser,
     db: DB,
 ) -> ProposalSummary:
     result = await db.execute(select(Proposal).where(Proposal.id == proposal_id))
     proposal = result.scalar_one_or_none()
     if not proposal:
         raise HTTPException(status_code=404, detail="Proposal not found.")
+
+    # Resolve community from proposal → thread, then check facilitator tier
+    thread_result = await db.execute(select(Thread).where(Thread.id == proposal.thread_id))
+    thread = thread_result.scalar_one_or_none()
+    community_id = thread.community_id if thread else None
+
+    if community_id is not None:
+        await check_community_membership(user, community_id, UserTier.FACILITATOR, db)
+    else:
+        if not user.has_tier(UserTier.FACILITATOR):
+            raise HTTPException(status_code=403, detail="Requires facilitator tier.")
 
     old_status = proposal.status
     proposal.status = payload.new_status
@@ -299,7 +313,8 @@ async def update_proposal_status(
             "reason": payload.reason,
             "vote_summary": vs.model_dump(),
         },
-        actor_id=facilitator.id,
+        actor_id=user.id,
+        community_id=community_id,
     )
 
     return _build_summary(proposal, vs, vc)

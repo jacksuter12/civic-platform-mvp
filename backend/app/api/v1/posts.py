@@ -6,7 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from typing import Annotated
 
-from app.api.deps import DB, FacilitatorUser, RegisteredUser
+from app.api.deps import DB, CurrentUser, check_community_membership
+from app.models.user import UserTier
 from app.core.audit import log_event
 from app.models.audit import AuditEventType
 from app.models.post import Post
@@ -107,7 +108,7 @@ async def list_posts(
 
 @router.post("", response_model=PostOut, status_code=status.HTTP_201_CREATED)
 async def create_post(
-    payload: PostCreate, user: RegisteredUser, db: DB
+    payload: PostCreate, user: CurrentUser, db: DB
 ) -> Post:
     thread_result = await db.execute(
         select(Thread).where(Thread.id == payload.thread_id)
@@ -121,6 +122,10 @@ async def create_post(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Posting is not allowed in '{thread.status.value}' phase.",
         )
+
+    # Community-scoped registered check
+    if thread.community_id is not None:
+        await check_community_membership(user, thread.community_id, UserTier.REGISTERED, db)
 
     if payload.parent_id:
         parent_result = await db.execute(
@@ -147,6 +152,7 @@ async def create_post(
         target_id=post.id,
         payload={"thread_id": str(post.thread_id)},
         actor_id=user.id,
+        community_id=thread.community_id,
     )
 
     await db.refresh(post, ["author", "replies"])
@@ -155,12 +161,23 @@ async def create_post(
 
 @router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_post(
-    post_id: uuid.UUID, payload: PostRemove, facilitator: FacilitatorUser, db: DB
+    post_id: uuid.UUID, payload: PostRemove, user: CurrentUser, db: DB
 ) -> None:
     result = await db.execute(select(Post).where(Post.id == post_id))
     post = result.scalar_one_or_none()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found.")
+
+    # Load thread for community_id and facilitator check
+    thread_result = await db.execute(select(Thread).where(Thread.id == post.thread_id))
+    thread = thread_result.scalar_one_or_none()
+    community_id = thread.community_id if thread else None
+
+    if community_id is not None:
+        await check_community_membership(user, community_id, UserTier.FACILITATOR, db)
+    else:
+        if not user.has_tier(UserTier.FACILITATOR):
+            raise HTTPException(status_code=403, detail="Requires facilitator tier.")
 
     post.is_removed = True
     post.removal_reason = payload.reason
@@ -171,5 +188,6 @@ async def remove_post(
         target_type="post",
         target_id=post.id,
         payload={"reason": payload.reason, "thread_id": str(post.thread_id)},
-        actor_id=facilitator.id,
+        actor_id=user.id,
+        community_id=community_id,
     )

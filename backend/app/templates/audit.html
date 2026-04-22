@@ -205,6 +205,14 @@
     let currentOffset = 0;
     let currentTotal  = 0;
 
+    // Detect community context from /c/{slug}/audit
+    const _communityAuditMatch = window.location.pathname.match(/^\/c\/([^/]+)\/audit/);
+    const COMMUNITY_SLUG = _communityAuditMatch ? _communityAuditMatch[1] : null;
+
+    if (COMMUNITY_SLUG) {
+      document.title = `Audit Log — ${COMMUNITY_SLUG}`;
+    }
+
     // ---- Human-readable event type labels ----
     const EVENT_LABELS = {
       user_registered:               "User Registered",
@@ -367,7 +375,9 @@
 
       try {
         const filters = getFilters();
-        const page    = await getAuditLog({ ...filters, limit: PAGE_SIZE, offset: currentOffset });
+        const page = COMMUNITY_SLUG
+          ? await getCommunityAuditLog(COMMUNITY_SLUG, { ...filters, limit: PAGE_SIZE, offset: currentOffset })
+          : await getAuditLog({ ...filters, limit: PAGE_SIZE, offset: currentOffset });
 
         countEl.textContent = `${page.total.toLocaleString()} event${page.total !== 1 ? "s" : ""}`;
         updatePagination(page.total);

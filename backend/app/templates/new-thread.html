@@ -92,6 +92,15 @@
   <script src="/static/js/api.js"></script>
   <script>
 
+    // Parse /c/{slug}/new-thread → slug
+    function parseCommunitySlug() {
+      const m = window.location.pathname.match(/^\/c\/([^/]+)/);
+      return m ? m[1] : "test";
+    }
+
+    const communitySlug = parseCommunitySlug();
+    let communityId = null;  // set during init after fetching community
+
     async function init() {
       if (!auth.isSignedIn()) {
         window.location.href = "/signin";
@@ -99,28 +108,33 @@
       }
 
       const content = document.getElementById("page-content");
-      let domains;
+      let domains, community;
 
       try {
-        domains = await getDomains();
+        [community, domains] = await Promise.all([
+          getCommunity(communitySlug),
+          getDomains(communitySlug),
+        ]);
       } catch (err) {
-        content.innerHTML = `<div class="error-message">Could not load domains: ${err.message}</div>`;
+        content.innerHTML = `<div class="error-message">Could not load: ${err.message}</div>`;
         return;
       }
+
+      communityId = community.id;
 
       if (!domains.length) {
         content.innerHTML = `<div class="error-message">No active domains are available yet.</div>`;
         return;
       }
 
-      content.innerHTML = renderForm(domains);
+      content.innerHTML = renderForm(community, domains);
       setTimeout(() => {
         wireCharCounter("prompt-input", "prompt-count", 2000);
         wireCharCounter("context-input", "context-count", 5000);
       }, 0);
     }
 
-    function renderForm(domains) {
+    function renderForm(community, domains) {
       const options = domains
         .map(d => `<option value="${d.id}">${escapeHtml(d.name)}</option>`)
         .join("");
@@ -190,7 +204,7 @@
             </div>
 
             <div class="form-footer">
-              <a href="/threads" style="font-size:14px; color:#888;">← Back to discussions</a>
+              <a href="/c/${escapeHtml(communitySlug)}/threads" style="font-size:14px; color:#888;">← Back to discussions</a>
               <button type="submit" class="btn-submit" id="submit-btn">Create discussion</button>
             </div>
 
@@ -238,8 +252,8 @@
       btn.textContent = "Creating…";
 
       try {
-        const thread = await createThread(domainId, title, prompt, context);
-        window.location.href = `/thread/${thread.id}`;
+        const thread = await createThread(communityId, domainId, title, prompt, context);
+        window.location.href = `/c/${communitySlug}/thread/${thread.id}`;
       } catch (err) {
         errEl.textContent = err.message || "Could not create discussion. Please try again.";
         errEl.style.display = "block";
