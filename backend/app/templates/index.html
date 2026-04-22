@@ -681,7 +681,7 @@
     <div class="cta-group">
       <a href="/quiz" class="btn-primary">Take a Quiz!</a>
       <a href="/how-it-works" class="btn-secondary">How It Works</a>
-      <a href="/signin" class="btn-signup">Sign Up Now</a>
+      <a href="/signin" class="btn-signup" id="hero-cta-btn">Sign Up Now</a>
     </div>
   </section>
 
@@ -1009,5 +1009,22 @@
     </a>
   </footer>
 
+  <script>
+    (function () {
+      function updateHeroBtn() {
+        var btn = document.getElementById("hero-cta-btn");
+        if (!btn) return;
+        if (typeof auth !== "undefined" && auth.isSignedIn()) {
+          btn.textContent = "Go to Platform";
+          btn.href = "/threads";
+        }
+      }
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", updateHeroBtn);
+      } else {
+        updateHeroBtn();
+      }
+    })();
+  </script>
 </body>
 </html>
