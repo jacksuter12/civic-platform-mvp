@@ -23,6 +23,11 @@ TIER_ORDER = {
 }
 
 
+class PlatformRole(str, PyEnum):
+    USER = "user"                  # default — no platform-level privileges
+    PLATFORM_ADMIN = "platform_admin"  # can create communities, manage annotators
+
+
 class User(Base, UUIDPKMixin, TimestampMixin):
     __tablename__ = "users"
 
@@ -44,6 +49,14 @@ class User(Base, UUIDPKMixin, TimestampMixin):
     # tier hierarchy. A user can be any tier and either have or not have this flag.
     # Admin tier implicitly carries annotator capability; see has_annotator_capability().
     is_annotator: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Platform-level role — orthogonal to the tier hierarchy.
+    # PLATFORM_ADMIN can create communities and manage platform-wide annotators.
+    # Seeded from tier='admin' users in migration a3b4c5d6e7f8.
+    platform_role: Mapped[PlatformRole] = mapped_column(
+        SAEnum(PlatformRole, name="platform_role"),
+        nullable=False,
+        default=PlatformRole.USER,
+    )
 
     # Relationships
     threads_created: Mapped[list["Thread"]] = relationship(  # type: ignore[name-defined]

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin, UUIDPKMixin
 
 
+
 class ThreadStatus(str, PyEnum):
     """
     Phase-gated state machine. Each transition is logged to audit_logs.
@@ -41,6 +42,15 @@ VALID_TRANSITIONS: dict[ThreadStatus, list[ThreadStatus]] = {
 class Thread(Base, UUIDPKMixin, TimestampMixin):
     __tablename__ = "threads"
 
+    # community_id is nullable in the model so that SQLite test fixtures that
+    # create Thread without community_id continue to pass during Session 1.
+    # The NOT NULL constraint is enforced in PostgreSQL via migration d0e1f2a3b4c5.
+    community_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("communities.id"),
+        nullable=True,
+        index=True,
+    )
     domain_id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("domains.id"), nullable=False, index=True
     )
@@ -67,6 +77,9 @@ class Thread(Base, UUIDPKMixin, TimestampMixin):
     )
 
     # Relationships
+    community: Mapped["Community | None"] = relationship(  # type: ignore[name-defined]
+        "Community", back_populates="threads"
+    )
     domain: Mapped["Domain"] = relationship(  # type: ignore[name-defined]
         "Domain", back_populates="threads"
     )

@@ -28,7 +28,7 @@ from app.api.deps import get_current_user, get_optional_user
 from app.main import app
 from app.models.annotation import Annotation, AnnotationReaction, ReactionType
 from app.models.audit import AuditEventType, AuditLog
-from app.models.user import User, UserTier
+from app.models.user import PlatformRole, User, UserTier
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -86,6 +86,9 @@ async def admin_user(db_session: AsyncSession) -> User:
         display_name="Admin",
         tier=UserTier.ADMIN,
         is_annotator=False,  # admin implies capability without the flag
+        # Migration M7 backfills platform_role=PLATFORM_ADMIN for tier=ADMIN users.
+        # Tests bypass migrations so we set it explicitly here.
+        platform_role=PlatformRole.PLATFORM_ADMIN,
     )
     db_session.add(u)
     await db_session.commit()

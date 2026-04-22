@@ -42,7 +42,9 @@ async def list_audit_events(
     - "What did facilitator Y do?" → filter by actor_id=Y
     - "Show all allocations" → filter by event_type=allocation_decided
     """
-    q = select(AuditLog)
+    # Platform-level events only (community_id IS NULL).
+    # Community-scoped events are at GET /api/v1/communities/{slug}/audit.
+    q = select(AuditLog).where(AuditLog.community_id.is_(None))
     if event_type:
         q = q.where(AuditLog.event_type == event_type)
     if target_type:

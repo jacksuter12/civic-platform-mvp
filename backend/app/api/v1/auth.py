@@ -17,8 +17,11 @@ from app.api.deps import CurrentUser, DB, RegisteredUser
 from app.core.audit import log_event
 from app.core.security import TokenError, decode_supabase_token, extract_supabase_uid
 from app.models.audit import AuditEventType, AuditLog
+from app.models.community import Community
+from app.models.community_membership import CommunityMembership
 from app.models.facilitator_request import FacilitatorRequest, FacilitatorRequestStatus
 from app.models.user import User, UserTier
+from app.schemas.community import CommunityMembershipSummary
 from app.schemas.facilitator_request import FacilitatorRequestCreate, FacilitatorRequestOut
 from app.schemas.user import DisplayNameUpdate, UserCreate, UserMe, UserPublic
 
@@ -26,7 +29,7 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=UserMe, status_code=status.HTTP_201_CREATED)
-async def register(payload: UserCreate, db: DB) -> User:
+async def register(payload: UserCreate, db: DB) -> dict:
     """
     Create a User record. Called once after Supabase Auth signup.
     The supabase_uid links our record to Supabase's identity.
@@ -57,7 +60,18 @@ async def register(payload: UserCreate, db: DB) -> User:
         actor_id=user.id,
     )
 
-    return user
+    return {
+        "id": user.id,
+        "created_at": user.created_at,
+        "display_name": user.display_name,
+        "tier": user.tier,
+        "identity_verified_at": user.identity_verified_at,
+        "email": user.email,
+        "is_annotator": user.is_annotator,
+        "display_name_changes_this_month": 0,
+        "display_name_changes_remaining": 3,
+        "community_memberships": [],
+    }
 
 
 DISPLAY_NAME_CHANGE_LIMIT = 3
@@ -76,11 +90,33 @@ async def _count_display_name_changes(db: DB, user_id) -> int:
     return result.scalar_one()
 
 
+async def _get_community_memberships(db: DB, user_id) -> list[CommunityMembershipSummary]:
+    """Load active community memberships for a user, joined with community name/slug."""
+    result = await db.execute(
+        select(Community.slug, Community.name, CommunityMembership.tier)
+        .join(Community, Community.id == CommunityMembership.community_id)
+        .where(
+            CommunityMembership.user_id == user_id,
+            CommunityMembership.is_active == True,
+        )
+        .order_by(CommunityMembership.joined_at.asc())
+    )
+    return [
+        CommunityMembershipSummary(
+            community_slug=slug,
+            community_name=name,
+            tier=tier,
+        )
+        for slug, name, tier in result.all()
+    ]
+
+
 @router.get("/me", response_model=UserMe)
 async def me(user: RegisteredUser, db: DB) -> dict:
     """Return the authenticated user's own record with display name change counts."""
     changes = await _count_display_name_changes(db, user.id)
-    data = {
+    memberships = await _get_community_memberships(db, user.id)
+    return {
         "id": user.id,
         "created_at": user.created_at,
         "display_name": user.display_name,
@@ -90,8 +126,8 @@ async def me(user: RegisteredUser, db: DB) -> dict:
         "is_annotator": user.is_annotator,
         "display_name_changes_this_month": changes,
         "display_name_changes_remaining": max(0, DISPLAY_NAME_CHANGE_LIMIT - changes),
+        "community_memberships": memberships,
     }
-    return data
 
 
 @router.patch("/me", response_model=UserMe)
@@ -119,6 +155,7 @@ async def update_me(payload: DisplayNameUpdate, user: RegisteredUser, db: DB) ->
         actor_id=user.id,
     )
 
+    memberships = await _get_community_memberships(db, user.id)
     new_changes = changes + 1
     return {
         "id": user.id,
@@ -130,6 +167,7 @@ async def update_me(payload: DisplayNameUpdate, user: RegisteredUser, db: DB) ->
         "is_annotator": user.is_annotator,
         "display_name_changes_this_month": new_changes,
         "display_name_changes_remaining": max(0, DISPLAY_NAME_CHANGE_LIMIT - new_changes),
+        "community_memberships": memberships,
     }
 
 
@@ -143,7 +181,7 @@ async def submit_facilitator_request(
     user: RegisteredUser,
     db: DB,
 ) -> FacilitatorRequest:
-    """Submit an application for facilitator status."""
+    """Submit an application for facilitator status in a community."""
     if user.has_tier(UserTier.FACILITATOR):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -162,7 +200,11 @@ async def submit_facilitator_request(
             detail="You already have a pending facilitator request.",
         )
 
-    req = FacilitatorRequest(user_id=user.id, reason=payload.reason)
+    req = FacilitatorRequest(
+        user_id=user.id,
+        reason=payload.reason,
+        community_id=payload.community_id,
+    )
     db.add(req)
     await db.flush()
 
@@ -173,6 +215,7 @@ async def submit_facilitator_request(
         target_id=req.id,
         payload={"user_id": str(user.id)},
         actor_id=user.id,
+        community_id=payload.community_id,
     )
     return req
 

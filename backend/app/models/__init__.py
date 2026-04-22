@@ -1,6 +1,8 @@
 # Import all models so that alembic autogenerate sees them
 from app.models.base import Base
-from app.models.user import User, UserTier
+from app.models.user import User, UserTier, PlatformRole
+from app.models.community import Community, CommunityType
+from app.models.community_membership import CommunityMembership
 from app.models.domain import Domain
 from app.models.thread import Thread, ThreadStatus, VALID_TRANSITIONS
 from app.models.post import Post
@@ -20,6 +22,10 @@ __all__ = [
     "Base",
     "User",
     "UserTier",
+    "PlatformRole",
+    "Community",
+    "CommunityType",
+    "CommunityMembership",
     "Domain",
     "Thread",
     "ThreadStatus",

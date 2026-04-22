@@ -26,6 +26,7 @@ async def log_event(
     target_id: uuid.UUID,
     payload: dict,
     actor_id: uuid.UUID | None = None,
+    community_id: uuid.UUID | None = None,
 ) -> AuditLog:
     """
     Insert an audit log entry in the current transaction.
@@ -37,6 +38,9 @@ async def log_event(
         target_id: PK of the affected object.
         payload: Snapshot of relevant data at the time of the event.
         actor_id: Who did it (None for system events).
+        community_id: The community this event belongs to, or None for
+            platform-level events (user registration, annotator grants, etc.).
+            All existing call sites omit this argument and implicitly pass None.
     """
     entry = AuditLog(
         event_type=event_type,
@@ -44,6 +48,7 @@ async def log_event(
         target_type=target_type,
         target_id=target_id,
         payload=payload,
+        community_id=community_id,
     )
     db.add(entry)
     await db.flush()  # assign PK; caller commits
@@ -54,6 +59,7 @@ async def log_event(
         target_type=target_type,
         target_id=str(target_id),
         actor_id=str(actor_id) if actor_id else None,
+        community_id=str(community_id) if community_id else None,
     )
 
     return entry

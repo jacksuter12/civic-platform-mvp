@@ -1,4 +1,13 @@
-"""Admin routes — facilitator request review, tier management, annotator capability."""
+"""Admin routes — facilitator request review, tier management, annotator capability.
+
+Authorization model (Session 2):
+  - PlatformAdminUser: platform_role == 'platform_admin'
+      Can manage annotators, list all users, create communities, approve/deny
+      facilitator requests across all communities.
+  - CommunityAdminUser (ad-hoc): user has active CommunityMembership with
+      tier >= 'facilitator' for the request's community.
+      Can approve/deny facilitator requests for their community.
+"""
 
 import uuid
 from datetime import UTC, datetime
@@ -6,28 +15,101 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import or_, select
 
-from app.api.deps import DB, AdminUser
+from app.api.deps import DB, CurrentUser, PlatformAdminUser
 from app.core.audit import log_event
 from app.models.audit import AuditEventType
+from app.models.community import Community
+from app.models.community_membership import CommunityMembership
 from app.models.facilitator_request import FacilitatorRequest, FacilitatorRequestStatus
-from app.models.user import User, UserTier
+from app.models.user import PlatformRole, User, UserTier, TIER_ORDER
 from app.schemas.annotation import AnnotatorGrantBody, UserAdminSummary, UserAnnotatorOut
 from app.schemas.facilitator_request import FacilitatorRequestDetail
 
 router = APIRouter()
 
 
+async def _assert_community_admin(
+    user: User,
+    community_id: uuid.UUID,
+    db,
+) -> None:
+    """
+    Raise 403 if user is neither a platform admin nor a facilitator/admin
+    member of the specified community.
+    """
+    if user.platform_role == PlatformRole.PLATFORM_ADMIN:
+        return
+    result = await db.execute(
+        select(CommunityMembership).where(
+            CommunityMembership.community_id == community_id,
+            CommunityMembership.user_id == user.id,
+            CommunityMembership.is_active == True,
+        )
+    )
+    membership = result.scalar_one_or_none()
+    if membership is None or TIER_ORDER[membership.tier] < TIER_ORDER[UserTier.FACILITATOR]:
+        raise HTTPException(
+            status_code=403,
+            detail="Requires community admin (facilitator+) role for this community.",
+        )
+
+
 @router.get("/facilitator-requests", response_model=list[FacilitatorRequestDetail])
 async def list_facilitator_requests(
-    admin: AdminUser,
+    user: CurrentUser,
     db: DB,
+    community_slug: str | None = Query(default=None, description="Filter by community slug"),
 ) -> list[FacilitatorRequestDetail]:
-    """List all pending facilitator requests, oldest first."""
-    result = await db.execute(
+    """
+    List pending facilitator requests.
+    - Platform admin: sees all pending requests (optionally filtered by community_slug).
+    - Community admin: sees only requests for communities where they are facilitator+.
+    - Others: 403.
+    """
+    is_platform_admin = user.platform_role == PlatformRole.PLATFORM_ADMIN
+
+    q = (
         select(FacilitatorRequest)
         .where(FacilitatorRequest.status == FacilitatorRequestStatus.PENDING)
         .order_by(FacilitatorRequest.created_at.asc())
     )
+
+    if is_platform_admin:
+        # Platform admin: optionally filter by community slug
+        if community_slug:
+            comm_result = await db.execute(
+                select(Community.id).where(Community.slug == community_slug)
+            )
+            community_id = comm_result.scalar_one_or_none()
+            if community_id is not None:
+                q = q.where(FacilitatorRequest.community_id == community_id)
+    else:
+        # Must be community admin in at least one community
+        mem_result = await db.execute(
+            select(CommunityMembership.community_id).where(
+                CommunityMembership.user_id == user.id,
+                CommunityMembership.is_active == True,
+                CommunityMembership.tier.in_([UserTier.FACILITATOR, UserTier.ADMIN]),
+            )
+        )
+        admin_community_ids = [row[0] for row in mem_result.all()]
+        if not admin_community_ids:
+            raise HTTPException(
+                status_code=403,
+                detail="Requires platform admin or community admin role.",
+            )
+        q = q.where(FacilitatorRequest.community_id.in_(admin_community_ids))
+
+        # Optionally narrow to a specific community slug
+        if community_slug:
+            comm_result = await db.execute(
+                select(Community.id).where(Community.slug == community_slug)
+            )
+            cid = comm_result.scalar_one_or_none()
+            if cid is not None and cid in admin_community_ids:
+                q = q.where(FacilitatorRequest.community_id == cid)
+
+    result = await db.execute(q)
     requests = list(result.scalars())
     out = []
     for req in requests:
@@ -42,9 +124,15 @@ async def list_facilitator_requests(
 )
 async def approve_facilitator_request(
     request_id: uuid.UUID,
-    admin: AdminUser,
+    user: CurrentUser,
     db: DB,
 ) -> FacilitatorRequestDetail:
+    """
+    Approve a facilitator request.
+    - Promotes CommunityMembership.tier to 'facilitator' (creates membership if needed).
+    - Requires platform admin OR community admin for the request's community.
+    - Logs COMMUNITY_MEMBER_PROMOTED + FACILITATOR_REQUEST_APPROVED.
+    """
     result = await db.execute(
         select(FacilitatorRequest).where(FacilitatorRequest.id == request_id)
     )
@@ -54,37 +142,66 @@ async def approve_facilitator_request(
     if req.status != FacilitatorRequestStatus.PENDING:
         raise HTTPException(status_code=409, detail="Request already reviewed.")
 
-    user_result = await db.execute(select(User).where(User.id == req.user_id))
-    user = user_result.scalar_one()
-    old_tier = user.tier
-    user.tier = UserTier.FACILITATOR
-    db.add(user)
+    # Authorization: must be platform admin or community admin for req's community
+    if req.community_id is None:
+        # Legacy request with no community — only platform admin can approve
+        if user.platform_role != PlatformRole.PLATFORM_ADMIN:
+            raise HTTPException(
+                status_code=403,
+                detail="Requires platform admin role for requests without a community.",
+            )
+    else:
+        await _assert_community_admin(user, req.community_id, db)
 
+    # Mark request approved
     req.status = FacilitatorRequestStatus.APPROVED
-    req.reviewed_by_id = admin.id
+    req.reviewed_by_id = user.id
     req.reviewed_at = datetime.now(UTC)
     db.add(req)
+
+    # Promote (or create) CommunityMembership to facilitator tier
+    membership = None
+    if req.community_id is not None:
+        existing_mem = await db.execute(
+            select(CommunityMembership).where(
+                CommunityMembership.community_id == req.community_id,
+                CommunityMembership.user_id == req.user_id,
+            )
+        )
+        membership = existing_mem.scalar_one_or_none()
+        if membership is None:
+            membership = CommunityMembership(
+                community_id=req.community_id,
+                user_id=req.user_id,
+                tier=UserTier.FACILITATOR,
+                joined_at=datetime.now(UTC),
+            )
+        else:
+            membership.tier = UserTier.FACILITATOR
+        db.add(membership)
+
     await db.flush()
 
-    await log_event(
-        db,
-        event_type=AuditEventType.USER_TIER_CHANGED,
-        target_type="user",
-        target_id=user.id,
-        payload={
-            "old_tier": old_tier.value,
-            "new_tier": UserTier.FACILITATOR.value,
-            "reason": "facilitator_request_approved",
-        },
-        actor_id=admin.id,
-    )
+    # Log COMMUNITY_MEMBER_PROMOTED if community-scoped
+    if req.community_id is not None and membership is not None:
+        await log_event(
+            db,
+            event_type=AuditEventType.COMMUNITY_MEMBER_PROMOTED,
+            target_type="community_membership",
+            target_id=membership.id,
+            payload={"user_id": str(req.user_id), "new_tier": UserTier.FACILITATOR.value},
+            actor_id=user.id,
+            community_id=req.community_id,
+        )
+
     await log_event(
         db,
         event_type=AuditEventType.FACILITATOR_REQUEST_APPROVED,
         target_type="facilitator_request",
         target_id=req.id,
         payload={"user_id": str(req.user_id)},
-        actor_id=admin.id,
+        actor_id=user.id,
+        community_id=req.community_id,
     )
 
     await db.refresh(req, ["user"])
@@ -97,9 +214,13 @@ async def approve_facilitator_request(
 )
 async def deny_facilitator_request(
     request_id: uuid.UUID,
-    admin: AdminUser,
+    user: CurrentUser,
     db: DB,
 ) -> FacilitatorRequestDetail:
+    """
+    Deny a facilitator request.
+    Requires platform admin OR community admin for the request's community.
+    """
     result = await db.execute(
         select(FacilitatorRequest).where(FacilitatorRequest.id == request_id)
     )
@@ -109,8 +230,18 @@ async def deny_facilitator_request(
     if req.status != FacilitatorRequestStatus.PENDING:
         raise HTTPException(status_code=409, detail="Request already reviewed.")
 
+    # Authorization
+    if req.community_id is None:
+        if user.platform_role != PlatformRole.PLATFORM_ADMIN:
+            raise HTTPException(
+                status_code=403,
+                detail="Requires platform admin role for requests without a community.",
+            )
+    else:
+        await _assert_community_admin(user, req.community_id, db)
+
     req.status = FacilitatorRequestStatus.DENIED
-    req.reviewed_by_id = admin.id
+    req.reviewed_by_id = user.id
     req.reviewed_at = datetime.now(UTC)
     db.add(req)
     await db.flush()
@@ -121,7 +252,8 @@ async def deny_facilitator_request(
         target_type="facilitator_request",
         target_id=req.id,
         payload={"user_id": str(req.user_id)},
-        actor_id=admin.id,
+        actor_id=user.id,
+        community_id=req.community_id,
     )
 
     await db.refresh(req, ["user"])
@@ -129,20 +261,20 @@ async def deny_facilitator_request(
 
 
 # ---------------------------------------------------------------------------
-# Annotator capability — grant / revoke  (routes 7 & 8)
+# Annotator capability — grant / revoke  (platform admin only)
 # ---------------------------------------------------------------------------
 
 
 @router.post("/users/{user_id}/annotator", response_model=UserAnnotatorOut)
 async def grant_annotator(
     user_id: uuid.UUID,
-    admin: AdminUser,
+    admin: PlatformAdminUser,
     db: DB,
     payload: AnnotatorGrantBody | None = None,
 ) -> UserAnnotatorOut:
     """
     Grant annotator capability to a user. Idempotent — if already set, returns
-    current state without writing an audit entry.
+    current state without writing an audit entry. Platform admin only.
     """
     result = await db.execute(select(User).where(User.id == user_id))
     target = result.scalar_one_or_none()
@@ -185,13 +317,13 @@ async def grant_annotator(
 @router.delete("/users/{user_id}/annotator", response_model=UserAnnotatorOut)
 async def revoke_annotator(
     user_id: uuid.UUID,
-    admin: AdminUser,
+    admin: PlatformAdminUser,
     db: DB,
     payload: AnnotatorGrantBody | None = None,
 ) -> UserAnnotatorOut:
     """
     Revoke annotator capability from a user. Idempotent — if already false,
-    returns current state without writing an audit entry.
+    returns current state without writing an audit entry. Platform admin only.
     """
     result = await db.execute(select(User).where(User.id == user_id))
     target = result.scalar_one_or_none()
@@ -232,13 +364,13 @@ async def revoke_annotator(
 
 
 # ---------------------------------------------------------------------------
-# User list for admin UI (route 9)
+# User list (platform admin only)
 # ---------------------------------------------------------------------------
 
 
 @router.get("/users", response_model=list[UserAdminSummary])
 async def list_users(
-    admin: AdminUser,
+    admin: PlatformAdminUser,
     db: DB,
     search: str | None = Query(default=None, max_length=200),
     limit: int = Query(default=200, ge=1, le=500),
@@ -247,7 +379,7 @@ async def list_users(
     """
     Return all registered users, ordered by display_name ascending.
     Optional substring search against display_name or email.
-    Admin only.
+    Platform admin only.
     """
     query = select(User).order_by(User.display_name.asc())
     if search:

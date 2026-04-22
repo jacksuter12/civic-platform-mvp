@@ -231,6 +231,25 @@ Each entry follows this template. Copy it when adding new decisions.
 
 ---
 
+## 2026-04-11 — Multi-Community Architecture
+**Status:** Active
+**Domain:** Technical / Strategy
+**Context:** The platform's GTM strategy shifted from a national state-legislature model to a local-first deployment model, starting with a single municipal community (Redlands, CA). The existing single-tenant data model cannot support scoped verification, scoped facilitation, or community-specific deliberation without a refactor.
+**Options considered:** (a) Keep single-tenant, add filtering by location tags; (b) Introduce Community as the primary organizational unit with per-community tiers, threads, facilitators, and audit logs.
+**Decision:** Option (b). Community is the primary unit of organization. Tiers, threads, facilitator appointments, funding pools, audit logs, and domain taxonomies are all community-scoped. A `CommunityMembership` table replaces the global `users.tier` field as the gate for all deliberative actions. A new `platform_role` field on `users` (values: `user`, `platform_admin`) handles the small set of operations that remain global (creating communities, granting the annotator capability).
+**Reasoning:** The platform's actual nature is multi-tenant deliberation infrastructure. The state-level theory of change, the local municipal use case, the HOA use case, and the union use case all require the same architecture: a bounded group of verified members deliberating through a phase-gated process. Making Community first-class in the data model serves all of these without further architectural changes. Scoped facilitation (a Redlands facilitator cannot act on a Maine thread) and scoped verification (a Redlands verified resident is not verified anywhere else) are the two properties that make real-world deployment meaningful.
+**Implications:** This is the largest refactor to date. All API routes must be updated to check community-scoped tiers via `CommunityMembership.tier`. URL structure changes to `/c/{slug}/...`. The community home page (`/c/{slug}`) becomes the platform's primary public-facing surface — it is the credibility artifact a council member, journalist, or skeptic sees when they visit. Existing data (users, threads, domains, audit logs) migrates to a `test` community with no data loss. Three initial communities are created: `test` (legacy/seed data), `civic-power-consortium` (platform meta), and `redlands` (first geographic deployment). `macro-circle` (private, invite-only) is also created. The wiki and annotation system remain global platform resources (not community-scoped) for the initial deployment. Per-community wikis are deferred to Phase 2.
+
+**Additional resolved decisions recorded here:**
+
+*Tier gates (resolved 2026-04-11):* All substantive deliberative actions (signal, post, create thread, create proposal, cast vote, submit amendment) require `registered` community membership only. The `participant` tier remains in the schema as a reserved future state for when scoped verification (e.g., voter file cross-reference for Redlands) is built. With community-scoped membership as the outer gate, friction reduction is the priority during early MVP deployment — a registered Redlands member cannot act in Macro Circle without a separate membership, which provides a meaningful trust boundary even at the `registered` level. Note: the live codebase had proposals and votes gated at `participant` prior to this decision; these are being lowered to `registered` as part of the community refactor.
+
+*Community admin succession (resolved 2026-04-11):* The builder is the first community admin for all initial communities and will personally seed the first admin of each early community. Community admin governance, succession rules, and term limits are deferred to the governance charter and will be addressed when the platform has communities the builder does not personally administer. Platform admin and community admin are operationally the same person at launch but are architecturally distinct roles — this preserves the clean separation for the future without forcing premature governance design.
+
+**Revisit if:** The multi-community model creates operational complexity that a solo builder cannot manage (too many communities to administer, cross-community coordination needs, etc.).
+
+---
+
 # Pending Decisions
 
 These decisions have been identified as needed but not yet resolved. They are queued for the appropriate project.

@@ -21,6 +21,15 @@ class FundingPool(Base, UUIDPKMixin, TimestampMixin):
 
     __tablename__ = "funding_pools"
 
+    # community_id is nullable in the model so that SQLite test fixtures that
+    # create FundingPool without community_id continue to pass during Session 1.
+    # The NOT NULL constraint is enforced in PostgreSQL via migration e1f2a3b4c5d6.
+    community_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("communities.id"),
+        nullable=True,
+        index=True,
+    )
     domain_id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("domains.id"), nullable=False, index=True
     )

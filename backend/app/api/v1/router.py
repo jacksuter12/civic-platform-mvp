@@ -7,6 +7,7 @@ from app.api.v1 import (
     annotations,
     audit,
     auth,
+    communities,
     domains,
     pools,
     posts,
@@ -21,6 +22,7 @@ api_router = APIRouter()
 
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+api_router.include_router(communities.router, prefix="/communities", tags=["communities"])
 api_router.include_router(domains.router, prefix="/domains", tags=["domains"])
 api_router.include_router(threads.router, prefix="/threads", tags=["threads"])
 api_router.include_router(posts.router, prefix="/posts", tags=["posts"])

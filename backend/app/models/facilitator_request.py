@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin, UUIDPKMixin
 
 
+
 class FacilitatorRequestStatus(str, PyEnum):
     PENDING = "pending"
     APPROVED = "approved"
@@ -18,6 +19,15 @@ class FacilitatorRequestStatus(str, PyEnum):
 class FacilitatorRequest(Base, UUIDPKMixin, TimestampMixin):
     __tablename__ = "facilitator_requests"
 
+    # community_id is nullable in the model so that SQLite test fixtures that
+    # create FacilitatorRequest without community_id continue to pass during Session 1.
+    # The NOT NULL constraint is enforced in PostgreSQL via migration e1f2a3b4c5d6.
+    community_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("communities.id"),
+        nullable=True,
+        index=True,
+    )
     user_id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
     )

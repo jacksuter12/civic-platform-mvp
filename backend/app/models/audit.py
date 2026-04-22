@@ -52,6 +52,10 @@ class AuditEventType(str, PyEnum):
     ANNOTATION_REACTION_REMOVED = "annotation_reaction_removed"
     USER_ANNOTATOR_GRANTED = "user_annotator_granted"
     USER_ANNOTATOR_REVOKED = "user_annotator_revoked"
+    # Community
+    COMMUNITY_CREATED = "community_created"
+    COMMUNITY_MEMBER_JOINED = "community_member_joined"
+    COMMUNITY_MEMBER_PROMOTED = "community_member_promoted"
     # LLM (future)
     LLM_SUMMARY_GENERATED = "llm_summary_generated"
 
@@ -85,3 +89,9 @@ class AuditLog(Base, UUIDPKMixin, TimestampMixin):
     )
     # JSON payload capturing the full event details at time of action
     payload: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    # Nullable: platform-level events (user registration, annotator grants, etc.)
+    # have no community. Community-scoped events carry the community UUID.
+    # Populated by log_event(community_id=...) once Session 3 route updates land.
+    community_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("communities.id"), nullable=True, index=True
+    )

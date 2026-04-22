@@ -5,6 +5,7 @@ from pydantic import EmailStr, Field, field_validator
 
 from app.models.user import UserTier
 from app.schemas.common import CamelBase, TimestampSchema, UUIDSchema
+from app.schemas.community import CommunityMembershipSummary
 
 
 class UserCreate(CamelBase):
@@ -32,12 +33,13 @@ class UserPublic(UUIDSchema, TimestampSchema):
 
 
 class UserMe(UserPublic):
-    """Extended self-view including email."""
+    """Extended self-view including email and community memberships."""
 
     email: str
     display_name_changes_this_month: int = 0
     display_name_changes_remaining: int = 3
     is_annotator: bool = False
+    community_memberships: list[CommunityMembershipSummary] = []
 
 
 class DisplayNameUpdate(CamelBase):
