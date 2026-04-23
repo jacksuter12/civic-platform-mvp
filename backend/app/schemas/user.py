@@ -8,6 +8,30 @@ from app.schemas.common import CamelBase, TimestampSchema, UUIDSchema
 from app.schemas.community import CommunityMembershipSummary
 
 
+class ActivityItem(CamelBase):
+    """A single post or proposal comment in the user's activity history."""
+
+    item_type: str
+    id: uuid.UUID
+    body: str
+    created_at: datetime
+    is_removed: bool
+    thread_id: uuid.UUID
+    thread_title: str
+    thread_status: str
+    community_slug: str
+    community_name: str
+    proposal_id: uuid.UUID | None = None
+    proposal_title: str | None = None
+
+
+class MyHistoryOut(CamelBase):
+    items: list[ActivityItem]
+    total: int
+    limit: int
+    offset: int
+
+
 class CommunityActivityOut(CamelBase):
     """Per-community engagement summary for a user's account page."""
 

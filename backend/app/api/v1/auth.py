@@ -30,7 +30,7 @@ from app.models.thread import Thread
 from app.models.user import PlatformRole, User, UserTier
 from app.schemas.community import CommunityMembershipSummary
 from app.schemas.facilitator_request import FacilitatorRequestCreate, FacilitatorRequestOut
-from app.schemas.user import CommunityActivityOut, DisplayNameUpdate, MyActivityOut, UserCreate, UserMe, UserPublic
+from app.schemas.user import ActivityItem, CommunityActivityOut, DisplayNameUpdate, MyActivityOut, MyHistoryOut, UserCreate, UserMe, UserPublic
 
 router = APIRouter()
 
@@ -388,3 +388,83 @@ async def deactivate_account(user: RegisteredUser, db: DB) -> Response:
         actor_id=user.id,
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/me/history", response_model=MyHistoryOut)
+async def get_my_history(
+    user: RegisteredUser,
+    db: DB,
+    limit: int = 20,
+    offset: int = 0,
+) -> dict:
+    """Return a paginated chronological feed of the user's posts and proposal comments."""
+    limit = min(limit, 50)
+
+    # Fetch all user posts with thread + community context
+    posts_result = await db.execute(
+        select(
+            Post.id, Post.body, Post.created_at, Post.is_removed,
+            Thread.id, Thread.title, Thread.status,
+            Community.slug, Community.name,
+        )
+        .join(Thread, Thread.id == Post.thread_id)
+        .join(Community, Community.id == Thread.community_id)
+        .where(Post.author_id == user.id)
+    )
+    post_rows = posts_result.all()
+
+    # Fetch all user proposal comments with proposal + thread + community context
+    comments_result = await db.execute(
+        select(
+            ProposalComment.id, ProposalComment.body, ProposalComment.created_at, ProposalComment.is_removed,
+            Proposal.id, Proposal.title,
+            Thread.id, Thread.title, Thread.status,
+            Community.slug, Community.name,
+        )
+        .join(Proposal, Proposal.id == ProposalComment.proposal_id)
+        .join(Thread, Thread.id == Proposal.thread_id)
+        .join(Community, Community.id == Thread.community_id)
+        .where(ProposalComment.author_id == user.id)
+    )
+    comment_rows = comments_result.all()
+
+    items: list[ActivityItem] = []
+
+    for post_id, body, created_at, is_removed, thread_id, thread_title, thread_status, comm_slug, comm_name in post_rows:
+        items.append(ActivityItem(
+            item_type="post",
+            id=post_id,
+            body=body,
+            created_at=created_at,
+            is_removed=is_removed,
+            thread_id=thread_id,
+            thread_title=thread_title,
+            thread_status=thread_status.value if hasattr(thread_status, "value") else thread_status,
+            community_slug=comm_slug,
+            community_name=comm_name,
+        ))
+
+    for (comment_id, body, created_at, is_removed,
+         proposal_id, proposal_title,
+         thread_id, thread_title, thread_status,
+         comm_slug, comm_name) in comment_rows:
+        items.append(ActivityItem(
+            item_type="proposal_comment",
+            id=comment_id,
+            body=body,
+            created_at=created_at,
+            is_removed=is_removed,
+            thread_id=thread_id,
+            thread_title=thread_title,
+            thread_status=thread_status.value if hasattr(thread_status, "value") else thread_status,
+            community_slug=comm_slug,
+            community_name=comm_name,
+            proposal_id=proposal_id,
+            proposal_title=proposal_title,
+        ))
+
+    items.sort(key=lambda x: x.created_at, reverse=True)
+    total = len(items)
+    page = items[offset: offset + limit]
+
+    return {"items": page, "total": total, "limit": limit, "offset": offset}

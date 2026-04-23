@@ -284,6 +284,10 @@ async function getMyActivity() {
   return apiFetch("/auth/me/activity");
 }
 
+async function getMyHistory({ limit = 20, offset = 0 } = {}) {
+  return apiFetch(`/auth/me/history?limit=${limit}&offset=${offset}`);
+}
+
 async function requestPasswordReset() {
   return apiFetch("/auth/me/password-reset", { method: "POST" });
 }
