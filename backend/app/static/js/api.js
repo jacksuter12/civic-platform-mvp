@@ -449,3 +449,10 @@ async function updateCommunity(slug, data) {
     body: JSON.stringify(data),
   });
 }
+
+async function addCommunityMember(slug, email, tier = "registered") {
+  return apiFetch(`/communities/${encodeURIComponent(slug)}/members`, {
+    method: "POST",
+    body: JSON.stringify({ email, tier }),
+  });
+}

@@ -315,8 +315,42 @@
       container.innerHTML = `
         <div class="detail-section">
           <div class="section-heading">Members (${members.length})</div>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:16px;">
+            <input id="add-member-email" type="email" placeholder="User email address"
+              style="flex:1; min-width:200px; padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px;">
+            <select id="add-member-tier" style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px;">
+              <option value="registered">Registered</option>
+              <option value="facilitator">Facilitator</option>
+            </select>
+            <button class="btn-approve" id="add-member-btn" onclick="handleAddMember()">Add Member</button>
+            <span id="add-member-feedback" style="font-size:13px;"></span>
+          </div>
           ${rows}
         </div>`;
+    }
+
+    async function handleAddMember() {
+      const email = document.getElementById("add-member-email").value.trim();
+      const tier  = document.getElementById("add-member-tier").value;
+      const btn   = document.getElementById("add-member-btn");
+      const fb    = document.getElementById("add-member-feedback");
+      if (!email) { fb.textContent = "Enter an email address."; fb.style.color = "#c62828"; return; }
+      btn.disabled = true;
+      btn.textContent = "Adding…";
+      fb.textContent = "";
+      try {
+        const member = await addCommunityMember(communitySlug, email, tier);
+        fb.textContent = `${member.display_name} added as ${member.tier}.`;
+        fb.style.color = "#2e7d32";
+        document.getElementById("add-member-email").value = "";
+        loadMembers();
+      } catch (err) {
+        fb.textContent = err.message;
+        fb.style.color = "#c62828";
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Add Member";
+      }
     }
 
     init();

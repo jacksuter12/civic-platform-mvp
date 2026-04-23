@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import (
     DB,
     CurrentUser,
+    CommunityAdminUser,
     OptionalUser,
     PlatformAdminUser,
     get_community,
@@ -31,7 +32,7 @@ from app.models.community_membership import CommunityMembership
 from app.models.thread import Thread, ThreadStatus
 from app.models.user import PlatformRole, User, UserTier
 from app.schemas.audit import AuditLogEntry, AuditLogPage
-from app.schemas.community import CommunityCreate, CommunityMemberRead, CommunityRead, CommunityUpdate
+from app.schemas.community import CommunityCreate, CommunityMemberAdd, CommunityMemberRead, CommunityRead, CommunityUpdate
 
 router = APIRouter()
 
@@ -303,6 +304,74 @@ async def join_community(
     )
 
     return await _build_community_read(community, db)
+
+
+# ---------------------------------------------------------------------------
+# POST /communities/{slug}/members — admin add member
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{slug}/members", response_model=CommunityMemberRead, status_code=status.HTTP_201_CREATED)
+async def admin_add_member(
+    payload: CommunityMemberAdd,
+    community: Annotated[Community, Depends(get_community)],
+    admin: CommunityAdminUser,
+    db: DB,
+) -> CommunityMemberRead:
+    """
+    Admin adds a user to a community by email. Community facilitator/admin or platform admin only.
+    Creates the membership if it doesn't exist, or updates the tier if it does.
+    """
+    result = await db.execute(select(User).where(User.email == payload.email))
+    target_user = result.scalar_one_or_none()
+    if target_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No user found with that email address.",
+        )
+
+    existing = await db.execute(
+        select(CommunityMembership).where(
+            CommunityMembership.community_id == community.id,
+            CommunityMembership.user_id == target_user.id,
+        )
+    )
+    membership = existing.scalar_one_or_none()
+
+    if membership is None:
+        membership = CommunityMembership(
+            community_id=community.id,
+            user_id=target_user.id,
+            tier=payload.tier,
+            joined_at=datetime.now(UTC),
+        )
+        db.add(membership)
+        await db.flush()
+        await log_event(
+            db,
+            event_type=AuditEventType.COMMUNITY_MEMBER_JOINED,
+            target_type="community_membership",
+            target_id=membership.id,
+            payload={"tier": payload.tier.value, "added_by_admin": True},
+            actor_id=admin.id,
+            community_id=community.id,
+        )
+    else:
+        membership.tier = payload.tier
+        membership.is_active = True
+        db.add(membership)
+        await db.flush()
+        await log_event(
+            db,
+            event_type=AuditEventType.COMMUNITY_MEMBER_PROMOTED,
+            target_type="community_membership",
+            target_id=membership.id,
+            payload={"new_tier": payload.tier.value, "promoted_by_admin": True},
+            actor_id=admin.id,
+            community_id=community.id,
+        )
+
+    return CommunityMemberRead(display_name=target_user.display_name, tier=payload.tier)
 
 
 # ---------------------------------------------------------------------------

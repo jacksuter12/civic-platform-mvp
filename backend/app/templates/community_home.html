@@ -260,7 +260,15 @@
         }
       }
 
-      const ctasHtml = startBtn + joinBtn
+      const user = auth.getUser();
+      const isPlatformAdmin = user?.is_platform_admin === true;
+      const isCommunityAdmin = myMembership &&
+        (myMembership.tier === "facilitator" || myMembership.tier === "admin");
+      const manageBtn = (isPlatformAdmin || isCommunityAdmin)
+        ? `<a href="/c/${esc(communitySlug)}/admin" class="btn-outline">Manage Community</a>`
+        : "";
+
+      const ctasHtml = startBtn + joinBtn + manageBtn
         + `<a href="/c/${esc(communitySlug)}/audit" class="btn-outline">View Audit Log</a>`
         + `<a href="/c/${esc(communitySlug)}/members" class="btn-outline">Members (${community.member_count})</a>`;
 

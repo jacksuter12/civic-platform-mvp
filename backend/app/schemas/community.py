@@ -1,6 +1,6 @@
 import uuid
 
-from pydantic import Field
+from pydantic import EmailStr, Field
 
 from app.models.community import CommunityType
 from app.models.user import UserTier
@@ -41,6 +41,13 @@ class CommunityRead(UUIDSchema, TimestampSchema):
     is_active: bool
     member_count: int = 0
     active_thread_count: int = 0
+
+
+class CommunityMemberAdd(CamelBase):
+    """Admin-only: add a user to a community by email."""
+
+    email: EmailStr
+    tier: UserTier = UserTier.REGISTERED
 
 
 class CommunityMemberRead(CamelBase):
