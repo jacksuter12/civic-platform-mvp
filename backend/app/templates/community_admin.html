@@ -59,6 +59,25 @@
     .tier-facilitator { background: #e3f2fd; color: #1565c0; }
     .tier-participant { background: #e8f5e9; color: #2e7d32; }
     .tier-registered  { background: #f5f5f5; color: #555; }
+    .add-member-wrap  { position: relative; flex: 1; min-width: 200px; }
+    .add-member-input {
+      width: 100%; padding: 7px 10px; border: 1px solid #ddd;
+      border-radius: 5px; font-size: 13px; box-sizing: border-box;
+    }
+    .add-member-input:focus { outline: none; border-color: #2a5c9a; }
+    .user-dropdown {
+      display: none; position: absolute; top: calc(100% + 2px); left: 0; right: 0;
+      background: #fff; border: 1px solid #ddd; border-radius: 5px;
+      max-height: 220px; overflow-y: auto; z-index: 200;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .user-dropdown-option {
+      padding: 8px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f5f5f5;
+    }
+    .user-dropdown-option:last-child { border-bottom: none; }
+    .user-dropdown-option:hover { background: #f0f5ff; }
+    .user-dd-name  { font-weight: 600; color: #1a1a1a; }
+    .user-dd-email { font-size: 11px; color: #888; margin-left: 6px; }
   </style>
 </head>
 <body>
@@ -316,8 +335,15 @@
         <div class="detail-section">
           <div class="section-heading">Members (${members.length})</div>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:16px;">
-            <input id="add-member-email" type="email" placeholder="User email address"
-              style="flex:1; min-width:200px; padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px;">
+            <div class="add-member-wrap">
+              <input id="add-member-input" class="add-member-input"
+                type="text" placeholder="Search by name or email…"
+                oninput="onMemberSearch(this.value)"
+                onblur="setTimeout(closeUserDropdown, 180)"
+                autocomplete="off">
+              <div id="user-dropdown" class="user-dropdown"></div>
+              <input type="hidden" id="add-member-email">
+            </div>
             <select id="add-member-tier" style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px;">
               <option value="registered">Registered</option>
               <option value="facilitator">Facilitator</option>
@@ -329,12 +355,58 @@
         </div>`;
     }
 
+    // ---- Autocomplete ----
+    let _searchTimer = null;
+    let _selectedEmail = null;
+
+    function onMemberSearch(value) {
+      clearTimeout(_searchTimer);
+      _selectedEmail = null;
+      document.getElementById("add-member-email").value = "";
+      if (value.length < 2) { closeUserDropdown(); return; }
+      _searchTimer = setTimeout(() => fetchUserSuggestions(value), 250);
+    }
+
+    async function fetchUserSuggestions(query) {
+      try {
+        const users = await listUsers({ search: query, limit: 10 });
+        renderUserDropdown(users);
+      } catch (_) {
+        closeUserDropdown(); // 403 for non-platform-admins — silent fallback
+      }
+    }
+
+    function renderUserDropdown(users) {
+      const dd = document.getElementById("user-dropdown");
+      if (!users.length) { closeUserDropdown(); return; }
+      dd.innerHTML = users.map(u => `
+        <div class="user-dropdown-option"
+             onmousedown="selectUser(${JSON.stringify({ email: u.email, display_name: u.display_name })})">
+          <span class="user-dd-name">${esc(u.display_name)}</span>
+          <span class="user-dd-email">${esc(u.email)}</span>
+        </div>`).join("");
+      dd.style.display = "block";
+    }
+
+    function selectUser(user) {
+      _selectedEmail = user.email;
+      document.getElementById("add-member-input").value = `${user.display_name} (${user.email})`;
+      document.getElementById("add-member-email").value = user.email;
+      closeUserDropdown();
+    }
+
+    function closeUserDropdown() {
+      const dd = document.getElementById("user-dropdown");
+      if (dd) dd.style.display = "none";
+    }
+
+    // ---- Submit ----
     async function handleAddMember() {
-      const email = document.getElementById("add-member-email").value.trim();
+      const email = _selectedEmail || document.getElementById("add-member-input").value.trim();
       const tier  = document.getElementById("add-member-tier").value;
       const btn   = document.getElementById("add-member-btn");
       const fb    = document.getElementById("add-member-feedback");
-      if (!email) { fb.textContent = "Enter an email address."; fb.style.color = "#c62828"; return; }
+      if (!email) { fb.textContent = "Search for a user first."; fb.style.color = "#c62828"; return; }
       btn.disabled = true;
       btn.textContent = "Adding…";
       fb.textContent = "";
@@ -342,7 +414,9 @@
         const member = await addCommunityMember(communitySlug, email, tier);
         fb.textContent = `${member.display_name} added as ${member.tier}.`;
         fb.style.color = "#2e7d32";
+        document.getElementById("add-member-input").value = "";
         document.getElementById("add-member-email").value = "";
+        _selectedEmail = null;
         loadMembers();
       } catch (err) {
         fb.textContent = err.message;

@@ -31,6 +31,32 @@
     .tier-participant { background: #e8f5e9; color: #2e7d32; }
     .tier-registered  { background: #f5f5f5; color: #555; }
     .members-count    { font-size: 13px; color: #888; margin-bottom: 16px; }
+    .add-member-wrap  { position: relative; flex: 1; min-width: 200px; }
+    .add-member-input {
+      width: 100%; padding: 7px 10px; border: 1px solid #ddd;
+      border-radius: 5px; font-size: 13px; box-sizing: border-box;
+    }
+    .add-member-input:focus { outline: none; border-color: #2a5c9a; }
+    .user-dropdown {
+      display: none; position: absolute; top: calc(100% + 2px); left: 0; right: 0;
+      background: #fff; border: 1px solid #ddd; border-radius: 5px;
+      max-height: 220px; overflow-y: auto; z-index: 200;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .user-dropdown-option {
+      padding: 8px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f5f5f5;
+    }
+    .user-dropdown-option:last-child { border-bottom: none; }
+    .user-dropdown-option:hover { background: #f0f5ff; }
+    .user-dd-name  { font-weight: 600; color: #1a1a1a; }
+    .user-dd-email { font-size: 11px; color: #888; margin-left: 6px; }
+    .btn-approve {
+      padding: 7px 16px; background: #2e7d32; color: #fff;
+      border: none; border-radius: 6px; font-size: 13px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+    }
+    .btn-approve:hover:not(:disabled) { background: #1b5e20; }
+    .btn-approve:disabled { opacity: 0.5; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -65,9 +91,11 @@
       return { admin: "tier-admin", facilitator: "tier-facilitator", participant: "tier-participant", registered: "tier-registered" }[tier] || "tier-registered";
     }
 
-    function renderMembers(community, members) {
-      document.title = `Members — ${community.name}`;
+    let _isAdmin = false;
+    let _searchTimer = null;
+    let _selectedEmail = null;
 
+    function renderMembers(members) {
       const rows = members.length === 0
         ? `<div class="empty-state">No members yet.</div>`
         : members.map(m => `
@@ -76,14 +104,93 @@
             <span class="tier-badge ${tierClass(m.tier)}">${esc(m.tier)}</span>
           </div>`).join("");
 
-      document.getElementById("page-content").innerHTML = `
-        <div style="margin-bottom:16px;">
-          <a href="/c/${esc(communitySlug)}" style="font-size:13px; color:#1565c0; text-decoration:none;">← ${esc(community.name)}</a>
-        </div>
-        <h1 class="page-title">Members</h1>
-        <p class="members-count">${members.length} member${members.length !== 1 ? "s" : ""}</p>
-        <div class="detail-section">${rows}</div>
-      `;
+      const addForm = _isAdmin ? `
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:20px;">
+          <div class="add-member-wrap">
+            <input id="add-member-input" class="add-member-input"
+              type="text" placeholder="Search by name or email…"
+              oninput="onMemberSearch(this.value)"
+              onblur="setTimeout(closeUserDropdown, 180)"
+              autocomplete="off">
+            <div id="user-dropdown" class="user-dropdown"></div>
+            <input type="hidden" id="add-member-email">
+          </div>
+          <select id="add-member-tier" style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px;">
+            <option value="registered">Registered</option>
+            <option value="facilitator">Facilitator</option>
+          </select>
+          <button class="btn-approve" id="add-member-btn" onclick="handleAddMember()">Add Member</button>
+          <span id="add-member-feedback" style="font-size:13px;"></span>
+        </div>` : "";
+
+      document.getElementById("member-list").innerHTML = addForm + rows;
+      document.getElementById("members-count").textContent =
+        `${members.length} member${members.length !== 1 ? "s" : ""}`;
+    }
+
+    // ---- Autocomplete ----
+    function onMemberSearch(value) {
+      clearTimeout(_searchTimer);
+      _selectedEmail = null;
+      document.getElementById("add-member-email").value = "";
+      if (value.length < 2) { closeUserDropdown(); return; }
+      _searchTimer = setTimeout(() => fetchUserSuggestions(value), 250);
+    }
+
+    async function fetchUserSuggestions(query) {
+      try {
+        const users = await listUsers({ search: query, limit: 10 });
+        renderUserDropdown(users);
+      } catch (_) { closeUserDropdown(); }
+    }
+
+    function renderUserDropdown(users) {
+      const dd = document.getElementById("user-dropdown");
+      if (!dd || !users.length) { closeUserDropdown(); return; }
+      dd.innerHTML = users.map(u => `
+        <div class="user-dropdown-option"
+             onmousedown="selectUser(${JSON.stringify({ email: u.email, display_name: u.display_name })})">
+          <span class="user-dd-name">${esc(u.display_name)}</span>
+          <span class="user-dd-email">${esc(u.email)}</span>
+        </div>`).join("");
+      dd.style.display = "block";
+    }
+
+    function selectUser(user) {
+      _selectedEmail = user.email;
+      document.getElementById("add-member-input").value = `${user.display_name} (${user.email})`;
+      document.getElementById("add-member-email").value = user.email;
+      closeUserDropdown();
+    }
+
+    function closeUserDropdown() {
+      const dd = document.getElementById("user-dropdown");
+      if (dd) dd.style.display = "none";
+    }
+
+    // ---- Submit ----
+    async function handleAddMember() {
+      const email = _selectedEmail || document.getElementById("add-member-input").value.trim();
+      const tier  = document.getElementById("add-member-tier").value;
+      const btn   = document.getElementById("add-member-btn");
+      const fb    = document.getElementById("add-member-feedback");
+      if (!email) { fb.textContent = "Search for a user first."; fb.style.color = "#c62828"; return; }
+      btn.disabled = true; btn.textContent = "Adding…"; fb.textContent = "";
+      try {
+        const member = await addCommunityMember(communitySlug, email, tier);
+        fb.textContent = `${member.display_name} added as ${member.tier}.`;
+        fb.style.color = "#2e7d32";
+        document.getElementById("add-member-input").value = "";
+        document.getElementById("add-member-email").value = "";
+        _selectedEmail = null;
+        const members = await getCommunityMembers(communitySlug);
+        renderMembers(members);
+      } catch (err) {
+        fb.textContent = err.message;
+        fb.style.color = "#c62828";
+      } finally {
+        btn.disabled = false; btn.textContent = "Add Member";
+      }
     }
 
     async function init() {
@@ -96,7 +203,24 @@
           getCommunity(communitySlug),
           getCommunityMembers(communitySlug),
         ]);
-        renderMembers(community, members);
+        document.title = `Members — ${community.name}`;
+
+        const user = auth.getUser();
+        const memberships = user?.communityMemberships || user?.community_memberships || [];
+        const myMembership = memberships.find(m =>
+          (m.communitySlug || m.community_slug) === communitySlug);
+        _isAdmin = user?.is_platform_admin === true ||
+          (myMembership && (myMembership.tier === "facilitator" || myMembership.tier === "admin"));
+
+        document.getElementById("page-content").innerHTML = `
+          <div style="margin-bottom:16px;">
+            <a href="/c/${esc(communitySlug)}" style="font-size:13px; color:#1565c0; text-decoration:none;">← ${esc(community.name)}</a>
+          </div>
+          <h1 class="page-title">Members</h1>
+          <p class="members-count" id="members-count"></p>
+          <div class="detail-section" id="member-list"></div>
+        `;
+        renderMembers(members);
       } catch (err) {
         document.getElementById("page-content").innerHTML =
           `<div class="error-message">Could not load members: ${esc(err.message)}</div>`;
