@@ -34,16 +34,6 @@ const S = {
 // Pure utilities
 // ===================================================================
 
-function esc(str) {
-  if (!str) return "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
 function sigKey(type, id) { return `${type}:${id}`; }
 
 function getSig(type, id) {
