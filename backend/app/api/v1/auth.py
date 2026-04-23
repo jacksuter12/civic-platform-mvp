@@ -20,7 +20,7 @@ from app.models.audit import AuditEventType, AuditLog
 from app.models.community import Community
 from app.models.community_membership import CommunityMembership
 from app.models.facilitator_request import FacilitatorRequest, FacilitatorRequestStatus
-from app.models.user import User, UserTier
+from app.models.user import PlatformRole, User, UserTier
 from app.schemas.community import CommunityMembershipSummary
 from app.schemas.facilitator_request import FacilitatorRequestCreate, FacilitatorRequestOut
 from app.schemas.user import DisplayNameUpdate, UserCreate, UserMe, UserPublic
@@ -68,6 +68,7 @@ async def register(payload: UserCreate, db: DB) -> dict:
         "identity_verified_at": user.identity_verified_at,
         "email": user.email,
         "is_annotator": user.is_annotator,
+        "is_platform_admin": user.platform_role == PlatformRole.PLATFORM_ADMIN,
         "display_name_changes_this_month": 0,
         "display_name_changes_remaining": 3,
         "community_memberships": [],
@@ -124,6 +125,7 @@ async def me(user: RegisteredUser, db: DB) -> dict:
         "identity_verified_at": user.identity_verified_at,
         "email": user.email,
         "is_annotator": user.is_annotator,
+        "is_platform_admin": user.platform_role == PlatformRole.PLATFORM_ADMIN,
         "display_name_changes_this_month": changes,
         "display_name_changes_remaining": max(0, DISPLAY_NAME_CHANGE_LIMIT - changes),
         "community_memberships": memberships,
@@ -165,6 +167,7 @@ async def update_me(payload: DisplayNameUpdate, user: RegisteredUser, db: DB) ->
         "identity_verified_at": user.identity_verified_at,
         "email": user.email,
         "is_annotator": user.is_annotator,
+        "is_platform_admin": user.platform_role == PlatformRole.PLATFORM_ADMIN,
         "display_name_changes_this_month": new_changes,
         "display_name_changes_remaining": max(0, DISPLAY_NAME_CHANGE_LIMIT - new_changes),
         "community_memberships": memberships,

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Communities — Civic Platform</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/nav.js"></script>
+  <style>
+    .communities-page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+
+    /* ---- Page header ---- */
+    .communities-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .communities-title {
+      font-size: 26px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin: 0;
+    }
+    .communities-subtitle {
+      font-size: 14px;
+      color: #666;
+      margin: 4px 0 0;
+    }
+    .btn-create-community {
+      display: inline-block;
+      padding: 9px 18px;
+      background: #2a5c9a;
+      color: #fff;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .btn-create-community:hover { background: #1e4678; color: #fff; text-decoration: none; }
+    .btn-request-community {
+      display: inline-block;
+      padding: 9px 18px;
+      background: #fff;
+      color: #2a5c9a;
+      border: 1.5px solid #2a5c9a;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn-request-community:hover { background: #f0f5ff; color: #1e4678; text-decoration: none; }
+
+    /* ---- Toolbar ---- */
+    .communities-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+    .communities-search {
+      flex: 1;
+      min-width: 200px;
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+    }
+    .communities-search:focus { border-color: #2a5c9a; }
+    .communities-filter {
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+      background: #fff;
+      cursor: pointer;
+      outline: none;
+    }
+    .communities-filter:focus { border-color: #2a5c9a; }
+    .communities-results-count {
+      font-size: 13px;
+      color: #888;
+      padding: 4px 0;
+      white-space: nowrap;
+    }
+
+    /* ---- Community cards grid ---- */
+    .communities-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+    }
+    .community-card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 20px 22px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: box-shadow 0.15s, border-color 0.15s;
+    }
+    .community-card:hover {
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+      border-color: #b0c4de;
+    }
+
+    /* Card header */
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .card-name {
+      font-size: 17px;
+      font-weight: 700;
+      color: #1a1a1a;
+      text-decoration: none;
+      line-height: 1.25;
+    }
+    .card-name:hover { color: #2a5c9a; text-decoration: none; }
+
+    /* Type badge */
+    .type-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: capitalize;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .type-geographic    { background: #e8f4e8; color: #2e7d32; }
+    .type-organizational { background: #e3f2fd; color: #1565c0; }
+    .type-institutional { background: #f3e5f5; color: #6a1b9a; }
+    .type-topical       { background: #fff8e1; color: #f57f17; }
+    .type-technical     { background: #fce4ec; color: #880e4f; }
+
+    /* Description */
+    .card-description {
+      font-size: 13px;
+      color: #444;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    /* Stats row */
+    .card-stats {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: #666;
+    }
+    .card-stat { display: flex; align-items: center; gap: 4px; }
+    .card-stat-num { font-weight: 600; color: #333; }
+
+    /* Visibility badges */
+    .card-badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .vis-badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .vis-public   { background: #e8f5e9; color: #388e3c; }
+    .vis-private  { background: #f5f5f5; color: #757575; }
+    .vis-invite   { background: #fff3e0; color: #e65100; }
+
+    /* View button */
+    .card-footer {
+      margin-top: 4px;
+    }
+    .btn-view-community {
+      display: inline-block;
+      padding: 7px 16px;
+      background: #f0f4fa;
+      color: #2a5c9a;
+      border-radius: 5px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .btn-view-community:hover { background: #dce8f7; text-decoration: none; }
+
+    /* Empty / loading states */
+    .communities-empty {
+      text-align: center;
+      padding: 60px 24px;
+      color: #888;
+      font-size: 15px;
+      grid-column: 1 / -1;
+    }
+    .communities-loading {
+      text-align: center;
+      padding: 60px 24px;
+      color: #aaa;
+      font-size: 15px;
+    }
+
+    @media (max-width: 600px) {
+      .communities-grid { grid-template-columns: 1fr; }
+      .communities-header { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="nav-placeholder"></div>
+
+<div class="communities-page">
+  <div class="communities-header">
+    <div>
+      <h1 class="communities-title">Communities</h1>
+      <p class="communities-subtitle">Deliberative spaces for residents, organizations, and groups.</p>
+    </div>
+    <div id="create-cta"></div>
+  </div>
+
+  <div class="communities-toolbar">
+    <input
+      id="search-input"
+      class="communities-search"
+      type="search"
+      placeholder="Search communities…"
+      aria-label="Search communities"
+    >
+    <select id="type-filter" class="communities-filter" aria-label="Filter by type">
+      <option value="">All types</option>
+    </select>
+    <span class="communities-results-count" id="results-count"></span>
+  </div>
+
+  <div id="communities-container">
+    <div class="communities-loading">Loading communities…</div>
+  </div>
+</div>
+
+<script src="/static/js/api.js"></script>
+<script src="/static/js/utils.js"></script>
+<script>
+  // ===== CTA button =====
+
+  function renderCta() {
+    const el = document.getElementById("create-cta");
+    const user = auth.getUser();
+    if (!auth.isSignedIn()) {
+      el.innerHTML = `<a href="/signin" class="btn-create-community">Create a Community</a>`;
+    } else if (user && user.is_platform_admin) {
+      el.innerHTML = `<a href="/admin" class="btn-create-community">+ Create a Community</a>`;
+    } else {
+      el.innerHTML = `
+        <a href="/how-it-works"
+           class="btn-request-community"
+           title="Community creation is currently managed by platform admins. Visit the How It Works page to learn more or get in touch.">
+          Request a Community
+        </a>`;
+    }
+  }
+
+  // ===== Card rendering =====
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function truncate(str, max) {
+    if (!str || str.length <= max) return str || "";
+    return str.slice(0, max).trimEnd() + "…";
+  }
+
+  function typeBadge(communityType) {
+    const label = communityType.charAt(0).toUpperCase() + communityType.slice(1);
+    return `<span class="type-badge type-${escapeHtml(communityType)}">${escapeHtml(label)}</span>`;
+  }
+
+  function renderCard(c) {
+    const visPublic = c.is_public
+      ? `<span class="vis-badge vis-public">Public</span>`
+      : `<span class="vis-badge vis-private">Private</span>`;
+    const visInvite = c.is_invite_only
+      ? `<span class="vis-badge vis-invite">Invite-only</span>`
+      : "";
+
+    return `
+      <div class="community-card">
+        <div class="card-header">
+          <a href="/c/${escapeHtml(c.slug)}" class="card-name">${escapeHtml(c.name)}</a>
+          ${typeBadge(c.community_type)}
+        </div>
+        <p class="card-description">${escapeHtml(truncate(c.description, 160))}</p>
+        <div class="card-stats">
+          <span class="card-stat">
+            <span class="card-stat-num">${c.member_count}</span> member${c.member_count === 1 ? "" : "s"}
+          </span>
+          <span class="card-stat">
+            <span class="card-stat-num">${c.active_thread_count}</span> active discussion${c.active_thread_count === 1 ? "" : "s"}
+          </span>
+        </div>
+        <div class="card-badges">
+          ${visPublic}${visInvite}
+        </div>
+        <div class="card-footer">
+          <a href="/c/${escapeHtml(c.slug)}" class="btn-view-community">View Community →</a>
+        </div>
+      </div>`;
+  }
+
+  // ===== Filter logic =====
+
+  let allCommunities = [];
+
+  function getFiltered() {
+    const query = document.getElementById("search-input").value.toLowerCase().trim();
+    const typeVal = document.getElementById("type-filter").value;
+    return allCommunities.filter(c => {
+      const matchesQuery = !query ||
+        c.name.toLowerCase().includes(query) ||
+        c.description.toLowerCase().includes(query);
+      const matchesType = !typeVal || c.community_type === typeVal;
+      return matchesQuery && matchesType;
+    });
+  }
+
+  function renderList() {
+    const container = document.getElementById("communities-container");
+    const filtered = getFiltered();
+    document.getElementById("results-count").textContent =
+      filtered.length === allCommunities.length
+        ? `${allCommunities.length} communit${allCommunities.length === 1 ? "y" : "ies"}`
+        : `${filtered.length} of ${allCommunities.length}`;
+
+    if (filtered.length === 0) {
+      container.innerHTML = `<div class="communities-grid"><div class="communities-empty">No communities match your search.</div></div>`;
+      return;
+    }
+    container.innerHTML = `<div class="communities-grid">${filtered.map(renderCard).join("")}</div>`;
+  }
+
+  function populateTypeFilter(communities) {
+    const types = [...new Set(communities.map(c => c.community_type))].sort();
+    const select = document.getElementById("type-filter");
+    types.forEach(t => {
+      const opt = document.createElement("option");
+      opt.value = t;
+      opt.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+      select.appendChild(opt);
+    });
+  }
+
+  // ===== Main load =====
+
+  async function loadCommunities() {
+    const container = document.getElementById("communities-container");
+    try {
+      allCommunities = await listCommunities();
+
+      if (allCommunities.length === 0) {
+        container.innerHTML = `<div class="communities-grid"><div class="communities-empty">No communities yet.</div></div>`;
+        return;
+      }
+
+      populateTypeFilter(allCommunities);
+      renderList();
+
+      document.getElementById("search-input").addEventListener("input", renderList);
+      document.getElementById("type-filter").addEventListener("change", renderList);
+
+    } catch (err) {
+      container.innerHTML = `<div class="communities-empty">Could not load communities: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  renderCta();
+  loadCommunities();
+</script>
+
+</body>
+</html>

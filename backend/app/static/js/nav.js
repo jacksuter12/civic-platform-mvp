@@ -8,7 +8,7 @@
     { label: "Home",         href: "/" },
     { label: "How It Works", href: "/how-it-works" },
     { label: "Quiz",         href: "/quiz" },
-    { label: "Platform",     href: "/c/test/threads" },
+    { label: "Communities",  href: "/communities" },
     { label: "Wiki",         href: "/wiki" },
     { label: "Audit Log",    href: "/audit" },
   ];

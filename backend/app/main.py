@@ -329,6 +329,11 @@ async def audit_page() -> FileResponse:
     return FileResponse("app/templates/audit.html")
 
 
+@app.get("/communities")
+async def communities_page() -> FileResponse:
+    return FileResponse("app/templates/communities.html")
+
+
 # ---------------------------------------------------------------------------
 # Legacy redirects — old flat URLs forward to community-scoped equivalents
 # ---------------------------------------------------------------------------

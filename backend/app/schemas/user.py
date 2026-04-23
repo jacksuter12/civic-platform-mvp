@@ -39,6 +39,7 @@ class UserMe(UserPublic):
     display_name_changes_this_month: int = 0
     display_name_changes_remaining: int = 3
     is_annotator: bool = False
+    is_platform_admin: bool = False
     community_memberships: list[CommunityMembershipSummary] = []
 
 
