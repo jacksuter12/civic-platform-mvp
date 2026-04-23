@@ -442,3 +442,10 @@ async function createCommunity(data) {
     body: JSON.stringify(data),
   });
 }
+
+async function updateCommunity(slug, data) {
+  return apiFetch(`/communities/${encodeURIComponent(slug)}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}

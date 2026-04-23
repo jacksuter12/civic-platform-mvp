@@ -54,6 +54,7 @@ class AuditEventType(str, PyEnum):
     USER_ANNOTATOR_REVOKED = "user_annotator_revoked"
     # Community
     COMMUNITY_CREATED = "community_created"
+    COMMUNITY_UPDATED = "community_updated"
     COMMUNITY_MEMBER_JOINED = "community_member_joined"
     COMMUNITY_MEMBER_PROMOTED = "community_member_promoted"
     # LLM (future)

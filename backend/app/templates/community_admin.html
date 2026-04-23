@@ -114,7 +114,7 @@
       // Check community membership tier
       const memberships = user?.communityMemberships || user?.community_memberships || [];
       const myMembership = memberships.find(m => (m.communitySlug || m.community_slug) === communitySlug);
-      const isPlatformAdmin = user?.tier === "admin";
+      const isPlatformAdmin = user?.is_platform_admin === true;
       const isCommunityAdmin = myMembership && (myMembership.tier === "facilitator" || myMembership.tier === "admin");
 
       if (!isPlatformAdmin && !isCommunityAdmin) {
@@ -127,10 +127,12 @@
           <a href="/c/${esc(communitySlug)}" style="font-size:13px; color:#1565c0; text-decoration:none;">← Community Home</a>
         </div>
         <h1 class="page-title">Community Admin</h1>
+        ${isPlatformAdmin ? `<div id="settings-section" style="margin-bottom:48px;"><div class="loading">Loading settings…</div></div>` : ""}
         <div id="requests-section"><div class="loading">Loading requests…</div></div>
         <div id="members-section" style="margin-top: 48px;"><div class="loading">Loading members…</div></div>
       `;
 
+      if (isPlatformAdmin) loadSettings();
       loadRequests();
       loadMembers();
     }
@@ -202,6 +204,92 @@
       } catch (err) {
         row.querySelectorAll("button").forEach(b => b.disabled = false);
         alert(`Error: ${err.message}`);
+      }
+    }
+
+    async function loadSettings() {
+      const section = document.getElementById("settings-section");
+      try {
+        const community = await getCommunity(communitySlug);
+        renderSettings(section, community);
+      } catch (err) {
+        section.innerHTML = `<div class="error-message">Could not load settings: ${esc(err.message)}</div>`;
+      }
+    }
+
+    function renderSettings(container, c) {
+      const typeOptions = ["geographic","organizational","institutional","topical","technical"]
+        .map(t => `<option value="${t}"${c.community_type === t ? " selected" : ""}>${t.charAt(0).toUpperCase()+t.slice(1)}</option>`)
+        .join("");
+
+      container.innerHTML = `
+        <div class="detail-section">
+          <div class="section-heading">Community Settings</div>
+          <div style="display:grid; gap:12px; margin-top:12px;">
+            <div>
+              <label style="font-size:13px; font-weight:600; display:block; margin-bottom:3px;">Name</label>
+              <input id="s-name" type="text" value="${esc(c.name)}" style="width:100%; padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px; box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="font-size:13px; font-weight:600; display:block; margin-bottom:3px;">Description</label>
+              <textarea id="s-description" rows="3" style="width:100%; padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px; box-sizing:border-box; resize:vertical;">${esc(c.description)}</textarea>
+            </div>
+            <div>
+              <label style="font-size:13px; font-weight:600; display:block; margin-bottom:3px;">Type</label>
+              <select id="s-type" style="width:100%; padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px;">${typeOptions}</select>
+            </div>
+            <div>
+              <label style="font-size:13px; font-weight:600; display:block; margin-bottom:3px;">Boundary description</label>
+              <input id="s-boundary" type="text" value="${esc(c.boundary_desc)}" style="width:100%; padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px; box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="font-size:13px; font-weight:600; display:block; margin-bottom:3px;">Verification method</label>
+              <input id="s-verification" type="text" value="${esc(c.verification_method)}" style="width:100%; padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px; box-sizing:border-box;">
+            </div>
+            <div style="display:flex; gap:20px; flex-wrap:wrap;">
+              <label style="font-size:13px; display:flex; align-items:center; gap:6px; cursor:pointer;" title="Community is listed publicly and threads are visible without login">
+                <input type="checkbox" id="s-public" ${c.is_public ? "checked" : ""}> Public (visible to all)
+              </label>
+              <label style="font-size:13px; display:flex; align-items:center; gap:6px; cursor:pointer;" title="Users cannot self-join; membership requires admin invitation">
+                <input type="checkbox" id="s-invite-only" ${c.is_invite_only ? "checked" : ""}> Invite-only (no self-join)
+              </label>
+            </div>
+          </div>
+          <div style="margin-top:14px; display:flex; gap:8px; align-items:center;">
+            <button class="btn-approve" id="save-settings-btn" onclick="saveSettings()">Save Changes</button>
+            <span id="settings-feedback" style="font-size:13px;"></span>
+          </div>
+        </div>`;
+    }
+
+    async function saveSettings() {
+      const btn = document.getElementById("save-settings-btn");
+      const fb  = document.getElementById("settings-feedback");
+      btn.disabled = true;
+      btn.textContent = "Saving…";
+      fb.textContent = "";
+      fb.style.color = "";
+
+      const data = {
+        name:                document.getElementById("s-name").value.trim(),
+        description:         document.getElementById("s-description").value.trim(),
+        community_type:      document.getElementById("s-type").value,
+        boundary_desc:       document.getElementById("s-boundary").value.trim(),
+        verification_method: document.getElementById("s-verification").value.trim(),
+        is_public:           document.getElementById("s-public").checked,
+        is_invite_only:      document.getElementById("s-invite-only").checked,
+      };
+
+      try {
+        await updateCommunity(communitySlug, data);
+        fb.textContent = "Saved.";
+        fb.style.color = "#2e7d32";
+      } catch (err) {
+        fb.textContent = err.message;
+        fb.style.color = "#c62828";
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Save Changes";
       }
     }
 

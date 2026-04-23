@@ -31,7 +31,7 @@ from app.models.community_membership import CommunityMembership
 from app.models.thread import Thread, ThreadStatus
 from app.models.user import PlatformRole, User, UserTier
 from app.schemas.audit import AuditLogEntry, AuditLogPage
-from app.schemas.community import CommunityCreate, CommunityMemberRead, CommunityRead
+from app.schemas.community import CommunityCreate, CommunityMemberRead, CommunityRead, CommunityUpdate
 
 router = APIRouter()
 
@@ -146,6 +146,38 @@ async def create_community(
             "name": community.name,
             "community_type": community.community_type.value,
         },
+        actor_id=admin.id,
+        community_id=community.id,
+    )
+
+    return await _build_community_read(community, db)
+
+
+# ---------------------------------------------------------------------------
+# PATCH /communities/{slug} — update (platform admin only)
+# ---------------------------------------------------------------------------
+
+
+@router.patch("/{slug}", response_model=CommunityRead)
+async def update_community(
+    payload: CommunityUpdate,
+    community: Annotated[Community, Depends(get_community)],
+    admin: PlatformAdminUser,
+    db: DB,
+) -> CommunityRead:
+    """Update community settings. Platform admin only."""
+    changes = payload.model_dump(exclude_none=True)
+    for field, value in changes.items():
+        setattr(community, field, value)
+    db.add(community)
+    await db.flush()
+
+    await log_event(
+        db,
+        event_type=AuditEventType.COMMUNITY_UPDATED,
+        target_type="community",
+        target_id=community.id,
+        payload={"changes": {k: str(v) for k, v in changes.items()}},
         actor_id=admin.id,
         community_id=community.id,
     )

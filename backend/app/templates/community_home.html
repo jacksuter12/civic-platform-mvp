@@ -236,14 +236,33 @@
         (m.communitySlug || m.community_slug) === communitySlug
       );
 
-      let ctasHtml = "";
-      if (!community.is_invite_only && !myMembership) {
-        ctasHtml += `<button class="btn-join" id="join-btn" onclick="handleJoin()">Join This Community</button>`;
-      } else if (myMembership) {
-        ctasHtml += `<a href="/c/${esc(communitySlug)}/new-thread" class="btn-join">+ Start a Discussion</a>`;
+      // "Start a Discussion" — always visible; behaviour depends on membership
+      let startBtn;
+      if (myMembership) {
+        startBtn = `<a href="/c/${esc(communitySlug)}/new-thread" class="btn-join">+ Start a Discussion</a>`;
+      } else if (!auth.isSignedIn()) {
+        startBtn = `<a href="/signin" class="btn-join">+ Start a Discussion</a>`;
+      } else if (community.is_invite_only) {
+        startBtn = `<button class="btn-join" onclick="showInviteOnlyNotice()">+ Start a Discussion</button>`;
+      } else {
+        startBtn = `<button class="btn-join" onclick="handleJoinAndCreate()">+ Start a Discussion</button>`;
       }
-      ctasHtml += `<a href="/c/${esc(communitySlug)}/audit" class="btn-outline">View Audit Log</a>`;
-      ctasHtml += `<a href="/c/${esc(communitySlug)}/members" class="btn-outline">Members (${community.member_count})</a>`;
+
+      // Join / access button — shown only for non-members
+      let joinBtn = "";
+      if (!myMembership) {
+        if (!auth.isSignedIn()) {
+          joinBtn = `<a href="/signin" class="btn-outline">Sign in to join</a>`;
+        } else if (community.is_invite_only) {
+          joinBtn = `<button class="btn-outline" disabled style="cursor:default; color:#999;" title="Contact an admin to request an invitation">Invite-only</button>`;
+        } else {
+          joinBtn = `<button class="btn-outline" id="join-btn" onclick="handleJoin()">Join This Community</button>`;
+        }
+      }
+
+      const ctasHtml = startBtn + joinBtn
+        + `<a href="/c/${esc(communitySlug)}/audit" class="btn-outline">View Audit Log</a>`
+        + `<a href="/c/${esc(communitySlug)}/members" class="btn-outline">Members (${community.member_count})</a>`;
 
       document.getElementById("page-content").innerHTML = `
         <div class="community-header">
@@ -274,7 +293,7 @@
       `;
     }
 
-    async function handleJoin() {
+    async function handleJoin(redirectAfter) {
       const btn = document.getElementById("join-btn");
       const feedback = document.getElementById("join-feedback");
       if (btn) { btn.disabled = true; btn.textContent = "Joining…"; }
@@ -282,11 +301,14 @@
       try {
         await joinCommunity(communitySlug);
         if (feedback) {
-          feedback.textContent = "You've joined! Reloading…";
+          feedback.textContent = redirectAfter ? "Joined! Taking you there…" : "You've joined! Reloading…";
           feedback.className = "join-feedback join-feedback-success";
           feedback.style.display = "block";
         }
-        setTimeout(() => window.location.reload(), 800);
+        setTimeout(() => {
+          if (redirectAfter) window.location.href = redirectAfter;
+          else window.location.reload();
+        }, 800);
       } catch (err) {
         if (btn) { btn.disabled = false; btn.textContent = "Join This Community"; }
         if (feedback) {
@@ -294,6 +316,19 @@
           feedback.className = "join-feedback join-feedback-error";
           feedback.style.display = "block";
         }
+      }
+    }
+
+    function handleJoinAndCreate() {
+      handleJoin(`/c/${communitySlug}/new-thread`);
+    }
+
+    function showInviteOnlyNotice() {
+      const feedback = document.getElementById("join-feedback");
+      if (feedback) {
+        feedback.textContent = "This is an invite-only community. Contact an admin to request access.";
+        feedback.className = "join-feedback join-feedback-error";
+        feedback.style.display = "block";
       }
     }
 
