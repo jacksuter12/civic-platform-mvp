@@ -295,7 +295,8 @@
           <div style="display:grid; gap:10px;">
             <div>
               <label style="font-size:13px; font-weight:600; display:block; margin-bottom:3px;">Slug</label>
-              <input id="c-slug" type="text" placeholder="e.g. redlands" style="width:100%; padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px; box-sizing:border-box;">
+              <input id="c-slug" type="text" placeholder="e.g. redlands" pattern="^[a-z0-9-]+$" style="width:100%; padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px; box-sizing:border-box;">
+              <div style="font-size:11px; color:#888; margin-top:3px;">Lowercase letters, numbers, and hyphens only — e.g. <code>redlands</code> or <code>macro-circle</code></div>
             </div>
             <div>
               <label style="font-size:13px; font-weight:600; display:block; margin-bottom:3px;">Name</label>
