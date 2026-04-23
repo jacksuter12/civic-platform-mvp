@@ -239,6 +239,12 @@
           <button class="btn-secondary" id="password-reset-btn" onclick="handlePasswordReset()">Send reset link</button>
         </div>
 
+        <div class="detail-section">
+          <div class="section-heading">Sign Out</div>
+          <p class="account-field-desc">Sign out of your account on this device.</p>
+          <button class="btn-secondary" onclick="auth.clearToken(); window.location.href='/signin';">Sign out</button>
+        </div>
+
         <div class="detail-section acct-danger-zone">
           <div class="section-heading" style="color:#b91c1c;">Delete Account</div>
           <p class="account-field-desc">
