@@ -281,7 +281,7 @@
             <button class="btn-grant" onclick="showCreateCommunityForm()" id="show-create-btn">+ New Community</button>
           </div>
           <div id="create-community-form" style="display:none; margin-top:16px;"></div>
-          <div class="inline-error" id="create-community-error"></div>
+          <div class="inline-error" id="create-community-error" style="white-space: pre-line;"></div>
         </div>
       `;
     }
@@ -348,6 +348,36 @@
       document.getElementById("create-community-error").textContent = "";
     }
 
+    function humanizeCommunityError(message) {
+      const fieldLabels = {
+        slug:                "Slug",
+        name:                "Name",
+        description:         "Description",
+        community_type:      "Type",
+        boundary_desc:       "Boundary description",
+        verification_method: "Verification method",
+      };
+      return message.split("; ").map(part => {
+        const sep = part.indexOf(": ");
+        if (sep === -1) return part;
+        const field = part.slice(0, sep);
+        const msg   = part.slice(sep + 2);
+        const label = fieldLabels[field] || field;
+        let friendly = msg;
+        if (msg.includes("match pattern") && field === "slug") {
+          friendly = "only lowercase letters, numbers, and hyphens allowed (e.g. redlands or macro-circle)";
+        } else if (msg.includes("match pattern")) {
+          friendly = "invalid format";
+        } else {
+          const minMatch = msg.match(/at least (\d+) character/);
+          const maxMatch = msg.match(/at most (\d+) character/);
+          if (minMatch) friendly = `must be at least ${minMatch[1]} characters`;
+          else if (maxMatch) friendly = `must be at most ${maxMatch[1]} characters`;
+        }
+        return `${label}: ${friendly}`;
+      }).join("\n");
+    }
+
     async function doCreateCommunity() {
       const btn = document.getElementById("confirm-create-btn");
       const errEl = document.getElementById("create-community-error");
@@ -372,7 +402,7 @@
         cancelCreateCommunity();
         loadCommunitySection();
       } catch (err) {
-        errEl.textContent = `Error: ${err.message}`;
+        errEl.textContent = humanizeCommunityError(err.message);
         btn.disabled = false;
         btn.textContent = "Create";
       }
