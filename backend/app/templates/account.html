@@ -45,15 +45,65 @@
     }
     .hist-chip:hover { border-color: #9ca3af; color: #1a1a1a; }
     .hist-chip-active { border-color: #2a5c9a; background: #eef3fb; color: #2a5c9a; font-weight: 600; }
+    @media (min-width: 900px) {
+      #acct-layout {
+        display: flex;
+        align-items: flex-start;
+        max-width: 940px;
+        margin: 0 auto;
+        padding: 0 16px;
+      }
+      #account-container {
+        flex: 1;
+        max-width: none;
+        margin: 0;
+        padding: 0;
+      }
+      #acct-sidenav {
+        width: 188px;
+        flex-shrink: 0;
+        position: sticky;
+        top: 72px;
+        max-height: calc(100vh - 88px);
+        overflow-y: auto;
+        padding-top: 16px;
+        padding-right: 20px;
+      }
+    }
+    @media (max-width: 899px) {
+      #acct-sidenav { display: none; }
+    }
+    .acct-nav-link {
+      display: block;
+      padding: 5px 10px;
+      font-size: 13px;
+      color: #555;
+      text-decoration: none;
+      border-radius: 4px;
+      border-left: 2px solid transparent;
+      line-height: 1.4;
+      cursor: pointer;
+      transition: color 0.12s, background 0.12s, border-color 0.12s;
+    }
+    .acct-nav-link:hover { color: #1a1a1a; background: #f5f7fa; }
+    .acct-nav-link-active {
+      color: #2a5c9a;
+      border-left-color: #2a5c9a;
+      font-weight: 600;
+      background: #eef3fb;
+    }
   </style>
 </head>
 <body>
 
   <div id="nav-placeholder"></div>
 
-  <main class="container" id="account-container">
-    <div class="loading">Loading account…</div>
-  </main>
+  <div id="acct-layout">
+    <aside id="acct-sidenav"></aside>
+    <main class="container" id="account-container">
+      <div class="loading">Loading account…</div>
+    </main>
+  </div>
 
   <script src="/static/js/utils.js"></script>
   <script src="/static/js/api.js"></script>
@@ -65,7 +115,7 @@
 
       if (isFacilitator) {
         return `
-          <div class="detail-section">
+          <div class="detail-section" id="section-facilitator">
             <div class="section-heading">Facilitator Status</div>
             <p class="account-field-desc">
               You have facilitator access. You can advance thread phases and moderate posts.
@@ -78,7 +128,7 @@
       const alreadyFacilitator = memberships.some(m => m.tier === "facilitator" || m.tier === "admin");
       if (alreadyFacilitator) {
         return `
-          <div class="detail-section">
+          <div class="detail-section" id="section-facilitator">
             <div class="section-heading">Facilitator Status</div>
             <p class="account-field-desc">
               You are a facilitator in one or more communities. Visit your community's admin panel to manage discussions.
@@ -88,7 +138,7 @@
 
       if (facReq && facReq.status === "pending") {
         return `
-          <div class="detail-section">
+          <div class="detail-section" id="section-facilitator">
             <div class="section-heading">Facilitator Application</div>
             <div class="account-feedback account-feedback-success" style="display:block; margin-bottom:0;">
               Application submitted — we'll review it shortly.
@@ -105,7 +155,7 @@
       const communitySlugAttr = firstMembership ? ` data-community-slug="${escapeHtml(firstMembership.communitySlug || firstMembership.community_slug || '')}"` : "";
 
       return `
-        <div class="detail-section">
+        <div class="detail-section" id="section-facilitator">
           <div class="section-heading">Apply for Facilitator Status</div>
           <p class="account-field-desc">
             Facilitators can advance thread phases and moderate posts.
@@ -137,7 +187,7 @@
     function renderCommunityMemberships(memberships) {
       if (!memberships || memberships.length === 0) {
         return `
-          <div class="detail-section">
+          <div class="detail-section" id="section-communities">
             <div class="section-heading">Communities</div>
             <p class="account-field-desc">You haven't joined any communities yet.</p>
           </div>`;
@@ -167,7 +217,7 @@
       }).join("");
 
       return `
-        <div class="detail-section">
+        <div class="detail-section" id="section-communities">
           <div class="section-heading">Communities</div>
           ${cards}
         </div>`;
@@ -190,7 +240,7 @@
 
         ${renderCommunityMemberships(memberships)}
 
-        <div class="detail-section">
+        <div class="detail-section" id="section-profile">
           <div class="section-heading">Profile</div>
 
           <div class="account-field">
@@ -209,7 +259,7 @@
           </div>
         </div>
 
-        <div class="detail-section">
+        <div class="detail-section" id="section-display-name">
           <div class="section-heading">Display Name</div>
           <p class="account-field-desc">
             This is how you appear in discussions. Choose a first name or handle — not a full name.
@@ -239,7 +289,7 @@
           </form>
         </div>
 
-        <div class="detail-section">
+        <div class="detail-section" id="section-tooltips">
           <div class="section-heading">Help Tooltips</div>
           <p class="account-field-desc">
             Contextual tips appear throughout the platform to explain features as you use them.
@@ -247,7 +297,7 @@
           <button id="acct-tooltip-toggle" class="acct-tooltip-btn" onclick="handleTooltipToggle()">💡 Tips: On</button>
         </div>
 
-        <div class="detail-section">
+        <div class="detail-section" id="section-security">
           <div class="section-heading">Password &amp; Security</div>
           <p class="account-field-desc">
             Send a password reset link to: <strong>${escapeHtml(user.email)}</strong>
@@ -256,13 +306,13 @@
           <button class="btn-secondary" id="password-reset-btn" onclick="handlePasswordReset()">Send reset link</button>
         </div>
 
-        <div class="detail-section">
+        <div class="detail-section" id="section-signout">
           <div class="section-heading">Sign Out</div>
           <p class="account-field-desc">Sign out of your account on this device.</p>
           <button class="btn-secondary" onclick="auth.clearToken(); window.location.href='/signin';">Sign out</button>
         </div>
 
-        <div class="detail-section acct-danger-zone">
+        <div class="detail-section acct-danger-zone" id="section-delete">
           <div class="section-heading" style="color:#b91c1c;">Delete Account</div>
           <p class="account-field-desc">
             Permanently deactivates your account. Your posts and contributions remain visible as part of the public record.
@@ -722,6 +772,8 @@
         auth.setUser(updated);
         // Re-render with fresh data
         document.getElementById("account-container").innerHTML = renderAccount(updated);
+        initTooltipToggleBtn();
+        buildSideNav();
         // Show success in freshly rendered feedback
         const newFeedback = document.getElementById("display-name-feedback");
         if (newFeedback) {
@@ -742,6 +794,53 @@
       el.textContent = msg;
       el.className = `account-feedback account-feedback-${type}`;
       el.style.display = "block";
+    }
+
+    function buildSideNav() {
+      var nav = document.getElementById("acct-sidenav");
+      if (!nav) return;
+
+      var sections = [
+        { id: "section-facilitator",  label: "Facilitator" },
+        { id: "section-communities",  label: "Communities" },
+        { id: "section-profile",      label: "Profile" },
+        { id: "section-display-name", label: "Display Name" },
+        { id: "section-tooltips",     label: "Help Tooltips" },
+        { id: "section-security",     label: "Security" },
+        { id: "section-signout",      label: "Sign Out" },
+        { id: "section-delete",       label: "Delete Account" },
+        { id: "engagement-section",   label: "Engagement" },
+        { id: "history-section",      label: "Activity" },
+      ];
+
+      var visible = sections.filter(function(s) { return document.getElementById(s.id); });
+      nav.innerHTML = visible.map(function(s) {
+        return '<a class="acct-nav-link" data-section="' + s.id + '" href="#' + s.id + '">' + s.label + '</a>';
+      }).join("");
+
+      nav.querySelectorAll(".acct-nav-link").forEach(function(link) {
+        link.addEventListener("click", function(e) {
+          e.preventDefault();
+          var target = document.getElementById(this.dataset.section);
+          if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      });
+
+      if (window._acctNavObserver) window._acctNavObserver.disconnect();
+
+      window._acctNavObserver = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (!entry.isIntersecting) return;
+          nav.querySelectorAll(".acct-nav-link").forEach(function(l) { l.classList.remove("acct-nav-link-active"); });
+          var link = nav.querySelector('[data-section="' + entry.target.id + '"]');
+          if (link) link.classList.add("acct-nav-link-active");
+        });
+      }, { rootMargin: "-56px 0px -55% 0px", threshold: 0 });
+
+      visible.forEach(function(s) {
+        var el = document.getElementById(s.id);
+        if (el) window._acctNavObserver.observe(el);
+      });
     }
 
     async function init() {
@@ -774,6 +873,7 @@
         const memberships = user.communityMemberships || user.community_memberships || [];
         if (activity) renderEngagement(activity);
         if (history) renderHistory(history, memberships);
+        buildSideNav();
       } catch (err) {
         container.innerHTML = `
           <div class="error-message">Could not load account: ${err.message}</div>
