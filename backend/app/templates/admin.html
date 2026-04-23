@@ -323,12 +323,12 @@
               <label style="font-size:13px; font-weight:600; display:block; margin-bottom:3px;">Verification method</label>
               <input id="c-verification" type="text" placeholder="e.g. Self-attestation" style="width:100%; padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px; box-sizing:border-box;">
             </div>
-            <div style="display:flex; gap:8px;">
-              <label style="font-size:13px; display:flex; align-items:center; gap:6px; cursor:pointer;">
-                <input type="checkbox" id="c-public" checked> Public
+            <div style="display:flex; gap:16px; flex-wrap:wrap;">
+              <label style="font-size:13px; display:flex; align-items:center; gap:6px; cursor:pointer;" title="Community is listed publicly and threads are visible without login">
+                <input type="checkbox" id="c-public" checked> Public (visible to all)
               </label>
-              <label style="font-size:13px; display:flex; align-items:center; gap:6px; cursor:pointer;">
-                <input type="checkbox" id="c-invite-only"> Invite only
+              <label style="font-size:13px; display:flex; align-items:center; gap:6px; cursor:pointer;" title="Users cannot self-join; membership requires admin invitation">
+                <input type="checkbox" id="c-invite-only"> Invite-only (no self-join)
               </label>
             </div>
           </div>

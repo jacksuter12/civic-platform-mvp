@@ -16,6 +16,11 @@ const API_BASE = "/api/v1";
 async function apiFetch(path, options = {}) {
   const token = auth.getToken();
 
+  if (token && auth.isTokenExpired()) {
+    auth.clearToken();
+    throw new Error("Session expired — please sign in again.");
+  }
+
   const headers = {
     "Content-Type": "application/json",
     ...(token ? { "Authorization": `Bearer ${token}` } : {}),
@@ -25,10 +30,22 @@ async function apiFetch(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      auth.clearToken();
+      throw new Error("Session expired — please sign in again.");
+    }
     let detail = `HTTP ${response.status}`;
     try {
       const err = await response.json();
-      detail = err.detail || detail;
+      if (typeof err.detail === "string") {
+        detail = err.detail;
+      } else if (Array.isArray(err.detail)) {
+        // FastAPI 422 validation errors: each item has loc + msg
+        detail = err.detail.map(e => {
+          const field = e.loc ? e.loc.slice(1).join(".") : "";
+          return field ? `${field}: ${e.msg}` : e.msg;
+        }).join("; ");
+      }
     } catch (_) {}
     throw new Error(detail);
   }
