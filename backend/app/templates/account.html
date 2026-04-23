@@ -7,6 +7,28 @@
   <link rel="stylesheet" href="/static/css/main.css">
   <script src="/static/js/auth.js"></script>
   <script src="/static/js/nav.js"></script>
+  <style>
+    .acct-tooltip-btn {
+      background: none; border: 1px solid #e5e7eb; border-radius: 4px;
+      padding: 0.35rem 0.8rem; font-size: 0.85rem; color: #374151;
+      cursor: pointer; transition: border-color 0.15s; font-family: inherit;
+    }
+    .acct-tooltip-btn:hover { border-color: #9ca3af; }
+    .btn-secondary {
+      background: none; border: 1px solid #d1d5db; border-radius: 6px;
+      padding: 8px 16px; font-size: 14px; color: #374151;
+      cursor: pointer; transition: border-color 0.15s; font-family: inherit;
+    }
+    .btn-secondary:hover { border-color: #6b7280; }
+    .btn-danger {
+      background: #fee2e2; border: 1px solid #fca5a5; border-radius: 6px;
+      padding: 8px 16px; font-size: 14px; color: #b91c1c;
+      cursor: pointer; font-family: inherit; font-weight: 500;
+      transition: background 0.15s;
+    }
+    .btn-danger:hover { background: #fecaca; }
+    .acct-danger-zone { border: 1px solid #fee2e2; border-radius: 8px; padding: 16px 20px; }
+  </style>
 </head>
 <body>
 
@@ -199,7 +221,198 @@
             >Save display name</button>
           </form>
         </div>
+
+        <div class="detail-section">
+          <div class="section-heading">Help Tooltips</div>
+          <p class="account-field-desc">
+            Contextual tips appear throughout the platform to explain features as you use them.
+          </p>
+          <button id="acct-tooltip-toggle" class="acct-tooltip-btn" onclick="handleTooltipToggle()">💡 Tips: On</button>
+        </div>
+
+        <div class="detail-section">
+          <div class="section-heading">Password &amp; Security</div>
+          <p class="account-field-desc">
+            Send a password reset link to: <strong>${escapeHtml(user.email)}</strong>
+          </p>
+          <div id="password-reset-feedback" class="account-feedback" style="display:none"></div>
+          <button class="btn-secondary" id="password-reset-btn" onclick="handlePasswordReset()">Send reset link</button>
+        </div>
+
+        <div class="detail-section acct-danger-zone">
+          <div class="section-heading" style="color:#b91c1c;">Delete Account</div>
+          <p class="account-field-desc">
+            Permanently deactivates your account. Your posts and contributions remain visible as part of the public record.
+          </p>
+          <div id="delete-confirm-area" style="display:none; margin-top:12px;">
+            <p class="account-field-desc" style="color:#b91c1c; margin-bottom:8px;">Type <strong>DELETE</strong> to confirm.</p>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <input id="delete-confirm-input" type="text" placeholder="DELETE"
+                style="padding:8px 12px; border:1px solid #fca5a5; border-radius:6px; font-family:inherit; font-size:14px; width:140px;">
+              <button class="btn-danger" id="delete-confirm-btn" onclick="handleDeleteConfirm()">Confirm delete</button>
+              <button class="btn-secondary" onclick="cancelDelete()" style="font-size:13px;">Cancel</button>
+            </div>
+            <div id="delete-feedback" class="account-feedback" style="display:none; margin-top:8px;"></div>
+          </div>
+          <button class="btn-danger" id="delete-start-btn" onclick="startDelete()" style="margin-top:4px;">Delete my account</button>
+        </div>
+
+        <div id="engagement-section"></div>
       `;
+    }
+
+    function renderEngagement(activity) {
+      if (!activity || !activity.communities || activity.communities.length === 0) return;
+
+      const SIG_COLORS = {
+        support:   { color: "#4caf50", label: "Support",   icon: "↑" },
+        concern:   { color: "#ff9800", label: "Concern",   icon: "↓" },
+        need_info: { color: "#2196f3", label: "Need info", icon: "?" },
+        block:     { color: "#e53935", label: "Block",     icon: "✕" },
+      };
+
+      const TIER_COLORS = {
+        admin:       { bg: "#ede7f6", color: "#4527a0" },
+        facilitator: { bg: "#e3f2fd", color: "#1565c0" },
+        participant: { bg: "#e8f5e9", color: "#2e7d32" },
+        registered:  { bg: "#f5f5f5", color: "#555" },
+      };
+
+      const cards = activity.communities.map(function(c) {
+        const tc = TIER_COLORS[c.membershipTier || c.membership_tier] || TIER_COLORS.registered;
+        const tier = c.membershipTier || c.membership_tier;
+        const slug = c.communitySlug || c.community_slug;
+        const name = c.communityName || c.community_name;
+        const joined = new Date(c.joinedAt || c.joined_at).toLocaleDateString("en-US", { year: "numeric", month: "short" });
+        const postCount = c.postCount !== undefined ? c.postCount : (c.post_count || 0);
+        const commentCount = c.proposalCommentCount !== undefined ? c.proposalCommentCount : (c.proposal_comment_count || 0);
+        const sigs = c.signalsReceived || c.signals_received || {};
+
+        const total = Object.values(sigs).reduce(function(a, b) { return a + b; }, 0);
+
+        let barHtml = "";
+        if (total > 0) {
+          const segments = ["support", "concern", "need_info", "block"].map(function(type) {
+            const count = sigs[type] || 0;
+            if (count === 0) return "";
+            const pct = (count / total * 100).toFixed(1);
+            return `<div title="${SIG_COLORS[type].label}" style="width:${pct}%; background:${SIG_COLORS[type].color}; height:100%;"></div>`;
+          }).join("");
+
+          const legend = ["support", "concern", "need_info", "block"].map(function(type) {
+            return `<span style="display:inline-flex; align-items:center; gap:3px; font-size:11px; color:#666;">
+              <span style="display:inline-block; width:8px; height:8px; border-radius:2px; background:${SIG_COLORS[type].color};"></span>
+              ${SIG_COLORS[type].icon} ${SIG_COLORS[type].label}
+            </span>`;
+          }).join("");
+
+          barHtml = `
+            <div style="margin-top:12px;">
+              <p style="font-size:12px; color:#888; margin:0 0 6px;">How peers react to your content</p>
+              <div style="display:flex; height:10px; border-radius:5px; overflow:hidden; background:#f0f0f0;">${segments}</div>
+              <div style="display:flex; gap:12px; margin-top:6px; flex-wrap:wrap;">${legend}</div>
+            </div>`;
+        } else {
+          barHtml = `<p style="font-size:12px; color:#aaa; margin-top:10px;">No reactions on your content yet.</p>`;
+        }
+
+        return `
+          <div style="padding:14px 0; border-bottom:1px solid #f0f0f0;">
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+              <a href="/c/${escapeHtml(slug)}" style="font-weight:600; font-size:15px; color:#1a1a1a; text-decoration:none;">${escapeHtml(name)}</a>
+              <span style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:12px; background:${tc.bg}; color:${tc.color}; text-transform:uppercase; letter-spacing:0.04em;">${escapeHtml(tier)}</span>
+            </div>
+            <p style="font-size:13px; color:#666; margin:4px 0 0;">
+              ${postCount} post${postCount !== 1 ? "s" : ""} · ${commentCount} comment${commentCount !== 1 ? "s" : ""} · joined ${escapeHtml(joined)}
+            </p>
+            ${barHtml}
+          </div>`;
+      }).join("");
+
+      const section = document.getElementById("engagement-section");
+      if (section) {
+        section.innerHTML = `
+          <div class="detail-section">
+            <div class="section-heading">Your Engagement</div>
+            ${cards}
+          </div>`;
+      }
+    }
+
+    function initTooltipToggleBtn() {
+      const btn = document.getElementById("acct-tooltip-toggle");
+      if (!btn) return;
+      const isDisabled = document.body.classList.contains("tooltips-disabled");
+      btn.textContent = isDisabled ? "💡 Tips: Off" : "💡 Tips: On";
+    }
+
+    function handleTooltipToggle() {
+      const isDisabled = document.body.classList.toggle("tooltips-disabled");
+      localStorage.setItem("tooltips-disabled", isDisabled);
+      const btn = document.getElementById("acct-tooltip-toggle");
+      if (btn) btn.textContent = isDisabled ? "💡 Tips: Off" : "💡 Tips: On";
+    }
+
+    async function handlePasswordReset() {
+      const btn = document.getElementById("password-reset-btn");
+      const fb  = document.getElementById("password-reset-feedback");
+      fb.style.display = "none";
+      btn.disabled = true;
+      btn.textContent = "Sending…";
+      try {
+        await requestPasswordReset();
+        fb.textContent = "Reset link sent — check your email.";
+        fb.className = "account-feedback account-feedback-success";
+        fb.style.display = "block";
+        btn.textContent = "Sent";
+      } catch (err) {
+        fb.textContent = err.message || "Could not send reset link. Please try again.";
+        fb.className = "account-feedback account-feedback-error";
+        fb.style.display = "block";
+        btn.disabled = false;
+        btn.textContent = "Send reset link";
+      }
+    }
+
+    function startDelete() {
+      document.getElementById("delete-start-btn").style.display = "none";
+      document.getElementById("delete-confirm-area").style.display = "block";
+      document.getElementById("delete-confirm-input").focus();
+    }
+
+    function cancelDelete() {
+      document.getElementById("delete-start-btn").style.display = "";
+      document.getElementById("delete-confirm-area").style.display = "none";
+      document.getElementById("delete-confirm-input").value = "";
+      document.getElementById("delete-feedback").style.display = "none";
+    }
+
+    async function handleDeleteConfirm() {
+      const input = document.getElementById("delete-confirm-input");
+      const btn   = document.getElementById("delete-confirm-btn");
+      const fb    = document.getElementById("delete-feedback");
+      fb.style.display = "none";
+
+      if (input.value.trim() !== "DELETE") {
+        fb.textContent = "Type DELETE (all caps) to confirm.";
+        fb.className = "account-feedback account-feedback-error";
+        fb.style.display = "block";
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Deleting…";
+      try {
+        await deactivateAccount();
+        auth.clearToken();
+        window.location.href = "/";
+      } catch (err) {
+        fb.textContent = err.message || "Could not delete account. Please try again.";
+        fb.className = "account-feedback account-feedback-error";
+        fb.style.display = "block";
+        btn.disabled = false;
+        btn.textContent = "Confirm delete";
+      }
     }
 
     function escapeHtml(str) {
@@ -303,17 +516,24 @@
       }
 
       try {
-        const user = await getMe();
+        const tierOrder = ["registered", "participant", "facilitator", "admin"];
+
+        // Fetch user data and activity in parallel
+        const [user, activity] = await Promise.all([
+          getMe(),
+          getMyActivity().catch(function() { return null; }),
+        ]);
         auth.setUser(user);
 
         // Fetch facilitator request status for users below facilitator tier
         let facReq = null;
-        const tierOrder = ["registered", "participant", "facilitator", "admin"];
         if (tierOrder.indexOf(user.tier) < tierOrder.indexOf("facilitator")) {
           try { facReq = await getMyFacilitatorRequest(); } catch (_) {}
         }
 
         container.innerHTML = renderAccount(user, facReq);
+        initTooltipToggleBtn();
+        if (activity) renderEngagement(activity);
       } catch (err) {
         container.innerHTML = `
           <div class="error-message">Could not load account: ${err.message}</div>

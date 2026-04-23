@@ -8,6 +8,22 @@ from app.schemas.common import CamelBase, TimestampSchema, UUIDSchema
 from app.schemas.community import CommunityMembershipSummary
 
 
+class CommunityActivityOut(CamelBase):
+    """Per-community engagement summary for a user's account page."""
+
+    community_slug: str
+    community_name: str
+    membership_tier: UserTier
+    joined_at: datetime
+    post_count: int
+    proposal_comment_count: int
+    signals_received: dict[str, int]
+
+
+class MyActivityOut(CamelBase):
+    communities: list[CommunityActivityOut]
+
+
 class UserCreate(CamelBase):
     """Payload sent on first registration after Supabase auth."""
 

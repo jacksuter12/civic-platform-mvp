@@ -280,6 +280,18 @@ async function getMyFacilitatorRequest() {
   return apiFetch("/auth/facilitator-request");
 }
 
+async function getMyActivity() {
+  return apiFetch("/auth/me/activity");
+}
+
+async function requestPasswordReset() {
+  return apiFetch("/auth/me/password-reset", { method: "POST" });
+}
+
+async function deactivateAccount() {
+  return apiFetch("/auth/me/deactivate", { method: "POST" });
+}
+
 async function getFacilitatorRequests(communitySlug = null) {
   const params = communitySlug ? `?community_slug=${encodeURIComponent(communitySlug)}` : "";
   return apiFetch(`/admin/facilitator-requests${params}`);

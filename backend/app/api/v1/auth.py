@@ -10,20 +10,27 @@ Flow:
 
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, HTTPException, status
+import httpx
+from fastapi import APIRouter, HTTPException, Response, status
 from sqlalchemy import func, select
 
-from app.api.deps import CurrentUser, DB, RegisteredUser
+from app.api.deps import DB, RegisteredUser
+from app.config import settings
 from app.core.audit import log_event
 from app.core.security import TokenError, decode_supabase_token, extract_supabase_uid
 from app.models.audit import AuditEventType, AuditLog
 from app.models.community import Community
 from app.models.community_membership import CommunityMembership
 from app.models.facilitator_request import FacilitatorRequest, FacilitatorRequestStatus
+from app.models.post import Post
+from app.models.proposal import Proposal
+from app.models.proposal_comment import ProposalComment
+from app.models.signal import Signal, SignalType
+from app.models.thread import Thread
 from app.models.user import PlatformRole, User, UserTier
 from app.schemas.community import CommunityMembershipSummary
 from app.schemas.facilitator_request import FacilitatorRequestCreate, FacilitatorRequestOut
-from app.schemas.user import DisplayNameUpdate, UserCreate, UserMe, UserPublic
+from app.schemas.user import CommunityActivityOut, DisplayNameUpdate, MyActivityOut, UserCreate, UserMe, UserPublic
 
 router = APIRouter()
 
@@ -236,3 +243,148 @@ async def get_my_facilitator_request(
         .limit(1)
     )
     return result.scalar_one_or_none()
+
+
+@router.get("/me/activity", response_model=MyActivityOut)
+async def get_my_activity(user: RegisteredUser, db: DB) -> dict:
+    """Return per-community engagement stats: post/comment counts and aggregate signals received."""
+    # Load memberships with joined_at and community UUID for subqueries
+    memberships_result = await db.execute(
+        select(Community.id, Community.slug, Community.name, CommunityMembership.tier, CommunityMembership.joined_at)
+        .join(Community, Community.id == CommunityMembership.community_id)
+        .where(
+            CommunityMembership.user_id == user.id,
+            CommunityMembership.is_active == True,
+        )
+        .order_by(CommunityMembership.joined_at.asc())
+    )
+    memberships = memberships_result.all()
+
+    communities_out = []
+    for community_id, slug, name, tier, joined_at in memberships:
+        # Thread IDs for this community
+        thread_ids_result = await db.execute(
+            select(Thread.id).where(Thread.community_id == community_id)
+        )
+        thread_ids = [row[0] for row in thread_ids_result.all()]
+
+        post_count = 0
+        proposal_ids: list = []
+        proposal_comment_count = 0
+
+        if thread_ids:
+            # Count user's non-removed posts in this community
+            post_count_result = await db.execute(
+                select(func.count()).where(
+                    Post.author_id == user.id,
+                    Post.thread_id.in_(thread_ids),
+                    Post.is_removed == False,
+                )
+            )
+            post_count = post_count_result.scalar_one()
+
+            # Get user's proposal IDs in this community
+            proposals_result = await db.execute(
+                select(Proposal.id).where(
+                    Proposal.created_by_id == user.id,
+                    Proposal.thread_id.in_(thread_ids),
+                )
+            )
+            proposal_ids = [row[0] for row in proposals_result.all()]
+
+        if proposal_ids:
+            # Count user's non-removed proposal comments on their community's proposals
+            # (also count comments by user on any proposals in this community)
+            comment_count_result = await db.execute(
+                select(func.count()).where(
+                    ProposalComment.author_id == user.id,
+                    ProposalComment.proposal_id.in_(proposal_ids),
+                    ProposalComment.is_removed == False,
+                )
+            )
+            proposal_comment_count = comment_count_result.scalar_one()
+
+        # Aggregate signals received on user's posts and proposals in this community,
+        # excluding signals the user cast on their own content.
+        signals_received: dict[str, int] = {t.value: 0 for t in SignalType}
+
+        if thread_ids:
+            # Signals on user's posts
+            post_ids_result = await db.execute(
+                select(Post.id).where(
+                    Post.author_id == user.id,
+                    Post.thread_id.in_(thread_ids),
+                    Post.is_removed == False,
+                )
+            )
+            post_ids = [row[0] for row in post_ids_result.all()]
+
+            if post_ids:
+                post_signals_result = await db.execute(
+                    select(Signal.signal_type, func.count()).where(
+                        Signal.target_type == "post",
+                        Signal.target_id.in_(post_ids),
+                        Signal.user_id != user.id,
+                    ).group_by(Signal.signal_type)
+                )
+                for sig_type, count in post_signals_result.all():
+                    signals_received[sig_type.value] += count
+
+        if proposal_ids:
+            # Signals on user's proposals
+            proposal_signals_result = await db.execute(
+                select(Signal.signal_type, func.count()).where(
+                    Signal.target_type == "proposal",
+                    Signal.target_id.in_(proposal_ids),
+                    Signal.user_id != user.id,
+                ).group_by(Signal.signal_type)
+            )
+            for sig_type, count in proposal_signals_result.all():
+                signals_received[sig_type.value] += count
+
+        communities_out.append(CommunityActivityOut(
+            community_slug=slug,
+            community_name=name,
+            membership_tier=tier,
+            joined_at=joined_at,
+            post_count=post_count,
+            proposal_comment_count=proposal_comment_count,
+            signals_received=signals_received,
+        ))
+
+    return {"communities": communities_out}
+
+
+@router.post("/me/password-reset", status_code=status.HTTP_204_NO_CONTENT)
+async def request_password_reset(user: RegisteredUser, db: DB) -> Response:
+    """Send a password reset email via Supabase for the authenticated user."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{settings.SUPABASE_URL}/auth/v1/recover",
+            json={"email": user.email},
+            headers={"apikey": settings.SUPABASE_ANON_KEY, "Content-Type": "application/json"},
+            timeout=10,
+        )
+    if resp.status_code not in (200, 204):
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Could not send reset email. Please try again.",
+        )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/me/deactivate", status_code=status.HTTP_204_NO_CONTENT)
+async def deactivate_account(user: RegisteredUser, db: DB) -> Response:
+    """Soft-delete the authenticated user's account."""
+    user.is_active = False
+    db.add(user)
+    await db.flush()
+    await log_event(
+        db,
+        event_type=AuditEventType.USER_DEACTIVATED,
+        target_type="user",
+        target_id=user.id,
+        payload={},
+        actor_id=user.id,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
