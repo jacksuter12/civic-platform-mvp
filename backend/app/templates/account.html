@@ -28,6 +28,23 @@
     }
     .btn-danger:hover { background: #fecaca; }
     .acct-danger-zone { border: 1px solid #fee2e2; border-radius: 8px; padding: 16px 20px; }
+    .hist-controls { margin-bottom: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .hist-search-input {
+      width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 14px; font-family: inherit; box-sizing: border-box;
+    }
+    .hist-search-input:focus { outline: none; border-color: #2a5c9a; }
+    .hist-filter-row { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+    .hist-filter-label { font-size: 12px; color: #888; min-width: 68px; padding-top: 4px; flex-shrink: 0; }
+    .hist-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .hist-chip {
+      background: none; border: 1px solid #e5e7eb; border-radius: 20px;
+      padding: 3px 10px; font-size: 12px; color: #555; cursor: pointer;
+      font-family: inherit; transition: border-color 0.12s, background 0.12s;
+      white-space: nowrap;
+    }
+    .hist-chip:hover { border-color: #9ca3af; color: #1a1a1a; }
+    .hist-chip-active { border-color: #2a5c9a; background: #eef3fb; color: #2a5c9a; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -347,95 +364,216 @@
       }
     }
 
-    // Tracks pagination state for the history feed
-    const _history = { total: 0, offset: 0, limit: 20 };
+    // History state: all items loaded once, filtered client-side
+    const _history = {
+      allItems: [],
+      filters: { community: null, phase: null, type: null },
+      search: "",
+      searchTimer: null,
+    };
+
+    const HISTORY_TYPE_LABELS = {
+      post:                 { label: "Post",                color: "#374151", bg: "#f3f4f6" },
+      proposal_comment:     { label: "Comment",             color: "#6a1b9a", bg: "#f3e5f5" },
+      wiki_annotation:      { label: "Wiki Annotation",     color: "#0277bd", bg: "#e1f5fe" },
+      proposal_annotation:  { label: "Proposal Annotation", color: "#00695c", bg: "#e0f2f1" },
+    };
+
+    function _historyField(item, camel, snake) {
+      return item[camel] !== undefined ? item[camel] : item[snake];
+    }
 
     function renderHistoryItem(item) {
-      const date = new Date(item.createdAt || item.created_at).toLocaleDateString("en-US", {
+      const date = new Date(_historyField(item, "createdAt", "created_at")).toLocaleDateString("en-US", {
         year: "numeric", month: "short", day: "numeric",
       });
-      const slug = item.communitySlug || item.community_slug;
-      const name = item.communityName || item.community_name;
-      const threadId = item.threadId || item.thread_id;
-      const threadTitle = item.threadTitle || item.thread_title;
-      const threadStatus = item.threadStatus || item.thread_status;
-      const isRemoved = item.isRemoved !== undefined ? item.isRemoved : item.is_removed;
-      const itemType = item.itemType || item.item_type;
+      const slug        = _historyField(item, "communitySlug", "community_slug");
+      const name        = _historyField(item, "communityName", "community_name");
+      const threadId    = _historyField(item, "threadId", "thread_id");
+      const threadTitle = _historyField(item, "threadTitle", "thread_title");
+      const threadStatus= _historyField(item, "threadStatus", "thread_status");
+      const isRemoved   = _historyField(item, "isRemoved", "is_removed");
+      const itemType    = _historyField(item, "itemType", "item_type");
 
-      const communityTag = `<span style="display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; color:#1565c0; background:#e3f2fd; border-radius:4px; padding:2px 7px;">${escapeHtml(name)}</span>`;
-      const phaseTag = `<span class="phase-badge phase-${escapeHtml(threadStatus)}">${capitalize(threadStatus)}</span>`;
-      const typeTag = itemType === "proposal_comment"
-        ? `<span style="display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; color:#6a1b9a; background:#f3e5f5; border-radius:4px; padding:2px 7px;">Comment</span>`
-        : "";
+      const typeMeta = HISTORY_TYPE_LABELS[itemType] || HISTORY_TYPE_LABELS.post;
+      const communityTag = `<span style="display:inline-block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:#1565c0;background:#e3f2fd;border-radius:4px;padding:2px 7px;">${escapeHtml(name)}</span>`;
+      const phaseTag     = `<span class="phase-badge phase-${escapeHtml(threadStatus)}">${capitalize(threadStatus)}</span>`;
+      const typeTag      = `<span style="display:inline-block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:${typeMeta.color};background:${typeMeta.bg};border-radius:4px;padding:2px 7px;">${typeMeta.label}</span>`;
 
       const bodyHtml = isRemoved
-        ? `<p style="font-size:13px; color:#aaa; font-style:italic; margin:6px 0 0;">[This post was removed]</p>`
-        : `<p style="font-size:14px; color:#444; margin:6px 0 0; line-height:1.5;">${escapeHtml(item.body.length > 200 ? item.body.slice(0, 200) + "…" : item.body)}</p>`;
+        ? `<p style="font-size:13px;color:#aaa;font-style:italic;margin:6px 0 0;">[This post was removed]</p>`
+        : `<p style="font-size:14px;color:#444;margin:6px 0 0;line-height:1.5;">${escapeHtml(item.body.length > 200 ? item.body.slice(0, 200) + "…" : item.body)}</p>`;
 
-      const proposalNote = (itemType === "proposal_comment" && (item.proposalTitle || item.proposal_title))
-        ? `<p style="font-size:12px; color:#888; margin:3px 0 0;">on proposal: <em>${escapeHtml(item.proposalTitle || item.proposal_title)}</em></p>`
+      const proposalTitle = _historyField(item, "proposalTitle", "proposal_title");
+      const proposalNote = (itemType === "proposal_comment" && proposalTitle)
+        ? `<p style="font-size:12px;color:#888;margin:3px 0 0;">on proposal: <em>${escapeHtml(proposalTitle)}</em></p>`
         : "";
 
       return `
-        <div style="padding:14px 0; border-bottom:1px solid #f0f0f0;">
-          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:4px;">
+        <div style="padding:14px 0;border-bottom:1px solid #f0f0f0;">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
             ${communityTag}${phaseTag}${typeTag}
-            <span style="font-size:12px; color:#aaa; margin-left:auto;">${escapeHtml(date)}</span>
+            <span style="font-size:12px;color:#aaa;margin-left:auto;">${escapeHtml(date)}</span>
           </div>
-          <a href="/c/${escapeHtml(slug)}/thread/${escapeHtml(String(threadId))}" style="font-size:14px; font-weight:600; color:#1a1a1a; text-decoration:none;">${escapeHtml(threadTitle)}</a>
+          <a href="/c/${escapeHtml(slug)}/thread/${escapeHtml(String(threadId))}" style="font-size:14px;font-weight:600;color:#1a1a1a;text-decoration:none;">${escapeHtml(threadTitle)}</a>
           ${proposalNote}
           ${bodyHtml}
         </div>`;
     }
 
-    function renderHistory(historyData, append) {
+    function _filterChips(label, key, options) {
+      const active = _history.filters[key];
+      const all = `<button class="hist-chip${active === null ? " hist-chip-active" : ""}" onclick="setHistoryFilter('${key}', null)">All</button>`;
+      const chips = options.map(function(o) {
+        const isActive = active === o.value;
+        return `<button class="hist-chip${isActive ? " hist-chip-active" : ""}" onclick="setHistoryFilter('${key}', '${escapeHtml(o.value)}')">${escapeHtml(o.label)}</button>`;
+      }).join("");
+      return `<div class="hist-filter-row"><span class="hist-filter-label">${label}</span><div class="hist-chips">${all}${chips}</div></div>`;
+    }
+
+    function renderHistorySection(communities) {
       const section = document.getElementById("history-section");
       if (!section) return;
 
-      _history.total = historyData.total;
-      _history.offset = historyData.offset + historyData.items.length;
+      const communityOptions = communities.map(function(c) {
+        return { value: c.communitySlug || c.community_slug, label: c.communityName || c.community_name };
+      });
 
-      if (!append) {
-        if (historyData.total === 0) {
-          section.innerHTML = `
-            <div class="detail-section">
-              <div class="section-heading">Activity History</div>
-              <p class="account-field-desc">You haven't posted anything yet.</p>
-            </div>`;
-          return;
-        }
-        section.innerHTML = `
-          <div class="detail-section">
-            <div class="section-heading">Activity History</div>
-            <div id="history-items"></div>
-            <div id="history-load-more" style="margin-top:16px;"></div>
-          </div>`;
+      const phaseOptions = [
+        { value: "open",         label: "Open" },
+        { value: "deliberating", label: "Deliberating" },
+        { value: "proposing",    label: "Proposing" },
+        { value: "voting",       label: "Voting" },
+        { value: "closed",       label: "Closed" },
+        { value: "archived",     label: "Archived" },
+      ];
+
+      const typeOptions = [
+        { value: "post",               label: "Posts" },
+        { value: "proposal_comment",   label: "Comments" },
+        { value: "wiki_annotation",    label: "Wiki Annotations" },
+        { value: "proposal_annotation",label: "Proposal Annotations" },
+      ];
+
+      section.innerHTML = `
+        <div class="detail-section">
+          <div class="section-heading">Activity History</div>
+          <div class="hist-controls">
+            <input id="hist-search" type="search" placeholder="Search posts, comments, threads…"
+              class="hist-search-input" oninput="scheduleHistorySearch(this.value)">
+            ${communityOptions.length > 1 ? _filterChips("Community", "community", communityOptions) : ""}
+            ${_filterChips("Phase", "phase", phaseOptions)}
+            ${_filterChips("Type", "type", typeOptions)}
+          </div>
+          <div id="history-items"></div>
+          <p id="history-empty" style="font-size:14px;color:#aaa;display:none;">No items match your filters.</p>
+        </div>`;
+    }
+
+    function applyHistoryFilters() {
+      const q = _history.search.trim().toLowerCase();
+      let items = _history.allItems;
+
+      if (_history.filters.community) {
+        const cf = _history.filters.community;
+        items = items.filter(function(i) { return (i.communitySlug || i.community_slug) === cf; });
+      }
+      if (_history.filters.phase) {
+        const pf = _history.filters.phase;
+        items = items.filter(function(i) { return (i.threadStatus || i.thread_status) === pf; });
+      }
+      if (_history.filters.type) {
+        const tf = _history.filters.type;
+        items = items.filter(function(i) { return (i.itemType || i.item_type) === tf; });
+      }
+      if (q) {
+        items = items.filter(function(i) {
+          return (i.body || "").toLowerCase().includes(q)
+            || (i.threadTitle || i.thread_title || "").toLowerCase().includes(q)
+            || (i.proposalTitle || i.proposal_title || "").toLowerCase().includes(q);
+        });
       }
 
       const container = document.getElementById("history-items");
-      if (container) {
-        container.insertAdjacentHTML("beforeend", historyData.items.map(renderHistoryItem).join(""));
+      const emptyEl   = document.getElementById("history-empty");
+      if (!container) return;
+
+      if (items.length === 0) {
+        container.innerHTML = "";
+        if (emptyEl) emptyEl.style.display = "";
+      } else {
+        if (emptyEl) emptyEl.style.display = "none";
+        container.innerHTML = items.map(renderHistoryItem).join("");
       }
 
-      const loadMoreEl = document.getElementById("history-load-more");
-      if (loadMoreEl) {
-        if (_history.offset < _history.total) {
-          loadMoreEl.innerHTML = `<button class="btn-secondary" onclick="loadMoreHistory()">Load more</button>`;
-        } else {
-          loadMoreEl.innerHTML = "";
-        }
+      // Re-render chips to reflect active state
+      const section = document.getElementById("history-section");
+      if (section) {
+        section.querySelectorAll(".hist-chip").forEach(function(btn) {
+          // chips update themselves via onclick; re-rendering section is avoided to preserve search input value
+        });
       }
     }
 
-    async function loadMoreHistory() {
-      const loadMoreEl = document.getElementById("history-load-more");
-      if (loadMoreEl) loadMoreEl.innerHTML = `<span style="font-size:13px; color:#aaa;">Loading…</span>`;
-      try {
-        const data = await getMyHistory({ limit: _history.limit, offset: _history.offset });
-        renderHistory(data, true);
-      } catch (_) {
-        if (loadMoreEl) loadMoreEl.innerHTML = `<button class="btn-secondary" onclick="loadMoreHistory()">Load more</button>`;
+    function setHistoryFilter(key, value) {
+      _history.filters[key] = value || null;
+      // Rebuild filter rows only (not the whole section) to avoid clearing search input
+      _rebuildFilterRows();
+      applyHistoryFilters();
+    }
+
+    function _rebuildFilterRows() {
+      // Re-render chips in place by rebuilding only the hist-chips inside each row
+      document.querySelectorAll(".hist-filter-row").forEach(function(row) {
+        const label = row.querySelector(".hist-filter-label");
+        const key = row.dataset.filterKey;
+        if (!key || !label) return;
+        const chipsEl = row.querySelector(".hist-chips");
+        if (!chipsEl) return;
+        chipsEl.querySelectorAll(".hist-chip").forEach(function(btn) {
+          const val = btn.dataset.filterVal === undefined ? null : btn.dataset.filterVal || null;
+          btn.classList.toggle("hist-chip-active", _history.filters[key] === (val === "null" ? null : val));
+        });
+      });
+    }
+
+    function scheduleHistorySearch(value) {
+      clearTimeout(_history.searchTimer);
+      _history.searchTimer = setTimeout(function() {
+        _history.search = value;
+        applyHistoryFilters();
+      }, 200);
+    }
+
+    function renderHistory(historyData, communities) {
+      _history.allItems = historyData.items;
+
+      if (_history.allItems.length === 0) {
+        const section = document.getElementById("history-section");
+        if (section) section.innerHTML = `
+          <div class="detail-section">
+            <div class="section-heading">Activity History</div>
+            <p class="account-field-desc">You haven't posted anything yet.</p>
+          </div>`;
+        return;
       }
+
+      renderHistorySection(communities);
+      applyHistoryFilters();
+
+      // Wire up data-filter-key attributes after render so _rebuildFilterRows works
+      document.querySelectorAll(".hist-filter-row").forEach(function(row) {
+        const btn = row.querySelector(".hist-chip");
+        if (!btn) return;
+        const onclick = btn.getAttribute("onclick") || "";
+        const match = onclick.match(/setHistoryFilter\('([^']+)'/);
+        if (match) row.dataset.filterKey = match[1];
+        row.querySelectorAll(".hist-chip").forEach(function(b) {
+          const oc = b.getAttribute("onclick") || "";
+          const vm = oc.match(/setHistoryFilter\('[^']+',\s*'?([^')]*)'?\)/);
+          b.dataset.filterVal = vm ? vm[1] : "null";
+        });
+      });
     }
 
     function initTooltipToggleBtn() {
@@ -621,7 +759,7 @@
         const [user, activity, history] = await Promise.all([
           getMe(),
           getMyActivity().catch(function() { return null; }),
-          getMyHistory().catch(function() { return null; }),
+          getMyHistory({ limit: 500 }).catch(function() { return null; }),
         ]);
         auth.setUser(user);
 
@@ -633,8 +771,9 @@
 
         container.innerHTML = renderAccount(user, facReq);
         initTooltipToggleBtn();
+        const memberships = user.communityMemberships || user.community_memberships || [];
         if (activity) renderEngagement(activity);
-        if (history) renderHistory(history, false);
+        if (history) renderHistory(history, memberships);
       } catch (err) {
         container.innerHTML = `
           <div class="error-message">Could not load account: ${err.message}</div>

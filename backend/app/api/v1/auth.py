@@ -398,7 +398,7 @@ async def get_my_history(
     offset: int = 0,
 ) -> dict:
     """Return a paginated chronological feed of the user's posts and proposal comments."""
-    limit = min(limit, 50)
+    limit = min(limit, 500)
 
     # Fetch all user posts with thread + community context
     posts_result = await db.execute(
