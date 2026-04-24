@@ -250,6 +250,30 @@ Each entry follows this template. Copy it when adding new decisions.
 
 ---
 
+## 2026-04-22 — Account Page: Activity History Feed
+**Status:** Active
+**Domain:** UX / Mechanism
+**Context:** Users needed visibility into their own deliberative actions (posts, votes, signals, proposals, amendments) across all communities. The platform's legitimacy claim requires participants to be able to verify their own record — if the public audit log exists for observers, the participant deserves an equivalent personal view.
+**Options considered:** (a) Redirect users to the public audit log filtered by actor_id, (b) Build a dedicated personal activity history section on the account page.
+**Decision:** Option (b). Added a dedicated activity history feed to the account page. Shows all user actions with timestamps, community context, target type, and action type. Filterable by action type (posts / votes / signals / proposals / amendments) and searchable. Chronological order only — no ranking.
+**Reasoning:** The audit log is designed for public observers and is community-scoped by architecture. A personal history feed is scoped to the user's own actions across all communities they belong to, which requires a different query and a different UX. Reusing the public audit log would expose an actor_id filter that works but produces an inferior experience and leaks the filter pattern.
+**Implications:** New `GET /api/v1/me/activity` endpoint. Frontend section on `/account` page. Chronological order enforced — no ranking, no grouping by popularity.
+**Revisit if:** Activity history grows complex enough to need cross-community aggregation or notification surfaces.
+
+---
+
+## 2026-04-22 — Account Page: Sticky Side Nav
+**Status:** Active
+**Domain:** UX
+**Context:** The account page grew to 10 sections (profile, communities, activity history, facilitator request, etc.) and requires significant vertical scrolling. Without a persistent navigation anchor, users lose orientation and cannot jump between sections efficiently.
+**Options considered:** (a) Keep linear scroll with anchor links at top, (b) Implement sticky side navigation with scroll-aware section highlighting.
+**Decision:** Option (b). Sticky side nav fixed to the left column; highlights the active section based on scroll position via IntersectionObserver; allows click-to-jump without page reload.
+**Reasoning:** Functional necessity for a long-form account page. No architectural implications — pure frontend change. The pattern is standard for multi-section reference pages.
+**Implications:** Pure frontend change in `account.html`. No new API routes. No backend changes.
+**Revisit if:** Account page sections are restructured significantly or the page is broken into separate routes.
+
+---
+
 # Pending Decisions
 
 These decisions have been identified as needed but not yet resolved. They are queued for the appropriate project.

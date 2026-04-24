@@ -72,47 +72,67 @@ but not post.
 ---
 
 ## Phase 3 — Proposals, Voting, Facilitator Controls
-**Status: In Progress**
+**Status: Complete**
 
 **Goal:** Complete deliberation flow end-to-end.
 
 **Completed:**
 - [x] Thread creation page (/new-thread) — registered tier, domain select, title, central question, context
-- [x] Facilitator request flow — account page application form → admin approval page
+- [x] Facilitator request flow — account page application form → community admin approval
 - [x] Admin page (/admin) — approve/deny facilitator requests, tier promotion, audit log entries
 - [x] 15 policy domains seeded (healthcare + 14 more: education, defense, fiscal policy, etc.)
 - [x] FacilitatorRequest model, migration, API routes (submit, list, approve, deny)
 - [x] Facilitator phase-advance controls — phase advance UI on thread detail, required reason field (10–500 chars), audit log entry THREAD_PHASE_ADVANCED, facilitator-only
-- [x] Proposal creation — form on thread detail, PROPOSING phase only, participant tier only, audit log entry PROPOSAL_CREATED
-- [x] Voting — yes/no/abstain buttons on thread detail, VOTING phase only, participant tier only, one-vote enforcement via DB unique constraint, VOTE_CAST audit log entry, vote tallies visible to all
+- [x] Proposal creation — form on thread detail, PROPOSING phase only, registered tier, audit log entry PROPOSAL_CREATED
+- [x] Voting — yes/no/abstain buttons on thread detail, VOTING phase only, registered tier, one-vote enforcement via DB unique constraint, VOTE_CAST audit log entry
 - [x] Public audit log API — GET /api/v1/audit, filterable by event_type/target_type/target_id/actor_id, paginated, no auth required
+- [x] Public audit log pages — /audit (platform events) and /c/{slug}/audit (community events)
+- [x] Proposal versioning (edit snapshots), proposal comments, amendments
 
 **Remaining:**
-- [ ] Public audit log page (/audit) — HTML UI for the existing API, filterable, read-only, unauthenticated
-- [ ] Full admin capabilities — create domains, funding pools, record allocations
 - [ ] End-to-end test: full thread lifecycle with 3 test users
-
-**Testing legitimacy (not just functionality):**
-- Can a participant cheat the phase gate? (Try to vote while in DELIBERATING)
-- Does the audit log correctly capture every facilitator action?
-- Is the vote_summary in the allocation record accurate?
-- Can you reconstruct a decision from the audit log alone?
 
 **Definition of done:** Full thread lifecycle exercised by real users; audit log
 reconstructs every decision.
 
 ---
 
-## Phase 4 — First Real Deliberation
-**Status: Not Started (blocked on Phase 3 completion)**
+## Phase 3.5 — Multi-Community Architecture
+**Status: Complete**
 
-**Goal:** First real deliberation with healthcare domain participants.
+**Goal:** Transform single-tenant platform into multi-tenant deliberation infrastructure.
+
+**Completed:**
+- [x] `Community` and `CommunityMembership` data model + migrations
+- [x] `platform_role` on users (`user` | `platform_admin`) for platform-level operations
+- [x] Community-scoped URL structure (`/c/{slug}/...`)
+- [x] Community home page, members page, admin page, audit page
+- [x] Communities directory (`/communities`)
+- [x] All deliberative write actions gate on `CommunityMembership.tier`
+- [x] Facilitator/admin scope enforced per community (cross-community isolation)
+- [x] Audit log split: community events carry `community_id`; platform events have `community_id IS NULL`
+- [x] Wiki system — 16 articles, TOC, prev/next navigation (global, not community-scoped)
+- [x] Inline annotation system on wiki (annotator capability, endorse/needs_work reactions)
+- [x] Account page: 10 sections, activity history feed with filter/search, sticky side nav
+- [x] Legacy routes redirect to `/c/test/...`
+- [x] 17 migrations total; head: `d6e7f8a9b0c1`; 58 passing tests
+
+---
+
+## Phase 4 — First Real Deliberation
+**Status: Not Started**
+
+**Goal:** First real deliberation with real users in a real community.
+
+**Pre-conditions:**
+- [ ] Seed real communities via `/admin` — `redlands`, `civic-power-consortium`, `macro-circle`
+- [ ] End-to-end test: full thread lifecycle with 3 test users (carry-over from Phase 3)
 
 **Tasks:**
-- [ ] Recruit facilitators (2–3 trusted people) — use new facilitator request flow
-- [ ] Design first deliberation prompt (healthcare focus — prescription drug pricing)
+- [ ] Recruit facilitators (2–3 trusted people) — use facilitator request flow
+- [ ] Design first deliberation prompt for target community
 - [ ] Identity verification workflow for PARTICIPANT tier
-  (MVP: facilitator manually promotes via API; no web flow yet)
+  (MVP: community admin manually promotes; no automated verification yet)
 - [ ] Notification system (email for phase changes — no push notifications in MVP)
 - [ ] Participant onboarding: explain signals, phase gates, audit log
 - [ ] Run deliberation, observe: does it feel legitimate?

@@ -31,7 +31,15 @@ a hired lobbyist, delivered to the legislature.
 ## Repository Structure
 ```
 backend/          Python + FastAPI REST API
-docs/             Architecture, roadmap, LLM integration plan, decision log
+  app/
+    models/       SQLAlchemy models (Community, Thread, Proposal, Vote, Audit, etc.)
+    api/v1/       Route handlers (13 modules)
+    static/js/    Frontend JS (api.js, thread.js, annotations.js, etc.)
+    templates/    HTML pages (16 templates)
+  alembic/        DB migrations (17 total)
+  tests/          pytest (58 tests)
+docs/             Architecture, roadmap, LLM integration plan, decision log,
+                  annotator-guide.md, community-model-v0.3.md (resolved spec)
 index.html        Public landing page (served via GitHub Pages)
 CLAUDE.md         Instructions for Claude Code
 ```
@@ -80,7 +88,8 @@ tooling required).
 | 0 | Backend scaffold: models, migrations, API routes | Complete |
 | 1 | Web frontend: read-only pages, thread browsing | Complete |
 | 2 | Auth + core interactions: sign-in, signals, posts, account | Complete |
-| 3 | Proposals, voting, facilitator controls, full deliberation flow | In progress |
+| 3 | Proposals, voting, facilitator controls, full deliberation flow | Complete |
+| 3.5 | Multi-community architecture: Community, CommunityMembership, /c/{slug} routes, wiki, annotations | Complete |
 | 4 | First real deliberation with real users | Pending |
 | 5 | LLM read-only research assistant | Pending |
 
@@ -108,11 +117,12 @@ See [docs/decisions.md](docs/decisions.md) for the institutional decision log.
 
 ## MVP Scope
 
-- **Domain:** One healthcare sub-issue (prescription drug pricing)
-- **Geography:** One U.S. state (Colorado)
-- **Cohort:** Invite-only, 500–2,000 verified residents
-- **Legal structure:** 501(c)(4) social welfare organization
-- **Execution layer:** One experienced state lobbyist
+- **Architecture:** Multi-community — one codebase serves HOAs, municipalities, union locals, topical groups
+- **First deployment target:** Redlands, CA (local municipal community at `/c/redlands`)
+- **Platform meta-community:** civic-power-consortium (platform governance)
+- **Initial private community:** macro-circle (invite-only)
+- **Legal structure:** 501(c)(4) social welfare organization (planned)
+- **Current DB state:** `test` community seeded; other communities created via `/admin`
 
 ---
 

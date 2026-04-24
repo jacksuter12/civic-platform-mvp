@@ -18,14 +18,14 @@ target: Redlands, CA (`/c/redlands`).
 
 ---
 
-## Current Build Status (as of 2026-04-22)
+## Current Build Status (as of 2026-04-23)
 
 **What's live and working:**
 
 *Infrastructure*
 - Multi-community data model: `Community`, `CommunityMembership` tables
 - `platform_role` field on users (user | platform_admin) for platform-level ops
-- 16 Alembic migrations (head: `c5d6e7f8a9b0`)
+- 17 Alembic migrations (head: `d6e7f8a9b0c1`)
 - 58 passing tests
 
 *Pages and routes*
@@ -79,7 +79,6 @@ target: Redlands, CA (`/c/redlands`).
 - LLM integration (Phase 5 — do not add until Phase 4 deliberation is validated)
 - React migration (no npm/build toolchain yet)
 - Rate limiting, participant verification web flow, render.yaml
-- Personal activity feed (Phase 2)
 - Email-bridge contact feature (Phase 2)
 
 ---
@@ -125,13 +124,14 @@ backend/          FastAPI backend
     core/         security.py (JWT), audit.py (log writer)
     db/session.py Async session factory
     static/js/    api.js, nav.js, thread.js, auth.js, utils.js,
-                  annotations.js, annotation_ui.js, annotation_anchor.js
+                  annotations.js, annotation_ui.js, annotation_anchor.js,
+                  config.js
     templates/    HTML pages
-      community_home.html, community_members.html, community_admin.html
-      threads.html, thread.html, new-thread.html, account.html,
-      admin.html, audit.html, signin.html, wiki_index.html,
+      communities.html, community_home.html, community_members.html,
+      community_admin.html, threads.html, thread.html, new-thread.html,
+      account.html, admin.html, audit.html, signin.html, wiki_index.html,
       wiki_article.html, how-it-works.html, quiz.html, index.html
-  alembic/        DB migrations (16 total; head: c5d6e7f8a9b0)
+  alembic/        DB migrations (17 total; head: d6e7f8a9b0c1)
   tests/          pytest (58 tests)
 
 docs/             Architecture, roadmap, LLM integration guide, decision log

@@ -1,6 +1,6 @@
 # System Architecture
 
-_Last updated: 2026-04-03. Reflects current deployed state._
+_Last updated: 2026-04-23. Reflects current deployed state._
 
 ---
 
@@ -53,22 +53,34 @@ No build tooling. All files are plain HTML/CSS/JS.
 backend/app/
 ├── static/
 │   ├── css/
-│   │   └── main.css          # all shared styles
+│   │   └── main.css              # all shared styles
 │   └── js/
-│       ├── api.js            # all fetch() calls — no DOM, framework-agnostic
-│       ├── auth.js           # JWT storage, expiry check, login state
-│       ├── nav.js            # shared navigation bar
-│       └── utils.js          # formatting helpers (timeAgo, capitalize, etc.)
+│       ├── api.js                # all fetch() calls — no DOM, framework-agnostic
+│       ├── auth.js               # JWT storage, expiry check, login state
+│       ├── nav.js                # shared navigation bar
+│       ├── utils.js              # formatting helpers (timeAgo, capitalize, esc, etc.)
+│       ├── config.js             # client-side configuration (API base URL, etc.)
+│       ├── thread.js             # thread detail UI — posts, signals, proposals, voting
+│       ├── annotations.js        # annotation CRUD operations
+│       ├── annotation_ui.js      # annotation rendering, highlighting, reaction UI
+│       └── annotation_anchor.js  # text selection and anchor tracking (Hypothesis-based)
 └── templates/
-    ├── index.html            # public landing page — platform thesis, stats, donation model
-    ├── how-it-works.html     # deep mechanics — phase flow, signals, audit log, failure modes
-    ├── quiz.html             # issue-position quiz (static for now)
-    ├── signin.html           # magic link sign-in / account creation
-    ├── threads.html          # thread list with signal counts and phase badges
-    ├── thread.html           # thread detail — posts, signals, proposals, voting, facilitator controls
-    ├── new-thread.html       # create a new discussion thread (registered+ required)
-    ├── account.html          # profile, display name, facilitator status / application
-    └── admin.html            # facilitator request approval queue (admin only)
+    ├── index.html                # public landing page — thesis, stats, donation model
+    ├── how-it-works.html         # deep mechanics — phase flow, signals, audit log
+    ├── quiz.html                 # issue-position quiz (static for now)
+    ├── signin.html               # magic link sign-in / account creation
+    ├── account.html              # profile, communities, activity history, facilitator request
+    ├── communities.html          # community directory
+    ├── community_home.html       # community landing page (public if is_public)
+    ├── community_members.html    # public member list (display name + tier, no PII)
+    ├── community_admin.html      # community admin: facilitator requests, tier promotion
+    ├── threads.html              # thread list scoped to community
+    ├── thread.html               # thread detail — posts, signals, proposals, voting
+    ├── new-thread.html           # create a new discussion thread (registered+ required)
+    ├── admin.html                # platform admin: communities, annotators, user list
+    ├── audit.html                # platform-level audit log viewer
+    ├── wiki_index.html           # wiki table of contents
+    └── wiki_article.html         # individual wiki article with inline annotations
 ```
 
 **Design constraint:** `api.js` contains only `fetch()` calls and data parsing — no DOM
@@ -81,31 +93,63 @@ when the frontend migrates to React.
 
 | URL | Template | Auth required | What it does |
 |---|---|---|---|
-| `/` | `index.html` | None | Landing page: platform thesis, lobbying stats, donation model explainer |
-| `/how-it-works` | `how-it-works.html` | None | Full mechanics: phase flow, signals, audit log demo, failure modes |
+| `/` | `index.html` | None | Landing page: platform thesis, lobbying stats, donation model |
+| `/how-it-works` | `how-it-works.html` | None | Full mechanics: phase flow, signals, audit log, failure modes |
 | `/quiz` | `quiz.html` | None | Issue-position quiz (currently static) |
 | `/signin` | `signin.html` | None | Magic link auth; creates account on first sign-in |
-| `/threads` | `threads.html` | None (read); Registered (create button) | Thread list with signal bars and phase badges |
-| `/thread/{id}` | `thread.html` | None (read); Registered (signals); Registered (post/vote/propose) | Full thread: discussion, signals, proposals, voting, facilitator panel |
-| `/new-thread` | `new-thread.html` | Registered | Create a new discussion thread |
-| `/account` | `account.html` | Registered | Profile, display name changes, facilitator application |
-| `/admin` | `admin.html` | Admin | Pending facilitator request queue with approve/deny |
+| `/account` | `account.html` | Registered | Profile, communities, activity history feed, facilitator request |
+| `/communities` | `communities.html` | None | Community directory |
+| `/c/{slug}` | `community_home.html` | None (if public) | Community landing: threads, member count, description |
+| `/c/{slug}/threads` | `threads.html` | None (read); Registered (create) | Thread list scoped to community |
+| `/c/{slug}/thread/{id}` | `thread.html` | None (read); Registered (interact) | Full thread: posts, signals, proposals, voting, facilitator panel |
+| `/c/{slug}/new-thread` | `new-thread.html` | Registered member | Create a new thread in this community |
+| `/c/{slug}/audit` | `audit.html` | None (if public) | Community-scoped audit log |
+| `/c/{slug}/members` | `community_members.html` | None (if public) | Member list (display name + tier, no PII) |
+| `/c/{slug}/admin` | `community_admin.html` | Facilitator/Admin | Facilitator requests, tier promotion |
+| `/admin` | `admin.html` | Platform admin | Community creation, annotator grants, user list |
+| `/audit` | `audit.html` | None | Platform-level audit log (community_id IS NULL events only) |
+| `/wiki` | `wiki_index.html` | None | Global wiki table of contents |
+| `/wiki/{slug}` | `wiki_article.html` | None (read); Annotator (annotate) | Wiki article with inline annotations |
+| `/threads` `/thread/{id}` `/new-thread` | — | — | 302 redirect → `/c/test/...` (legacy URLs) |
 
 ---
 
 ## What's Working
 
+**Infrastructure**
+- **Multi-community architecture** — `Community` and `CommunityMembership` tables; `platform_role` on users (`user` | `platform_admin`); all deliberative actions community-scoped
+- **17 Alembic migrations** — head: `d6e7f8a9b0c1`; 58 passing tests
+- **Auth** — Supabase magic link sign-in; JWT verified on every API call; client-side expiry detection
+
+**Pages and routes**
+- **Community directory** — `/communities` — public listing of communities
+- **Community home** — `/c/{slug}` — landing page, active threads, member count
+- **Community admin** — `/c/{slug}/admin` — facilitator request queue, member tier promotion
+- **Community members** — `/c/{slug}/members` — public display name + tier list
+- **Community audit** — `/c/{slug}/audit` — scoped to community events; public if community is public
+- **Platform admin** — `/admin` — community creation, annotator capability management, user list
+- **Platform audit** — `/audit` — platform-level events only (community_id IS NULL)
+- **Wiki** — `/wiki`, `/wiki/{slug}` — 16 articles with TOC, prev/next navigation
+- **Legacy redirects** — `/threads`, `/thread/{id}`, `/new-thread` → `/c/test/...`
+
+**Deliberation**
 - **Full thread lifecycle** — all 6 phases (OPEN → DELIBERATING → PROPOSING → VOTING → CLOSED → ARCHIVED)
-- **Auth** — Supabase magic link sign-in; JWT verified on every API call
-- **Signal casting** — one signal per user per thread; block signals always surfaced
-- **Post creation** — with threading (replies); chronological, no reactions
-- **Proposal creation** — in PROPOSING phase only
-- **Voting** — immutable votes in VOTING phase; results hidden until CLOSED
-- **Facilitator controls** — phase advance with required reason, written to audit log
-- **Facilitator request flow** — users apply on account page; admin approves/denies at `/admin`; tier promotion is audit-logged
-- **Audit log** — public, append-only, queryable via `GET /api/v1/audit`
+- **Signal casting** — one signal per user per thread; polymorphic targets (thread/post/proposal); block signals always surfaced
+- **Post creation** — phase-gated (OPEN/DELIBERATING); chronological, no reactions, soft-deleted by facilitator
+- **Proposals** — PROPOSING phase only; versioned (edit snapshots); proposal comments; amendments (submit / accept / reject)
+- **Voting** — yes/no/abstain; immutable once cast; DB unique constraint; results hidden until CLOSED
+- **Facilitator controls** — phase advance with required reason, written to audit log; community-scoped (a Redlands facilitator cannot act in another community's threads)
+- **Facilitator request flow** — account page application → community admin approval → `CommunityMembership.tier` promoted, audit-logged
+
+**Account and user**
+- **Account page** — 10 sections: profile, communities, activity history, facilitator request, etc.
+- **Activity history feed** — filterable by action type (posts/votes/signals/proposals/amendments), searchable, chronological
+- **Sticky side nav** — account page sections with scroll-aware highlighting
+
+**Wiki and annotations**
+- **Inline annotation system** — `annotator` capability required; text-range anchoring (Hypothesis-based) with section-level fallback; all actions audit-logged
+- **Annotation reactions** — `endorse` / `needs_work`; editorial only, never used for ranking or sorting
 - **15 policy domains** — seeded: Healthcare, Education, Defense, Fiscal Policy, Monetary Policy, Social Security, Housing, Immigration, Criminal Justice, Environment & Energy, Infrastructure, Labor, Trade, Civil Rights, Drug Policy
-- **Landing pages** — `/`, `/how-it-works` with cited stats, donation model, failure modes
 
 ---
 
@@ -113,32 +157,49 @@ when the frontend migrates to React.
 
 | Item | Notes |
 |---|---|
-| **LLM assistant** | Phase 5 of roadmap. Read-only summarization. See `docs/llm-integration.md`. |
-| **Full admin dashboard** | Current `/admin` handles only facilitator requests. Domain management, pool creation, allocation recording still done via API or direct DB. |
+| **LLM assistant** | Phase 5 of roadmap. Read-only summarization only. See `docs/llm-integration.md`. |
+| **Real communities seeded** | `test` community exists. `redlands`, `civic-power-consortium`, `macro-circle` must be created via `/admin`. |
+| **Allocation admin UI** | API routes exist for pools and allocations; no admin form in the UI yet. |
+| **Participant tier enforcement** | All substantive actions gated at `registered` for now. `participant` tier is in the schema as a reserved future state for scoped identity verification. |
 | **`render.yaml`** | Render deployment config exists only in the Render dashboard. Should be committed to repo for reproducibility. |
 | **Rate limiting** | No per-IP or per-user rate limiting. Add via `slowapi` or Render edge when needed. |
-| **Participant identity verification** | Currently manual — admin promotes via facilitator request flow. No automated verification. |
 | **React migration** | Deferred until web MVP is validated with real users. `api.js` is designed to survive the migration unchanged. |
-| **Render.yaml** | Deployment config in Render dashboard only, not in repo. |
+| **End-to-end test** | Full thread lifecycle with 3 test users (real browser flow) not yet scripted. |
 
 ---
 
 ## Identity Tiers
 
+Tiers are now stored on `CommunityMembership`, not on `users`. A user's tier is
+per-community — being a facilitator in one community confers no privileges in another.
+`users.tier` is vestigial and will be dropped in a future cleanup migration.
+
+**Community-scoped tiers (CommunityMembership.tier):**
+
 | Tier | How acquired | Capabilities |
 |---|---|---|
-| `registered` | Email magic link (auto on first sign-in) | Read threads, cast signals, create posts, create threads, submit proposals, vote, apply for facilitator |
-| `participant` | _Reserved for future identity verification_ | Currently same as registered; will require additional verification step when implemented |
-| `facilitator` | Approved via facilitator request flow at `/admin` | Advance thread phases, remove posts (with reason, audit-logged) |
-| `admin` | Seeded or manually set in DB | All of the above plus facilitator request approval |
+| `registered` | Joining a community (auto on email magic link for the initial community) | Read threads, cast signals, create posts, create threads, submit proposals, vote, submit amendments, apply for facilitator |
+| `participant` | _Reserved for future identity verification_ | Currently same as registered; will require scoped verification (e.g., voter file for Redlands) when implemented |
+| `facilitator` | Approved via facilitator request flow; community admin promotes | Advance thread phases, remove posts (with reason, audit-logged). Scoped to the community where approved. |
+| `admin` | Seeded or manually promoted in DB | All facilitator capabilities + approve/deny facilitator requests, promote member tiers |
 
-**Note on tier gating:** Thread creation was intentionally lowered to `registered` for
-the MVP launch cohort. The `participant` tier will be re-activated as a gate when
-identity verification is implemented.
+**Platform-level distinction (users.platform_role):**
+
+| Role | How acquired | Capabilities |
+|---|---|---|
+| `user` | Default | Normal participant in communities they belong to |
+| `platform_admin` | Seeded or manually set | Create communities, grant/revoke annotator capability, list all users |
+
+**FastAPI dependency injection:**
+- `RegisteredUser` — requires any community membership at `registered` or above in the target community
+- `FacilitatorUser` / `CommunityAdminUser` — requires `facilitator` or `admin` membership in the target community
+- `PlatformAdminUser` — requires `user.platform_role == 'platform_admin'`
+- Do not use the old `AdminUser` dep for new routes — it checks the vestigial `users.tier`
 
 **Sybil resistance (MVP):** Magic link auth creates email friction. No phone
-verification or payment in MVP. Facilitator tier requires manual approval via the
-admin queue.
+verification or payment in MVP. Facilitator tier requires community admin approval.
+Cross-community isolation is the primary trust boundary at this stage: a registered
+Redlands member cannot act in Macro Circle without a separate membership.
 
 ---
 
@@ -226,17 +287,28 @@ _Future hardening: PostgreSQL trigger to enforce append-only at the DB level._
 ## Data Model Overview
 
 ```
-Domain (slug, name, is_active)
-  └── Thread (OPEN → DELIBERATING → PROPOSING → VOTING → CLOSED → ARCHIVED)
-        ├── Post (author, body, parent_id; no reactions; soft-deleted)
-        ├── Signal (one per user per thread: support/concern/need_info/block)
-        └── Proposal
-              ├── Vote (one per participant per proposal: yes/no/abstain; immutable)
-              └── AllocationDecision (pool_id, amount, vote_summary snapshot)
+Community (slug, name, type, is_public, is_invite_only, description)
+  ├── CommunityMembership (user_id, tier: registered/participant/facilitator/admin)
+  ├── FundingPool (community-scoped, total_amount, allocated_amount, currency=USD_SIM)
+  ├── FacilitatorRequest (user_id, reason, status: pending/approved/denied, reviewed_by)
+  └── Domain (slug, name, is_active — community-scoped)
+        └── Thread (OPEN → DELIBERATING → PROPOSING → VOTING → CLOSED → ARCHIVED)
+              ├── Post (author, body, parent_id; soft-deleted; no ranking)
+              ├── Signal (one per user per target: support/concern/need_info/block;
+              │          polymorphic: thread/post/proposal/comment/amendment)
+              └── Proposal
+                    ├── ProposalVersion (immutable edit snapshots)
+                    ├── ProposalComment (during voting)
+                    ├── Amendment (submit/accept/reject workflow)
+                    ├── Vote (yes/no/abstain; immutable; one per user; DB unique constraint)
+                    └── AllocationDecision (pool_id, amount, vote_summary snapshot)
 
-FundingPool (domain, total_amount, allocated_amount, currency=USD_SIM)
-FacilitatorRequest (user_id, reason, status: pending/approved/denied, reviewed_by_id)
-AuditLog (event_type, actor_id, target_type, target_id, payload — APPEND ONLY)
+User (email, display_name, platform_role: user|platform_admin, is_annotator)
+AuditLog (event_type, actor_id, target_type, target_id, payload, community_id — APPEND ONLY)
+  # community_id IS NULL for platform events; set for all community-scoped events
+
+Annotation (target_type: wiki|post|proposal|document, target_id, anchor, body)
+  └── AnnotationReaction (user_id, reaction_type: endorse|needs_work)
 ```
 
 ---
@@ -246,20 +318,23 @@ AuditLog (event_type, actor_id, target_type, target_id, payload — APPEND ONLY)
 1. **JWT verification** — Supabase JWTs verified locally (HS256 or ES256 via JWKS).
    No network round-trip per request. Expired tokens are detected client-side by
    `auth.js` before any API call is made.
-2. **Tier enforcement** — Every route declares its required tier via FastAPI dependency
-   injection (`RegisteredUser`, `FacilitatorUser`, `AdminUser`). No role claims are
-   trusted from the JWT itself.
-3. **Phase gates server-side** — Action availability (post, propose, vote) is enforced
+2. **Community-scoped tier enforcement** — Every route declares its required tier via
+   FastAPI dependency injection (`RegisteredUser`, `FacilitatorUser`, `PlatformAdminUser`,
+   `CommunityAdminUser`). No role claims are trusted from the JWT itself. `users.tier` is
+   vestigial; do not use the old `AdminUser` dep for new routes.
+3. **Cross-community isolation** — Facilitator and admin tiers are community-scoped. A
+   facilitator in Community A cannot advance phases or approve requests in Community B.
+4. **Phase gates server-side** — Action availability (post, propose, vote) is enforced
    at the API layer, not just the UI. The client cannot bypass phase gates.
-4. **Soft deletes** — Posts are soft-deleted; body replaced with tombstone, removal
+5. **Soft deletes** — Posts are soft-deleted; body replaced with tombstone, removal
    reason recorded in audit log.
-5. **No PII in audit log** — `actor_id` is a UUID; display_name requires a separate
+6. **No PII in audit log** — `actor_id` is a UUID; display_name requires a separate
    lookup. Limits exposure of identity in the public log.
-6. **Moderator accountability** — All facilitator actions (phase advance, post removal)
+7. **Moderator accountability** — All facilitator actions (phase advance, post removal)
    are in the public audit log with a required stated reason.
-7. **Vote immutability** — DB unique constraint on `(proposal_id, voter_id)`. Cannot
+8. **Vote immutability** — DB unique constraint on `(proposal_id, voter_id)`. Cannot
    vote twice on the same proposal.
-8. **Rate limiting** — Not implemented in MVP. Add via `slowapi` or Render edge.
+9. **Rate limiting** — Not implemented in MVP. Add via `slowapi` or Render edge.
 
 ---
 
