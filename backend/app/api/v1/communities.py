@@ -29,6 +29,7 @@ from app.core.audit import log_event
 from app.models.audit import AuditEventType, AuditLog
 from app.models.community import Community
 from app.models.community_membership import CommunityMembership
+from app.models.domain import Domain
 from app.models.thread import Thread, ThreadStatus
 from app.models.user import PlatformRole, User, UserTier
 from app.schemas.audit import AuditLogEntry, AuditLogPage
@@ -135,6 +136,16 @@ async def create_community(
         created_by_id=admin.id,
     )
     db.add(community)
+    await db.flush()
+
+    default_domain = Domain(
+        community_id=community.id,
+        slug="general",
+        name="General",
+        description="Default discussion domain for this community.",
+        is_active=True,
+    )
+    db.add(default_domain)
     await db.flush()
 
     await log_event(

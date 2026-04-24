@@ -18,6 +18,7 @@ from datetime import datetime, UTC
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db, get_optional_user
@@ -25,6 +26,7 @@ from app.main import app
 from app.models.audit import AuditEventType, AuditLog
 from app.models.community import Community, CommunityType
 from app.models.community_membership import CommunityMembership
+from app.models.domain import Domain
 from app.models.facilitator_request import FacilitatorRequest, FacilitatorRequestStatus
 from app.models.user import PlatformRole, User, UserTier
 
@@ -180,6 +182,17 @@ async def test_platform_admin_can_create_community(
     assert data["slug"] == "new-city"
     assert data["name"] == "New City"
     assert data["member_count"] == 0
+
+    result = await db_session.execute(
+        select(Domain).where(
+            Domain.community_id == uuid.UUID(data["id"]),
+            Domain.slug == "general",
+        )
+    )
+    default_domain = result.scalar_one()
+    assert default_domain.name == "General"
+    assert default_domain.description == "Default discussion domain for this community."
+    assert default_domain.is_active is True
 
 
 @pytest.mark.asyncio
