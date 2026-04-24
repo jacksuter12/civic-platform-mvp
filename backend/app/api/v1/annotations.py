@@ -2,12 +2,14 @@
 Annotation routes — CRUD for annotations and their reactions.
 
 Permission summary:
-  GET    /annotations             — public (no auth required)
-  POST   /annotations             — annotator or admin
-  PATCH  /annotations/{id}        — annotation author or admin
-  DELETE /annotations/{id}        — annotation author or admin
-  POST   /annotations/{id}/reactions  — annotator or admin
-  DELETE /annotations/{id}/reactions  — annotator or admin
+  GET    /annotations                   — public (no auth required)
+  POST   /annotations                   — wiki: annotator; proposal: registered member in PROPOSING
+  PATCH  /annotations/{id}              — annotation author or admin
+  DELETE /annotations/{id}              — author self-deletes; moderator deletes others'
+  POST   /annotations/{id}/reactions    — wiki: annotator; proposal: registered member in PROPOSING
+  DELETE /annotations/{id}/reactions    — same as POST reactions
+  POST   /annotations/{id}/resolve      — annotation author, proposal author, or facilitator
+  POST   /annotations/{id}/unresolve    — same as resolve
 
 Admin annotator grant/revoke lives in admin.py (routes 7-8).
 
@@ -23,7 +25,12 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import DB, AnnotatorUser, CurrentUser, OptionalUser
+from app.api.deps import DB, CurrentUser, OptionalUser
+from app.api.v1._annotation_perms import (
+    require_can_annotate,
+    require_can_moderate,
+    require_can_resolve,
+)
 from app.core.audit import log_event
 from app.models.annotation import (
     Annotation,
@@ -87,6 +94,8 @@ def _to_read(
         body=body,
         updated_at=annotation.updated_at,
         deleted_at=annotation.deleted_at,
+        resolved_at=annotation.resolved_at,
+        resolved_by_id=annotation.resolved_by_id,
         reactions=counts,
         my_reaction=my_reaction,
     )
@@ -156,16 +165,14 @@ async def list_annotations(
 @router.post("", response_model=AnnotationRead, status_code=status.HTTP_201_CREATED)
 async def create_annotation(
     payload: AnnotationCreate,
-    user: AnnotatorUser,
+    user: CurrentUser,
     db: DB,
 ) -> AnnotationRead:
-    """Create a new annotation. v1 restricts target_type to 'wiki'."""
-    if payload.target_type != AnnotationTargetType.WIKI:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="v1 only supports target_type='wiki'.",
-        )
-
+    """
+    Create a new annotation. Permission branches on target_type:
+    - wiki: requires annotator capability
+    - proposal: requires registered community membership + PROPOSING phase
+    """
     if payload.parent_id is not None:
         parent_result = await db.execute(
             select(Annotation).where(Annotation.id == payload.parent_id)
@@ -187,6 +194,11 @@ async def create_annotation(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Cannot reply to a reply. One level of nesting only.",
             )
+
+    proposal, thread = await require_can_annotate(
+        db, user, payload.target_type.value, payload.target_id
+    )
+    community_id = thread.community_id if thread is not None else None
 
     annotation = Annotation(
         target_type=payload.target_type,
@@ -213,6 +225,7 @@ async def create_annotation(
         target_id=annotation.id,
         payload=audit_payload,
         actor_id=user.id,
+        community_id=community_id,
     )
 
     await db.refresh(annotation, ["author", "reactions"])
@@ -279,20 +292,22 @@ async def delete_annotation(
     user: CurrentUser,
     db: DB,
 ) -> None:
-    """Soft-delete an annotation. Author or admin only. Body replaced with tombstone."""
+    """
+    Soft-delete an annotation. Authors may delete their own. For others'
+    annotations, permission is checked via require_can_moderate (which branches
+    on target_type: wiki = annotator/admin; proposal = facilitator+).
+    """
     annotation = await _get_annotation_or_404(db, annotation_id)
 
     if annotation.deleted_at is not None:
         raise HTTPException(status_code=404, detail="Annotation not found.")
 
-    is_admin = user.tier == UserTier.ADMIN
     is_author = annotation.author_id == user.id
+    community_id = None
 
-    if not (is_author or is_admin):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only the author or an admin may delete this annotation.",
-        )
+    if not is_author:
+        _, thread = await require_can_moderate(db, user, annotation)
+        community_id = thread.community_id if thread is not None else None
 
     original_body = annotation.body
     annotation.body = TOMBSTONE
@@ -301,8 +316,8 @@ async def delete_annotation(
     await db.flush()
 
     audit_payload: dict = {"original_body": original_body}
-    if is_admin and not is_author:
-        audit_payload["admin_override"] = True
+    if not is_author:
+        audit_payload["moderated_by_id"] = str(user.id)
         audit_payload["original_author_id"] = str(annotation.author_id)
 
     await log_event(
@@ -312,6 +327,7 @@ async def delete_annotation(
         target_id=annotation.id,
         payload=audit_payload,
         actor_id=user.id,
+        community_id=community_id,
     )
 
 
@@ -327,12 +343,13 @@ async def delete_annotation(
 async def add_reaction(
     annotation_id: uuid.UUID,
     payload: AnnotationReactionCreate,
-    user: AnnotatorUser,
+    user: CurrentUser,
     db: DB,
 ) -> AnnotationReactionState:
     """
     Upsert a reaction on an annotation.
     Cannot react to own annotation. Cannot react to a deleted annotation.
+    Permission branches on target_type: wiki = annotator; proposal = registered member.
     """
     annotation = await _get_annotation_or_404(db, annotation_id)
 
@@ -344,6 +361,8 @@ async def add_reaction(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot react to your own annotation.",
         )
+
+    await require_can_annotate(db, user, annotation.target_type, annotation.target_id)
 
     existing_result = await db.execute(
         select(AnnotationReaction).where(
@@ -403,10 +422,17 @@ async def add_reaction(
 @router.delete("/{annotation_id}/reactions", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_reaction(
     annotation_id: uuid.UUID,
-    user: AnnotatorUser,
+    user: CurrentUser,
     db: DB,
 ) -> None:
     """Remove the requesting user's reaction. Idempotent — 204 if no reaction exists."""
+    annotation = await _get_annotation_or_404(db, annotation_id)
+
+    if annotation.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Annotation not found.")
+
+    await require_can_annotate(db, user, annotation.target_type, annotation.target_id)
+
     existing_result = await db.execute(
         select(AnnotationReaction).where(
             AnnotationReaction.annotation_id == annotation_id,
@@ -430,3 +456,97 @@ async def remove_reaction(
         payload={"reaction": original_reaction.value},
         actor_id=user.id,
     )
+
+
+# ---------------------------------------------------------------------------
+# Route 7 — POST /annotations/{annotation_id}/resolve
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{annotation_id}/resolve", response_model=AnnotationRead)
+async def resolve_annotation(
+    annotation_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+) -> AnnotationRead:
+    """
+    Mark an annotation as resolved. Only proposal annotations can be resolved.
+    Permitted by: the annotation author, the proposal author, or a community facilitator.
+    """
+    annotation = await _get_annotation_or_404(db, annotation_id)
+    if not annotation:
+        raise HTTPException(status_code=404, detail="Annotation not found.")
+
+    if annotation.resolved_at is not None:
+        raise HTTPException(status_code=409, detail="Already resolved.")
+
+    proposal, thread = await require_can_resolve(db, user, annotation)
+
+    annotation.resolved_at = datetime.now(UTC)
+    annotation.resolved_by_id = user.id
+    db.add(annotation)
+    await db.flush()
+
+    await log_event(
+        db,
+        event_type=AuditEventType.ANNOTATION_RESOLVED,
+        target_type="annotation",
+        target_id=annotation.id,
+        payload={
+            "annotation_id": str(annotation.id),
+            "annotation_target_type": annotation.target_type,
+            "resolved_by_id": str(user.id),
+        },
+        actor_id=user.id,
+        community_id=thread.community_id,
+    )
+
+    await db.refresh(annotation, ["author", "reactions"])
+    return _to_read(annotation, user.id)
+
+
+# ---------------------------------------------------------------------------
+# Route 8 — POST /annotations/{annotation_id}/unresolve
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{annotation_id}/unresolve", response_model=AnnotationRead)
+async def unresolve_annotation(
+    annotation_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+) -> AnnotationRead:
+    """
+    Mark a previously resolved annotation as open again. Only proposal annotations.
+    Permitted by: the annotation author, the proposal author, or a community facilitator.
+    """
+    annotation = await _get_annotation_or_404(db, annotation_id)
+    if not annotation:
+        raise HTTPException(status_code=404, detail="Annotation not found.")
+
+    if annotation.resolved_at is None:
+        raise HTTPException(status_code=409, detail="Annotation is not resolved.")
+
+    proposal, thread = await require_can_resolve(db, user, annotation)
+
+    annotation.resolved_at = None
+    annotation.resolved_by_id = None
+    db.add(annotation)
+    await db.flush()
+
+    await log_event(
+        db,
+        event_type=AuditEventType.ANNOTATION_UNRESOLVED,
+        target_type="annotation",
+        target_id=annotation.id,
+        payload={
+            "annotation_id": str(annotation.id),
+            "annotation_target_type": annotation.target_type,
+            "unresolved_by_id": str(user.id),
+        },
+        actor_id=user.id,
+        community_id=thread.community_id,
+    )
+
+    await db.refresh(annotation, ["author", "reactions"])
+    return _to_read(annotation, user.id)

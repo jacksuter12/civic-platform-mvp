@@ -52,6 +52,10 @@ class Proposal(Base, UUIDPKMixin, TimestampMixin):
     current_version_number: Mapped[int] = mapped_column(
         Integer, nullable=False, default=1
     )
+    # Server-rendered HTML from description. Populated on create/edit so the
+    # frontend doesn't need a markdown parser. Annotation anchors reference
+    # text ranges in this HTML, so rendering must be deterministic.
+    body_html: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
 
     # Relationships
     thread: Mapped["Thread"] = relationship(  # type: ignore[name-defined]

@@ -20,6 +20,7 @@ from sqlalchemy import func, select
 
 from app.api.deps import CurrentUser, DB, OptionalUser, check_community_membership
 from app.core.audit import log_event
+from app.core.markdown import render_markdown
 from app.models.audit import AuditEventType
 from app.models.proposal import Proposal, ProposalStatus
 from app.models.proposal_version import ProposalVersion
@@ -73,6 +74,7 @@ def _build_summary(
         thread_id=p.thread_id,
         title=p.title,
         description=p.description,
+        body_html=p.body_html,
         status=p.status,
         requested_amount=p.requested_amount,
         vote_summary=vote_summary,
@@ -142,6 +144,7 @@ async def create_proposal(
         created_by_id=user.id,
         title=payload.title,
         description=payload.description,
+        body_html=render_markdown(payload.description),
         requested_amount=payload.requested_amount,
         status=ProposalStatus.SUBMITTED,
         current_version_number=1,
@@ -205,12 +208,14 @@ async def edit_proposal(
         version_number=proposal.current_version_number,
         title=proposal.title,
         description=proposal.description,
+        body_html=render_markdown(proposal.description),
         edit_summary=payload.edit_summary,
     )
     db.add(version)
 
     proposal.title = payload.title
     proposal.description = payload.description
+    proposal.body_html = render_markdown(payload.description)
     proposal.current_version_number += 1
 
     await db.flush()

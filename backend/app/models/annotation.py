@@ -80,10 +80,20 @@ class Annotation(Base, UUIDPKMixin, TimestampMixin):
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Resolve tracking — proposal annotations only.
+    resolved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    resolved_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
 
     # --- Relationships ---
     author: Mapped["User"] = relationship(  # type: ignore[name-defined]
-        "User", back_populates="annotations"
+        "User", back_populates="annotations", foreign_keys=[author_id]
+    )
+    resolved_by: Mapped["User | None"] = relationship(  # type: ignore[name-defined]
+        "User", foreign_keys=[resolved_by_id]
     )
     parent: Mapped["Annotation | None"] = relationship(
         "Annotation", back_populates="replies", remote_side="Annotation.id"

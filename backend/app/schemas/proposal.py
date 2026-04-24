@@ -49,6 +49,7 @@ class ProposalSummary(UUIDSchema, TimestampSchema):
     thread_id: uuid.UUID
     title: str
     description: str
+    body_html: str = ""
     status: ProposalStatus
     requested_amount: Decimal | None
     vote_summary: VoteSummary
@@ -70,6 +71,7 @@ class ProposalVersionRead(UUIDSchema, TimestampSchema):
     version_number: int
     title: str
     description: str
+    body_html: str = ""
     edit_summary: str
 
 

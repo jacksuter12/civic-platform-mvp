@@ -7,6 +7,7 @@ Validates:
 - The audit log captures each edit
 - Cannot edit a proposal when the thread is not in PROPOSING phase
 - Editing is restricted to the proposal's author
+- body_html is populated on create and updated on edit
 """
 
 import uuid
@@ -14,10 +15,14 @@ from datetime import datetime, UTC
 
 import pytest
 import pytest_asyncio
+from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user
 from app.core.audit import log_event
+from app.core.markdown import render_markdown
+from app.main import app
 from app.models.audit import AuditEventType, AuditLog
 from app.models.community import Community, CommunityType
 from app.models.community_membership import CommunityMembership
@@ -412,3 +417,69 @@ async def test_version_snapshot_is_immutable(
     assert v1.title == title_in_v1, (
         "Version snapshot must not be affected by subsequent edits"
     )
+
+
+# ---------------------------------------------------------------------------
+# body_html tests — server-side markdown rendering
+# ---------------------------------------------------------------------------
+
+
+def _auth_as_version(user: User):
+    def _dep():
+        return user
+    return _dep
+
+
+@pytest.mark.asyncio
+async def test_create_proposal_populates_body_html(
+    client: AsyncClient,
+    thread_proposing: Thread,
+    author: User,
+) -> None:
+    """POST /proposals?thread_id=... must return body_html rendered from description."""
+    app.dependency_overrides[get_current_user] = _auth_as_version(author)
+    try:
+        description = "## Summary\n\nWe should build **ten** new clinics across the district."
+        resp = await client.post(
+            f"/api/v1/proposals?thread_id={thread_proposing.id}",
+            json={
+                "title": "Build new community clinics",
+                "description": description,
+            },
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert "body_html" in data
+        expected = render_markdown(description)
+        assert data["body_html"] == expected
+        assert 'id="summary"' in data["body_html"]
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.mark.asyncio
+async def test_edit_proposal_updates_body_html(
+    client: AsyncClient,
+    proposal: Proposal,
+    author: User,
+) -> None:
+    """PATCH /proposals/{id} must update body_html to match the new description."""
+    app.dependency_overrides[get_current_user] = _auth_as_version(author)
+    try:
+        new_description = "## Revised plan\n\nWe now propose **fifteen** clinics."
+        resp = await client.patch(
+            f"/api/v1/proposals/{proposal.id}",
+            json={
+                "title": "Updated proposal title",
+                "description": new_description,
+                "edit_summary": "Expanded the clinic count based on new data.",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "body_html" in data
+        expected = render_markdown(new_description)
+        assert data["body_html"] == expected
+        assert 'id="revised-plan"' in data["body_html"]
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)

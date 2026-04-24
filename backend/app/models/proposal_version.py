@@ -34,6 +34,7 @@ class ProposalVersion(Base, UUIDPKMixin, TimestampMixin):
     version_number: Mapped[int] = mapped_column(Integer, nullable=False)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
+    body_html: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
     edit_summary: Mapped[str] = mapped_column(String(500), nullable=False)
 
     # Relationships

@@ -73,6 +73,8 @@ class AnnotationRead(UUIDSchema, TimestampSchema):
     body: str
     updated_at: datetime | None
     deleted_at: datetime | None
+    resolved_at: datetime | None = None
+    resolved_by_id: uuid.UUID | None = None
     reactions: ReactionCounts
     my_reaction: ReactionType | None
 
