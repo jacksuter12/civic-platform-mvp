@@ -400,6 +400,61 @@
       /* mirrors .btn-advance from main.css */
     }
     #advance-error { color: #c62828; font-size: 13px; flex: 1; }
+
+    /* --- Compact proposal card grid --- */
+    .proposals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .proposal-compact-card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: border-color 0.15s;
+    }
+    .proposal-compact-card:hover { border-color: #aaa; }
+
+    .pcc-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      justify-content: space-between;
+    }
+
+    .pcc-title {
+      font-size: 15px;
+      font-weight: 500;
+      color: #1565c0;
+      text-decoration: none;
+      flex: 1;
+      min-width: 0;
+    }
+    .pcc-title:hover { text-decoration: underline; }
+
+    .pcc-meta {
+      font-size: 12px;
+      color: #888;
+    }
+
+    .pcc-signals { display: flex; flex-wrap: wrap; gap: 4px; }
+    .pcc-counts { font-size: 12px; color: #888; display: flex; gap: 12px; }
+
+    .pcc-open-link {
+      font-size: 13px;
+      font-weight: 500;
+      color: #2a5c9a;
+      text-decoration: none;
+      align-self: flex-end;
+      margin-top: auto;
+    }
+    .pcc-open-link:hover { text-decoration: underline; }
   </style>
 </head>
 <body>

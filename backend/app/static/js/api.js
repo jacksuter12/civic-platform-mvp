@@ -472,3 +472,31 @@ async function addCommunityMember(slug, email, tier = "registered") {
     body: JSON.stringify({ email, tier }),
   });
 }
+
+// ===== Proposal (single) =====
+
+async function getProposal(proposalId) {
+  return apiFetch(`/proposals/${proposalId}`);
+}
+
+// ===== Signal helpers (single-target wrappers over batch) =====
+
+async function fetchSignalsForTarget(targetType, targetId) {
+  const data = await getSignalsBatch(targetType, [targetId]);
+  return data[targetId] || { support: 0, concern: 0, need_info: 0, block: 0, total: 0, my_signal: null };
+}
+
+async function fetchMySignalForTarget(targetType, targetId) {
+  const sig = await fetchSignalsForTarget(targetType, targetId);
+  return sig.my_signal ? { signal_type: sig.my_signal } : null;
+}
+
+// ===== Annotation resolve/unresolve (used in Session 3) =====
+
+async function resolveAnnotation(id) {
+  return apiFetch(`/annotations/${id}/resolve`, { method: "POST" });
+}
+
+async function unresolveAnnotation(id) {
+  return apiFetch(`/annotations/${id}/unresolve`, { method: "POST" });
+}

@@ -494,6 +494,57 @@ function renderProposalCard(proposal) {
 }
 
 // ===================================================================
+// Compact proposal card (thread page grid → links to review page)
+// ===================================================================
+
+function renderProposalCompactCard(proposal) {
+  const STATUS_LABELS = {
+    submitted: "Submitted", under_review: "Under Review",
+    voting: "Open for Vote", passed: "Passed",
+    rejected: "Rejected", implemented: "Implemented",
+  };
+  const label  = STATUS_LABELS[proposal.status] || proposal.status;
+  const amount = proposal.requested_amount
+    ? `<span class="proposal-amount">$${Number(proposal.requested_amount).toLocaleString()}</span>` : "";
+
+  const pd = S.pData[proposal.id] || {};
+  const commentCount = pd.comments?.length || 0;
+  const annoCount    = pd.annotationCount != null ? pd.annotationCount : "—";
+
+  // Read-only signal mini-distribution
+  const sigChips = [
+    { type: "support",   icon: "↑" },
+    { type: "concern",   icon: "↓" },
+    { type: "need_info", icon: "?" },
+    { type: "block",     icon: "✕" },
+  ]
+    .filter(m => getSig("proposal", proposal.id)[m.type] > 0)
+    .map(m => `<span class="sig-chip sig-chip-${m.type}">${m.icon} ${getSig("proposal", proposal.id)[m.type]}</span>`)
+    .join("");
+
+  const reviewHref = `/c/${esc(S.communitySlug)}/thread/${esc(S.threadId)}/proposal/${esc(proposal.id)}`;
+
+  return `
+    <div class="proposal-compact-card" data-proposal-id="${esc(proposal.id)}">
+      <div class="pcc-header">
+        <a href="${reviewHref}" class="pcc-title">${esc(proposal.title)}</a>
+        <span class="proposal-status-badge proposal-status-${esc(proposal.status)}">${label}</span>
+      </div>
+      <div class="pcc-meta">
+        by ${esc(proposal.created_by?.display_name || "Unknown")} ·
+        v${proposal.current_version_number || 1}
+        ${amount}
+      </div>
+      <div class="pcc-signals">${sigChips || '<span class="sig-none">no signals</span>'}</div>
+      <div class="pcc-counts">
+        <span>${commentCount} comment${commentCount !== 1 ? "s" : ""}</span>
+        <span>${annoCount} annotation${annoCount !== 1 ? "s" : ""}</span>
+      </div>
+      <a href="${reviewHref}" class="pcc-open-link">Open review →</a>
+    </div>`;
+}
+
+// ===================================================================
 // New-proposal form
 // ===================================================================
 
@@ -605,7 +656,9 @@ function renderPage() {
   const proposalsHtml = showProposals() ? `
     <div class="detail-section" id="proposals-section">
       <div class="section-heading">Proposals · ${S.proposals.length} submitted</div>
-      ${S.proposals.map(p => renderProposalCard(p)).join("")}
+      <div class="proposals-grid">
+        ${S.proposals.map(p => renderProposalCompactCard(p)).join("")}
+      </div>
       ${renderNewProposalForm()}
     </div>` : "";
 
@@ -1179,15 +1232,20 @@ async function handleInput(e) {
 
 async function loadProposalData() {
   if (S.proposals.length === 0) return;
+  // TODO: batch annotation count endpoint (currently N+1 fetches per proposal)
   const results = await Promise.all(
     S.proposals.map(p =>
-      Promise.all([getProposalComments(p.id), getAmendments(p.id)])
-        .then(([comments, amendments]) => ({ id: p.id, comments, amendments }))
-        .catch(() => ({ id: p.id, comments: [], amendments: [] }))
+      Promise.all([
+        getProposalComments(p.id),
+        getAmendments(p.id),
+        listAnnotations("proposal", p.id).then(a => a.length).catch(() => 0),
+      ])
+        .then(([comments, amendments, annotationCount]) => ({ id: p.id, comments, amendments, annotationCount }))
+        .catch(() => ({ id: p.id, comments: [], amendments: [], annotationCount: 0 }))
     )
   );
-  results.forEach(({ id, comments, amendments }) => {
-    S.pData[id] = { comments, amendments };
+  results.forEach(({ id, comments, amendments, annotationCount }) => {
+    S.pData[id] = { comments, amendments, annotationCount };
   });
 }
 

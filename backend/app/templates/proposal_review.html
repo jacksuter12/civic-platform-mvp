@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Proposal review — Civic Platform</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <link rel="stylesheet" href="/static/css/proposal_review.css">
+</head>
+<body>
+  <div id="nav-placeholder"></div>
+
+  <main class="pr-page">
+    <header class="pr-header">
+      <div class="pr-crumb" id="pr-crumb"></div>
+      <div class="pr-titlebar">
+        <div class="pr-title-block">
+          <span class="pr-phase-badge" id="pr-phase"></span>
+          <h1 id="pr-title" class="pr-title"></h1>
+          <div id="pr-meta" class="pr-meta"></div>
+        </div>
+        <div class="pr-actions">
+          <button id="pr-toc-toggle" class="pr-btn" aria-pressed="true">
+            Hide contents
+          </button>
+          <a id="pr-back" class="pr-btn" href="#">Back to thread</a>
+        </div>
+      </div>
+    </header>
+
+    <div class="pr-body" id="pr-body">
+      <aside class="pr-toc is-open" id="pr-toc" aria-label="Proposal contents">
+        <div class="pr-toc-label">Contents</div>
+        <nav id="pr-toc-nav"></nav>
+      </aside>
+
+      <article class="pr-doc" id="pr-doc">
+        <div class="pr-doc-loading">Loading proposal…</div>
+      </article>
+
+      <aside class="pr-anno" id="pr-anno" aria-label="Annotations">
+        <div class="pr-anno-head">
+          <div class="pr-anno-title">
+            Annotations · <span id="pr-anno-count">—</span>
+          </div>
+        </div>
+        <div id="pr-anno-list" class="pr-anno-list">
+          <div class="pr-anno-placeholder">
+            Annotation UI loads in a future release.
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <footer class="pr-footer">
+      <section class="pr-signal">
+        <div class="pr-signal-label">Your signal on this proposal</div>
+        <div class="pr-signal-buttons" id="pr-signal-buttons"></div>
+        <div class="pr-signal-dist" id="pr-signal-dist"></div>
+      </section>
+      <section class="pr-comments" id="pr-comments">
+        <h2>Proposal comments</h2>
+        <div id="pr-comments-list"></div>
+        <form id="pr-comments-form" class="pr-comments-form">
+          <textarea name="body"
+                    placeholder="Add a comment on this proposal"
+                    required
+                    rows="3"></textarea>
+          <div class="pr-form-footer">
+            <span class="pr-form-error" id="pr-comment-error"></span>
+            <button type="submit" class="pr-btn pr-btn-primary">Post comment</button>
+          </div>
+        </form>
+      </section>
+    </footer>
+  </main>
+
+  <script src="/static/js/config.js"></script>
+  <script src="/static/js/utils.js"></script>
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/nav.js"></script>
+  <script src="/static/js/toc.js"></script>
+  <script src="/static/js/proposal_review.js"></script>
+</body>
+</html>

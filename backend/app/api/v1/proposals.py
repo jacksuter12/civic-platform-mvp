@@ -240,6 +240,33 @@ async def edit_proposal(
     return _build_summary(proposal, vs, vc)
 
 
+@router.get("/{proposal_id}", response_model=ProposalDetail)
+async def get_proposal(
+    proposal_id: uuid.UUID,
+    db: DB,
+    user: OptionalUser,
+) -> ProposalDetail:
+    result = await db.execute(select(Proposal).where(Proposal.id == proposal_id))
+    proposal = result.scalar_one_or_none()
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found.")
+    await db.refresh(proposal, ["created_by"])
+    vs = await _vote_summary(db, proposal.id)
+    vc = await _versions_count(db, proposal.id)
+    my_vote = None
+    if user:
+        vr = await db.execute(
+            select(Vote).where(Vote.proposal_id == proposal.id, Vote.voter_id == user.id)
+        )
+        v = vr.scalar_one_or_none()
+        my_vote = v.choice if v else None
+    summary = _build_summary(proposal, vs, vc, my_vote)
+    return ProposalDetail(
+        **summary.model_dump(),
+        created_by=UserPublic.model_validate(proposal.created_by),
+    )
+
+
 @router.get("/{proposal_id}/versions", response_model=list[ProposalVersionRead])
 async def list_proposal_versions(
     proposal_id: uuid.UUID,

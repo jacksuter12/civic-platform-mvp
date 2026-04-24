@@ -1,0 +1,456 @@
+/* ===================================================================
+   proposal_review.css — Styles for /c/{slug}/thread/{id}/proposal/{id}
+   Uses design tokens from main.css (colors, font-family, border-radius).
+   =================================================================== */
+
+/* ---- Page shell ---- */
+
+.pr-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Header ---- */
+
+.pr-header {
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 12px 20px 14px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.pr-crumb {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 6px;
+}
+
+.pr-titlebar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pr-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pr-phase-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #e8eaf6;
+  color: #3949ab;
+  align-self: flex-start;
+}
+
+.pr-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.pr-meta {
+  font-size: 13px;
+  color: #777;
+}
+
+.pr-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.pr-btn {
+  display: inline-block;
+  padding: 6px 14px;
+  font-size: 13px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+.pr-btn:hover { background: #f5f5f5; border-color: #aaa; text-decoration: none; }
+
+.pr-btn-primary {
+  background: #2a5c9a;
+  color: #fff;
+  border-color: #2a5c9a;
+}
+.pr-btn-primary:hover { background: #1e4a7a; border-color: #1e4a7a; }
+
+/* ---- Three-pane body ---- */
+
+.pr-body {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 320px;
+  gap: 0;
+  flex: 1;
+  align-items: start;
+}
+
+/* ---- TOC pane ---- */
+
+.pr-toc {
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
+  padding: 20px 12px 20px 20px;
+  border-right: 1px solid #e8e8e8;
+}
+
+.pr-toc-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #999;
+  margin-bottom: 10px;
+}
+
+.pr-toc-item {
+  display: block;
+  font-size: 13px;
+  color: #555;
+  padding: 5px 8px;
+  border-left: 2px solid transparent;
+  border-radius: 0 3px 3px 0;
+  text-decoration: none;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.pr-toc-item:hover { color: #1a1a1a; text-decoration: none; background: #f5f5f5; }
+.pr-toc-item.is-active {
+  color: #2a5c9a;
+  border-left-color: #2a5c9a;
+  background: #eef3fb;
+  font-weight: 500;
+}
+
+.pr-toc-item--sub {
+  font-size: 12px;
+  padding-left: 18px;
+  color: #777;
+}
+
+.pr-toc-empty {
+  font-size: 12px;
+  color: #bbb;
+  font-style: italic;
+  padding: 4px 8px;
+}
+
+/* ---- Doc pane ---- */
+
+.pr-doc {
+  padding: 28px 40px;
+  min-height: 400px;
+}
+
+/* Document typography — long-form readable */
+.pr-doc h2,
+.pr-doc h3 {
+  color: #1a1a1a;
+  margin: 2em 0 0.6em;
+  line-height: 1.3;
+  scroll-margin-top: 90px;
+}
+.pr-doc h2 { font-size: 20px; border-bottom: 1px solid #e8e8e8; padding-bottom: 6px; }
+.pr-doc h3 { font-size: 16px; }
+.pr-doc h2:first-child,
+.pr-doc h3:first-child { margin-top: 0; }
+
+.pr-doc p {
+  font-size: 15px;
+  line-height: 1.65;
+  color: #2a2a2a;
+  margin: 0 0 1em;
+  max-width: 72ch;
+}
+
+.pr-doc ul,
+.pr-doc ol {
+  font-size: 15px;
+  line-height: 1.65;
+  color: #2a2a2a;
+  margin: 0 0 1em 1.5em;
+  max-width: 72ch;
+}
+.pr-doc li { margin-bottom: 0.3em; }
+
+.pr-doc table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin: 0 0 1.2em;
+}
+.pr-doc th,
+.pr-doc td {
+  border: 1px solid #e0e0e0;
+  padding: 6px 12px;
+  text-align: left;
+}
+.pr-doc th { background: #f5f5f0; font-weight: 600; }
+
+.pr-doc blockquote {
+  border-left: 3px solid #ccc;
+  margin: 0 0 1em;
+  padding: 4px 16px;
+  color: #666;
+  font-style: italic;
+}
+
+.pr-doc code {
+  background: #f0f0ec;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 13px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.pr-doc pre {
+  background: #f0f0ec;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  margin: 0 0 1.2em;
+}
+.pr-doc pre code {
+  background: none;
+  padding: 0;
+  font-size: 13px;
+}
+
+/* Annotated passage highlight — used by annotation modules in Session 3 */
+.anno-highlight {
+  text-decoration: underline wavy #f59e0b;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.pr-doc-loading {
+  font-size: 14px;
+  color: #aaa;
+  padding: 40px 0;
+}
+
+.pr-doc-error {
+  color: #c62828;
+  font-size: 14px;
+  padding: 20px 0;
+}
+
+/* ---- Annotation pane ---- */
+
+.pr-anno {
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
+  padding: 20px 16px;
+  border-left: 1px solid #e8e8e8;
+}
+
+.pr-anno-head {
+  margin-bottom: 12px;
+}
+
+.pr-anno-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pr-anno-placeholder {
+  font-size: 13px;
+  color: #bbb;
+  font-style: italic;
+  padding: 12px;
+  border: 1px dashed #ddd;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.pr-anno-list { display: flex; flex-direction: column; gap: 8px; }
+
+/* ---- Footer: signals + comments ---- */
+
+.pr-footer {
+  border-top: 2px solid #e8e8e8;
+  background: #fff;
+  padding: 24px 40px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.pr-signal-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 10px;
+}
+
+.pr-signal-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+/* Signal buttons reuse the sig-btn color family from thread.html */
+.pr-sig-btn {
+  padding: 6px 14px;
+  font-size: 13px;
+  border: 1px solid #ccc;
+  border-left-width: 3px;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.pr-sig-btn:hover:not(:disabled) { background: #f5f5f5; }
+.pr-sig-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.pr-sig-btn[data-signal-type="support"]   { border-left-color: #4caf50; }
+.pr-sig-btn[data-signal-type="concern"]   { border-left-color: #ff9800; }
+.pr-sig-btn[data-signal-type="need_info"] { border-left-color: #2196f3; }
+.pr-sig-btn[data-signal-type="block"]     { border-left-color: #e53935; }
+.pr-sig-btn.is-chosen[data-signal-type="support"]   { background: #e8f5e9; border-color: #4caf50; font-weight: 600; }
+.pr-sig-btn.is-chosen[data-signal-type="concern"]   { background: #fff3e0; border-color: #ff9800; font-weight: 600; }
+.pr-sig-btn.is-chosen[data-signal-type="need_info"] { background: #e3f2fd; border-color: #2196f3; font-weight: 600; }
+.pr-sig-btn.is-chosen[data-signal-type="block"]     { background: #ffebee; border-color: #e53935; font-weight: 600; }
+
+.pr-signal-dist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.pr-sig-chip {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  background: #f0f0f0;
+  color: #555;
+}
+.pr-sig-chip[data-type="support"]   { background: #e8f5e9; color: #2e7d32; }
+.pr-sig-chip[data-type="concern"]   { background: #fff3e0; color: #e65100; }
+.pr-sig-chip[data-type="need_info"] { background: #e3f2fd; color: #1565c0; }
+.pr-sig-chip[data-type="block"]     { background: #ffebee; color: #c62828; }
+.pr-sig-none { font-size: 12px; color: #bbb; font-style: italic; }
+
+.pr-comments h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.pr-comment {
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.pr-comment:last-child { border-bottom: none; }
+
+.pr-comment-header {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+.pr-comment-author { font-weight: 600; color: #333; }
+.pr-comment-time { color: #aaa; font-size: 12px; }
+.pr-comment-body { font-size: 14px; color: #333; line-height: 1.55; }
+
+.pr-comments-empty { font-size: 13px; color: #bbb; font-style: italic; margin-bottom: 12px; }
+
+.pr-comments-form {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pr-comments-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+}
+.pr-comments-form textarea:focus { border-color: #2a5c9a; outline: none; }
+
+.pr-form-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.pr-form-error {
+  font-size: 13px;
+  color: #c62828;
+  flex: 1;
+}
+
+/* ---- Responsive breakpoints ---- */
+
+@media (max-width: 1023px) {
+  .pr-body {
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
+  /* TOC hidden by default on tablet; opened via toggle */
+  .pr-toc {
+    display: none;
+    grid-column: 1 / -1;
+    position: static;
+    max-height: none;
+    border-right: none;
+    border-bottom: 1px solid #e8e8e8;
+    padding: 16px 20px;
+  }
+  .pr-toc.is-open { display: block; }
+}
+
+@media (max-width: 767px) {
+  .pr-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pr-toc { display: none !important; }
+  .pr-anno { display: none; }
+  .pr-doc { padding: 20px 16px; }
+  .pr-footer { padding: 20px 16px 32px; }
+  .pr-header { padding: 10px 16px 12px; }
+}
