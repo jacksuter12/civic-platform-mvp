@@ -12,6 +12,7 @@ Session 3 changes:
 """
 
 import uuid
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Annotated
 
@@ -23,7 +24,7 @@ from app.core.audit import log_event
 from app.core.markdown import render_markdown
 from app.models.audit import AuditEventType
 from app.models.proposal import Proposal, ProposalStatus
-from app.models.proposal_version import ProposalVersion
+from app.models.proposal_version import ProposalVersion, ProposalVersionStatus
 from app.models.thread import Thread, ThreadStatus
 from app.models.user import UserTier
 from app.models.vote import Vote, VoteChoice
@@ -210,6 +211,12 @@ async def edit_proposal(
         description=proposal.description,
         body_html=render_markdown(proposal.description),
         edit_summary=payload.edit_summary,
+        status=ProposalVersionStatus.accepted,
+        authored_by_id=user.id,
+        parent_version_id=None,
+        decided_at=datetime.now(timezone.utc),
+        decided_by_id=proposal.created_by_id,
+        decision_reason=None,
     )
     db.add(version)
 

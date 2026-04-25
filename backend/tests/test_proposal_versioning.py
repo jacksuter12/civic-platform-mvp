@@ -28,7 +28,7 @@ from app.models.community import Community, CommunityType
 from app.models.community_membership import CommunityMembership
 from app.models.domain import Domain
 from app.models.proposal import Proposal, ProposalStatus
-from app.models.proposal_version import ProposalVersion
+from app.models.proposal_version import ProposalVersion, ProposalVersionStatus
 from app.models.thread import Thread, ThreadStatus
 from app.models.user import User, UserTier
 
@@ -205,6 +205,12 @@ async def _simulate_edit(
         title=proposal.title,
         description=proposal.description,
         edit_summary=edit_summary,
+        status=ProposalVersionStatus.accepted,
+        authored_by_id=actor.id,
+        parent_version_id=None,
+        decided_at=datetime.now(UTC),
+        decided_by_id=proposal.created_by_id,
+        decision_reason=None,
     )
     db_session.add(version)
 
@@ -483,3 +489,77 @@ async def test_edit_proposal_updates_body_html(
         assert 'id="revised-plan"' in data["body_html"]
     finally:
         app.dependency_overrides.pop(get_current_user, None)
+
+
+# ---------------------------------------------------------------------------
+# Track Changes forward-compat field tests (Session 3)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_version_track_changes_defaults(
+    db_session: AsyncSession,
+    proposal: Proposal,
+    thread_proposing: Thread,
+    author: User,
+) -> None:
+    """
+    ProposalVersion created via _simulate_edit has correct Track Changes defaults:
+    - status = 'accepted'
+    - authored_by_id = actor.id (the editor)
+    - decided_by_id = proposal.created_by_id (proposal owner)
+    - decided_at is not None
+    - parent_version_id is None
+    - decision_reason is None
+    """
+    version = await _simulate_edit(
+        db_session,
+        proposal,
+        thread_proposing,
+        author,
+        new_title="Revised title for track changes test",
+        new_description="Revised description with enough length to be valid for versioning.",
+        edit_summary="Testing Track Changes defaults.",
+    )
+
+    assert version.status == ProposalVersionStatus.accepted
+    assert version.authored_by_id == author.id
+    assert version.decided_by_id == proposal.created_by_id
+    assert version.decided_at is not None
+    assert version.parent_version_id is None
+    assert version.decision_reason is None
+
+
+@pytest.mark.asyncio
+async def test_version_track_changes_via_http(
+    client: AsyncClient,
+    proposal: Proposal,
+    author: User,
+    db_session: AsyncSession,
+) -> None:
+    """PATCH /proposals/{id} creates a version with correct Track Changes defaults."""
+    from sqlalchemy import select as sa_select
+    app.dependency_overrides[get_current_user] = _auth_as_version(author)
+    try:
+        resp = await client.patch(
+            f"/api/v1/proposals/{proposal.id}",
+            json={
+                "title": "HTTP edit for track changes test",
+                "description": "HTTP edited description that is long enough to pass validation.",
+                "edit_summary": "Track Changes HTTP test edit.",
+            },
+        )
+        assert resp.status_code == 200, resp.text
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    result = await db_session.execute(
+        sa_select(ProposalVersion).where(ProposalVersion.proposal_id == proposal.id)
+    )
+    version = result.scalar_one()
+
+    assert version.status == ProposalVersionStatus.accepted
+    assert version.authored_by_id == author.id
+    assert version.decided_by_id == proposal.created_by_id
+    assert version.decided_at is not None
+    assert version.parent_version_id is None

@@ -5,6 +5,7 @@ from decimal import Decimal
 from pydantic import Field, model_validator
 
 from app.models.proposal import ProposalStatus
+from app.models.proposal_version import ProposalVersionStatus
 from app.models.vote import VoteChoice
 from app.schemas.common import CamelBase, TimestampSchema, UUIDSchema
 from app.schemas.user import UserPublic
@@ -73,6 +74,13 @@ class ProposalVersionRead(UUIDSchema, TimestampSchema):
     description: str
     body_html: str = ""
     edit_summary: str
+    # Track Changes forward-compat fields (Chunk B feature)
+    status: ProposalVersionStatus = ProposalVersionStatus.accepted
+    authored_by_id: uuid.UUID | None = None
+    parent_version_id: uuid.UUID | None = None
+    decided_at: datetime | None = None
+    decided_by_id: uuid.UUID | None = None
+    decision_reason: str | None = None
 
 
 class ProposalStatusUpdate(CamelBase):
