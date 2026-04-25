@@ -292,3 +292,23 @@ These decisions have been identified as needed but not yet resolved. They are qu
 | Target state and sub-issue for MVP deployment | Strategy | Constitution & Strategy, Chat 1 |
 | Incentive design for sustained participation | Mechanism | Mechanism Design, Chat 4 |
 | Deployment architecture (single Render service vs. split) | Technical | Resolved: single Render service (Platform Development, Chat 1) |
+
+---
+
+# Session 3 Decisions (2026-04-25)
+
+## Track Changes forward-compat schema (deferred implementation)
+
+**Decision:** Add `status`, `authored_by_id`, `parent_version_id`, `decided_at`, `decided_by_id`, and `decision_reason` columns to `proposal_versions` now, all defaulting to backward-compatible values (`status='accepted'`, `authored_by_id = editor`, `decided_by_id = proposal owner`, `decided_at = edit timestamp`, `parent_version_id = NULL`, `decision_reason = NULL`). No UI is built for these fields yet.
+
+**Rationale:** Track Changes (where non-authors can propose edits that the proposal author accepts or rejects) is a planned feature for a later session. Adding the schema columns now allows the existing data to be backfilled correctly and avoids a future migration that would need to reconstruct historical intent. All rows created today are effectively "accepted by the author" which is the correct historical interpretation.
+
+**Constraint:** Until the Track Changes UI is built, only the proposal author can edit (enforced by the existing route guard). The new columns are purely forward-compat scaffolding.
+
+## Purpose-built annotation system for proposals
+
+**Decision:** Build a separate annotation system for proposals (`proposal_anchor.js`, `proposal_annotations.js`, `proposal_annotation_ui.js`, new backend routes) rather than extending the existing wiki annotation system (`annotation_anchor.js`, `annotations.js`, `annotation_ui.js`).
+
+**Rationale:** The wiki annotation system was designed for a different context (annotators with a platform-level capability, no threading, simple endorse/needs_work reactions). Proposal annotations require: (1) multi-strategy W3C text anchoring resilient to proposal edits, (2) threaded replies, (3) resolve/feature/moderate workflows tied to the deliberation phase, (4) community-membership-based permissions rather than platform annotator capability. Sharing code would require invasive refactoring of the wiki system with high regression risk and would couple two unrelated product surfaces.
+
+**Constraint:** The wiki annotation system (`/wiki/...`) remains unchanged. The new proposal annotation system operates only within the proposal review page (`/c/{slug}/thread/{tid}/proposal/{pid}`). Per-community wikis, if built in Phase 2, would need their own annotation system designed at that time.
