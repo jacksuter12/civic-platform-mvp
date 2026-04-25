@@ -61,8 +61,7 @@ class AnnotationUpdate(CamelBase):
 class AnnotationRead(UUIDSchema, TimestampSchema):
     """
     Full annotation response. Reactions are aggregated (counts + requesting user's
-    own reaction). Replies are NOT nested — they are returned as flat objects with
-    parent_id set; the frontend groups them.
+    own reaction). Top-level annotations have replies nested inside them.
     """
 
     target_type: AnnotationTargetType
@@ -75,8 +74,22 @@ class AnnotationRead(UUIDSchema, TimestampSchema):
     deleted_at: datetime | None
     resolved_at: datetime | None = None
     resolved_by_id: uuid.UUID | None = None
+    featured_at: datetime | None = None
+    featured_by_id: uuid.UUID | None = None
+    orphaned_at: datetime | None = None
     reactions: ReactionCounts
     my_reaction: ReactionType | None
+    replies: list["AnnotationRead"] = []
+    can_resolve: bool = False
+    can_moderate: bool = False
+    can_feature: bool = False
+
+
+AnnotationRead.model_rebuild()
+
+
+class ModerateRequest(CamelBase):
+    reason: str = Field(min_length=1, max_length=1000)
 
 
 # ---------------------------------------------------------------------------

@@ -52,6 +52,10 @@ class AuditEventType(str, PyEnum):
     ANNOTATION_REACTION_REMOVED = "annotation_reaction_removed"
     ANNOTATION_RESOLVED = "annotation_resolved"
     ANNOTATION_UNRESOLVED = "annotation_unresolved"
+    ANNOTATION_FEATURED = "annotation_featured"
+    ANNOTATION_UNFEATURED = "annotation_unfeatured"
+    ANNOTATION_ORPHANED = "annotation_orphaned"
+    ANNOTATION_MODERATED = "annotation_moderated"
     USER_ANNOTATOR_GRANTED = "user_annotator_granted"
     USER_ANNOTATOR_REVOKED = "user_annotator_revoked"
     # Community

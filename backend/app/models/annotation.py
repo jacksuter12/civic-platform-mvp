@@ -87,6 +87,17 @@ class Annotation(Base, UUIDPKMixin, TimestampMixin):
     resolved_by_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    # Feature tracking — facilitator pins this annotation to the top.
+    featured_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    featured_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    # Orphan tracking — client reports anchor no longer resolves in doc.
+    orphaned_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # --- Relationships ---
     author: Mapped["User"] = relationship(  # type: ignore[name-defined]
@@ -94,6 +105,9 @@ class Annotation(Base, UUIDPKMixin, TimestampMixin):
     )
     resolved_by: Mapped["User | None"] = relationship(  # type: ignore[name-defined]
         "User", foreign_keys=[resolved_by_id]
+    )
+    featured_by: Mapped["User | None"] = relationship(  # type: ignore[name-defined]
+        "User", foreign_keys=[featured_by_id]
     )
     parent: Mapped["Annotation | None"] = relationship(
         "Annotation", back_populates="replies", remote_side="Annotation.id"

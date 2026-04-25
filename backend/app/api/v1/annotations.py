@@ -5,11 +5,15 @@ Permission summary:
   GET    /annotations                   — public (no auth required)
   POST   /annotations                   — wiki: annotator; proposal: registered member in PROPOSING
   PATCH  /annotations/{id}              — annotation author or admin
-  DELETE /annotations/{id}              — author self-deletes; moderator deletes others'
+  DELETE /annotations/{id}              — author self-deletes
+  POST   /annotations/{id}/moderate     — facilitator (proposal) or platform admin (wiki); requires reason
   POST   /annotations/{id}/reactions    — wiki: annotator; proposal: registered member in PROPOSING
   DELETE /annotations/{id}/reactions    — same as POST reactions
   POST   /annotations/{id}/resolve      — annotation author, proposal author, or facilitator
   POST   /annotations/{id}/unresolve    — same as resolve
+  POST   /annotations/{id}/feature      — facilitator in community; proposal-type only
+  POST   /annotations/{id}/unfeature    — same as feature
+  POST   /annotations/{id}/mark-orphaned — any registered member; proposal-type only; idempotent
 
 Admin annotator grant/revoke lives in admin.py (routes 7-8).
 
@@ -27,7 +31,11 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import DB, CurrentUser, OptionalUser
 from app.api.v1._annotation_perms import (
+    check_can_feature,
+    check_can_moderate,
+    check_can_resolve,
     require_can_annotate,
+    require_can_feature,
     require_can_moderate,
     require_can_resolve,
 )
@@ -46,6 +54,7 @@ from app.schemas.annotation import (
     AnnotationReactionState,
     AnnotationRead,
     AnnotationUpdate,
+    ModerateRequest,
     ReactionCounts,
 )
 from app.schemas.user import UserPublic
@@ -78,7 +87,13 @@ def _reaction_state(
 
 
 def _to_read(
-    annotation: Annotation, current_user_id: uuid.UUID | None
+    annotation: Annotation,
+    current_user_id: uuid.UUID | None,
+    *,
+    replies: list[AnnotationRead] | None = None,
+    can_resolve: bool = False,
+    can_moderate: bool = False,
+    can_feature: bool = False,
 ) -> AnnotationRead:
     """Convert an ORM Annotation (with loaded author + reactions) to AnnotationRead."""
     counts, my_reaction = _reaction_state(annotation, current_user_id)
@@ -96,8 +111,15 @@ def _to_read(
         deleted_at=annotation.deleted_at,
         resolved_at=annotation.resolved_at,
         resolved_by_id=annotation.resolved_by_id,
+        featured_at=annotation.featured_at,
+        featured_by_id=annotation.featured_by_id,
+        orphaned_at=annotation.orphaned_at,
         reactions=counts,
         my_reaction=my_reaction,
+        replies=replies or [],
+        can_resolve=can_resolve,
+        can_moderate=can_moderate,
+        can_feature=can_feature,
     )
 
 
@@ -130,8 +152,10 @@ async def list_annotations(
     include_deleted: Annotated[bool, Query()] = False,
 ) -> list[AnnotationRead]:
     """
-    Return all annotations on a given target, chronological order.
-    No auth required. include_deleted is respected only for admin requesters.
+    Return all top-level annotations on a given target with replies nested.
+    Sort: featured first, then chronological within each group.
+    No auth required. include_deleted respected for admin requesters only.
+    Computes can_resolve/can_moderate/can_feature when user is signed in.
     """
     query = (
         select(Annotation)
@@ -151,10 +175,53 @@ async def list_annotations(
         query = query.where(Annotation.deleted_at.is_(None))
 
     result = await db.execute(query)
-    annotations = list(result.scalars())
+    all_annotations = list(result.scalars())
 
     current_user_id = current_user.id if current_user else None
-    return [_to_read(a, current_user_id) for a in annotations]
+
+    # Build per-annotation permission flags. For proposals, fetch community
+    # context once and reuse across all annotations in this response.
+    can_resolve_map: dict[uuid.UUID, bool] = {}
+    can_moderate_map: dict[uuid.UUID, bool] = {}
+    can_feature_map: dict[uuid.UUID, bool] = {}
+
+    if current_user:
+        for a in all_annotations:
+            can_resolve_map[a.id] = await check_can_resolve(db, current_user, a)
+            can_moderate_map[a.id] = await check_can_moderate(db, current_user, a)
+            can_feature_map[a.id] = await check_can_feature(db, current_user, a)
+
+    # Group into top-level and replies
+    top_level = [a for a in all_annotations if a.parent_id is None]
+    reply_map: dict[uuid.UUID, list[Annotation]] = {}
+    for a in all_annotations:
+        if a.parent_id is not None:
+            reply_map.setdefault(a.parent_id, []).append(a)
+
+    def _build(a: Annotation) -> AnnotationRead:
+        nested = [
+            _to_read(
+                r,
+                current_user_id,
+                can_resolve=can_resolve_map.get(r.id, False),
+                can_moderate=can_moderate_map.get(r.id, False),
+                can_feature=can_feature_map.get(r.id, False),
+            )
+            for r in reply_map.get(a.id, [])
+        ]
+        return _to_read(
+            a,
+            current_user_id,
+            replies=nested,
+            can_resolve=can_resolve_map.get(a.id, False),
+            can_moderate=can_moderate_map.get(a.id, False),
+            can_feature=can_feature_map.get(a.id, False),
+        )
+
+    # Sort: featured annotations first (stable), then chronological within group.
+    featured = [a for a in top_level if a.featured_at is not None]
+    not_featured = [a for a in top_level if a.featured_at is None]
+    return [_build(a) for a in featured] + [_build(a) for a in not_featured]
 
 
 # ---------------------------------------------------------------------------
@@ -550,3 +617,174 @@ async def unresolve_annotation(
 
     await db.refresh(annotation, ["author", "reactions"])
     return _to_read(annotation, user.id)
+
+
+# ---------------------------------------------------------------------------
+# Route 9 — POST /annotations/{annotation_id}/feature
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{annotation_id}/feature", response_model=AnnotationRead)
+async def feature_annotation(
+    annotation_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+) -> AnnotationRead:
+    """Pin an annotation to the top of the list. Facilitator only; proposal-type only."""
+    annotation = await _get_annotation_or_404(db, annotation_id)
+    if annotation.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Annotation not found.")
+    if annotation.featured_at is not None:
+        raise HTTPException(status_code=409, detail="Already featured.")
+
+    proposal, thread = await require_can_feature(db, user, annotation)
+
+    annotation.featured_at = datetime.now(UTC)
+    annotation.featured_by_id = user.id
+    db.add(annotation)
+    await db.flush()
+
+    await log_event(
+        db,
+        event_type=AuditEventType.ANNOTATION_FEATURED,
+        target_type="annotation",
+        target_id=annotation.id,
+        payload={"annotation_id": str(annotation.id)},
+        actor_id=user.id,
+        community_id=thread.community_id,
+    )
+
+    await db.commit()
+    await db.refresh(annotation, ["author", "reactions"])
+    return _to_read(annotation, user.id)
+
+
+# ---------------------------------------------------------------------------
+# Route 10 — POST /annotations/{annotation_id}/unfeature
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{annotation_id}/unfeature", response_model=AnnotationRead)
+async def unfeature_annotation(
+    annotation_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+) -> AnnotationRead:
+    """Remove the featured pin from an annotation. Facilitator only; proposal-type only."""
+    annotation = await _get_annotation_or_404(db, annotation_id)
+    if annotation.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Annotation not found.")
+    if annotation.featured_at is None:
+        raise HTTPException(status_code=409, detail="Annotation is not featured.")
+
+    proposal, thread = await require_can_feature(db, user, annotation)
+
+    annotation.featured_at = None
+    annotation.featured_by_id = None
+    db.add(annotation)
+    await db.flush()
+
+    await log_event(
+        db,
+        event_type=AuditEventType.ANNOTATION_UNFEATURED,
+        target_type="annotation",
+        target_id=annotation.id,
+        payload={"annotation_id": str(annotation.id)},
+        actor_id=user.id,
+        community_id=thread.community_id,
+    )
+
+    await db.commit()
+    await db.refresh(annotation, ["author", "reactions"])
+    return _to_read(annotation, user.id)
+
+
+# ---------------------------------------------------------------------------
+# Route 11 — POST /annotations/{annotation_id}/mark-orphaned
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{annotation_id}/mark-orphaned", response_model=AnnotationRead)
+async def mark_orphaned(
+    annotation_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+) -> AnnotationRead:
+    """
+    Client reports anchor no longer resolves in the doc. Idempotent.
+    Any registered member can report this — it is a factual claim about anchor
+    resolution, not a privileged action. Proposal-type only.
+    """
+    annotation = await _get_annotation_or_404(db, annotation_id)
+    if annotation.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Annotation not found.")
+    if annotation.target_type != "proposal":
+        raise HTTPException(status_code=400, detail="Only proposal annotations can be orphaned.")
+
+    if annotation.orphaned_at is None:
+        from app.api.v1._annotation_perms import _get_community_context_for_proposal  # noqa: PLC0415
+        _, thread = await _get_community_context_for_proposal(db, annotation.target_id)
+        annotation.orphaned_at = datetime.now(UTC)
+        db.add(annotation)
+        await db.flush()
+
+        await log_event(
+            db,
+            event_type=AuditEventType.ANNOTATION_ORPHANED,
+            target_type="annotation",
+            target_id=annotation.id,
+            payload={"annotation_id": str(annotation.id)},
+            actor_id=user.id,
+            community_id=thread.community_id,
+        )
+
+        await db.commit()
+        await db.refresh(annotation, ["author", "reactions"])
+
+    return _to_read(annotation, user.id)
+
+
+# ---------------------------------------------------------------------------
+# Route 12 — POST /annotations/{annotation_id}/moderate
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{annotation_id}/moderate", status_code=status.HTTP_204_NO_CONTENT)
+async def moderate_annotation(
+    annotation_id: uuid.UUID,
+    payload: ModerateRequest,
+    user: CurrentUser,
+    db: DB,
+) -> None:
+    """
+    Facilitator (proposal) or platform admin (wiki) soft-deletes an annotation
+    with a required reason. Separate from author self-delete (DELETE route).
+    Writes ANNOTATION_MODERATED to the audit log with the reason.
+    """
+    annotation = await _get_annotation_or_404(db, annotation_id)
+    if annotation.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Annotation not found.")
+
+    _, thread = await require_can_moderate(db, user, annotation)
+    community_id = thread.community_id if thread is not None else None
+
+    original_body = annotation.body
+    annotation.body = TOMBSTONE
+    annotation.deleted_at = datetime.now(UTC)
+    db.add(annotation)
+    await db.flush()
+
+    await log_event(
+        db,
+        event_type=AuditEventType.ANNOTATION_MODERATED,
+        target_type="annotation",
+        target_id=annotation.id,
+        payload={
+            "reason": payload.reason,
+            "moderated_by_id": str(user.id),
+            "original_author_id": str(annotation.author_id),
+            "original_body": original_body,
+        },
+        actor_id=user.id,
+        community_id=community_id,
+    )

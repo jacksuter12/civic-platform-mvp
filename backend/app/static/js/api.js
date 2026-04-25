@@ -491,7 +491,7 @@ async function fetchMySignalForTarget(targetType, targetId) {
   return sig.my_signal ? { signal_type: sig.my_signal } : null;
 }
 
-// ===== Annotation resolve/unresolve (used in Session 3) =====
+// ===== Annotation resolve/unresolve =====
 
 async function resolveAnnotation(id) {
   return apiFetch(`/annotations/${id}/resolve`, { method: "POST" });
@@ -499,4 +499,83 @@ async function resolveAnnotation(id) {
 
 async function unresolveAnnotation(id) {
   return apiFetch(`/annotations/${id}/unresolve`, { method: "POST" });
+}
+
+// ===== Proposal annotation system (Session 3) =====
+
+/**
+ * Fetch annotations for a proposal target. Returns nested replies.
+ * @param {string} target_type
+ * @param {string} target_id
+ */
+async function fetchAnnotations(target_type, target_id) {
+  const params = new URLSearchParams({ target_type, target_id });
+  return apiFetch(`/annotations?${params}`);
+}
+
+/**
+ * Create an annotation. anchor_data is the W3C selector array object.
+ * @param {{ target_type, target_id, anchor_data, body, parent_id }} opts
+ */
+async function createProposalAnnotation({ target_type, target_id, anchor_data, body, parent_id = null }) {
+  return apiFetch("/annotations", {
+    method: "POST",
+    body: JSON.stringify({ target_type, target_id, anchor_data, body, parent_id }),
+  });
+}
+
+/**
+ * React to an annotation (endorse | needs_work).
+ * @param {string} id
+ * @param {"endorse"|"needs_work"} reaction_type
+ */
+async function reactToAnnotation(id, reaction_type) {
+  return apiFetch(`/annotations/${id}/reactions`, {
+    method: "POST",
+    body: JSON.stringify({ reaction: reaction_type }),
+  });
+}
+
+/**
+ * Remove the current user's reaction from an annotation. Idempotent.
+ * @param {string} id
+ */
+async function unreactAnnotation(id) {
+  return apiFetch(`/annotations/${id}/reactions`, { method: "DELETE" });
+}
+
+/**
+ * Feature (pin) an annotation. Facilitator only.
+ * @param {string} id
+ */
+async function featureAnnotation(id) {
+  return apiFetch(`/annotations/${id}/feature`, { method: "POST" });
+}
+
+/**
+ * Remove the feature pin from an annotation. Facilitator only.
+ * @param {string} id
+ */
+async function unfeatureAnnotation(id) {
+  return apiFetch(`/annotations/${id}/unfeature`, { method: "POST" });
+}
+
+/**
+ * Client reports that an annotation's anchor no longer resolves. Idempotent.
+ * @param {string} id
+ */
+async function markAnnotationOrphaned(id) {
+  return apiFetch(`/annotations/${id}/mark-orphaned`, { method: "POST" });
+}
+
+/**
+ * Moderator soft-deletes an annotation with a required reason.
+ * @param {string} id
+ * @param {string} reason
+ */
+async function moderateAnnotation(id, reason) {
+  return apiFetch(`/annotations/${id}/moderate`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
 }

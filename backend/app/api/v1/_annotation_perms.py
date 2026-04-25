@@ -127,3 +127,57 @@ async def require_can_moderate(
         return proposal, thread
 
     raise HTTPException(400, f"Cannot moderate annotations of type {annotation.target_type!r}")
+
+
+async def require_can_feature(
+    db: AsyncSession, user: User, annotation: Annotation
+) -> tuple[Proposal, Thread]:
+    """Only facilitators in the annotation's community can feature; proposal-type only."""
+    if annotation.target_type != "proposal":
+        raise HTTPException(400, "Only proposal annotations can be featured")
+    proposal, thread = await _get_community_context_for_proposal(db, annotation.target_id)
+    membership = await _get_membership(db, user.id, thread.community_id)
+    if not membership or TIER_RANK[membership.tier] < TIER_RANK[UserTier.FACILITATOR]:
+        raise HTTPException(403, "Only community facilitators can feature annotations")
+    return proposal, thread
+
+
+# ---------------------------------------------------------------------------
+# Non-raising check variants — return bool instead of raising
+# ---------------------------------------------------------------------------
+
+
+async def check_can_resolve(
+    db: AsyncSession, user: User | None, annotation: Annotation
+) -> bool:
+    if not user:
+        return False
+    try:
+        await require_can_resolve(db, user, annotation)
+        return True
+    except HTTPException:
+        return False
+
+
+async def check_can_moderate(
+    db: AsyncSession, user: User | None, annotation: Annotation
+) -> bool:
+    if not user:
+        return False
+    try:
+        await require_can_moderate(db, user, annotation)
+        return True
+    except HTTPException:
+        return False
+
+
+async def check_can_feature(
+    db: AsyncSession, user: User | None, annotation: Annotation
+) -> bool:
+    if not user:
+        return False
+    try:
+        await require_can_feature(db, user, annotation)
+        return True
+    except HTTPException:
+        return False

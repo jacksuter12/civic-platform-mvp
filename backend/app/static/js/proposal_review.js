@@ -48,6 +48,17 @@
       renderSignals(signals, mySignal);
       renderComments(comments);
       setupCommentForm();
+
+      // Annotation system — init after doc is rendered so anchors can be found
+      const currentUser = auth.isSignedIn() ? auth.getUser() : null;
+      await ProposalAnnotations.init({
+        proposalId: proposal.id,
+        threadStatus: thread.status,
+        docEl: document.getElementById('pr-doc'),
+        sidebarEl: document.getElementById('pr-anno-list'),
+        headerCountEl: document.getElementById('pr-anno-count'),
+        currentUser: currentUser ? { id: currentUser.id, display_name: currentUser.display_name } : null,
+      });
     } catch (err) {
       console.error(err);
       document.getElementById('pr-doc').innerHTML =
