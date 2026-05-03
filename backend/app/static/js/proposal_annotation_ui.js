@@ -33,6 +33,7 @@
   // Current filter/sort state (not persisted across page loads)
   let _currentFilter = 'all';
   let _currentSort = 'position';
+  let _userRole = null; // 'author' | 'facilitator' | 'reviewer' | 'observer' | null
 
   // Moderation modal state
   let _modalEl = null;
@@ -61,6 +62,7 @@
     _currentUser = config.currentUser;
     _isReadOnly = config.isReadOnly;
     _threadStatus = config.threadStatus || null;
+    _userRole = config.userRole || null;
     _callbacks = {
       onReact: config.onReact || (() => {}),
       onReply: config.onReply || (() => {}),
@@ -75,6 +77,7 @@
 
     // Render persistent siblings above the list (outside sidebarEl)
     _renderBanner();
+    _renderRoleBadge();
     _renderControls();
 
     // Single delegated click listener on sidebar
@@ -187,6 +190,28 @@
     _bannerEl.setAttribute('role', 'status');
     _bannerEl.innerHTML = `<strong>Annotations are read-only.</strong> ${_esc(text)}`;
     _sidebarEl.parentElement.insertBefore(_bannerEl, _sidebarEl);
+  }
+
+  let _roleBadgeEl = null;
+
+  function _renderRoleBadge() {
+    if (_roleBadgeEl) { _roleBadgeEl.remove(); _roleBadgeEl = null; }
+    if (!_currentUser) return;
+
+    const ROLE_CONFIG = {
+      author:      { label: 'Proposal author',  cls: 'paa-role--author' },
+      facilitator: { label: 'Facilitator',       cls: 'paa-role--facilitator' },
+      reviewer:    { label: 'Reviewer',          cls: 'paa-role--reviewer' },
+      observer:    { label: 'Observer (read-only)', cls: 'paa-role--observer' },
+    };
+    const cfg = ROLE_CONFIG[_userRole];
+    if (!cfg) return;
+
+    _roleBadgeEl = document.createElement('div');
+    _roleBadgeEl.className = `paa-role-badge ${cfg.cls}`;
+    _roleBadgeEl.setAttribute('role', 'status');
+    _roleBadgeEl.textContent = `You · ${cfg.label}`;
+    _sidebarEl.parentElement.insertBefore(_roleBadgeEl, _sidebarEl);
   }
 
   function _renderControls() {
@@ -545,6 +570,7 @@
           <button type="submit" class="paa-btn paa-btn-primary">Post reply</button>
           <button type="button" class="paa-btn paa-reply-cancel">Cancel</button>
         </div>
+        <p class="paa-reply-error" hidden></p>
       `;
       card.appendChild(replyForm);
     }
@@ -626,12 +652,20 @@
     }
 
     if (btn.classList.contains('paa-resolve-btn')) {
-      _callbacks.onResolve(annoId);
+      btn.disabled = true;
+      _callbacks.onResolve(annoId).catch(err => {
+        btn.disabled = false;
+        _showInlineError(btn, err?.message || 'Could not resolve annotation.');
+      });
       return;
     }
 
     if (btn.classList.contains('paa-unresolve-btn')) {
-      _callbacks.onUnresolve(annoId);
+      btn.disabled = true;
+      _callbacks.onUnresolve(annoId).catch(err => {
+        btn.disabled = false;
+        _showInlineError(btn, err?.message || 'Could not reopen annotation.');
+      });
       return;
     }
 
@@ -658,17 +692,34 @@
           const body = form.querySelector('textarea').value.trim();
           if (!body) return;
           const submitBtn = form.querySelector('[type="submit"]');
+          const errorEl = form.querySelector('.paa-reply-error');
           submitBtn.disabled = true;
+          if (errorEl) errorEl.hidden = true;
           try {
             await _callbacks.onReply(parentId, body);
+            form.hidden = true;
+            form.reset();
+          } catch (err) {
+            if (errorEl) {
+              errorEl.textContent = err?.message || 'Could not post reply.';
+              errorEl.hidden = false;
+            }
           } finally {
             submitBtn.disabled = false;
           }
-          form.hidden = true;
-          form.reset();
         });
       }
     }
+  }
+
+  function _showInlineError(nearEl, message) {
+    const existing = nearEl.parentElement?.querySelector('.paa-inline-error');
+    if (existing) existing.remove();
+    const err = document.createElement('span');
+    err.className = 'paa-inline-error';
+    err.textContent = message;
+    nearEl.insertAdjacentElement('afterend', err);
+    setTimeout(() => { if (err.parentElement) err.remove(); }, 5000);
   }
 
   function _showMenu(menuBtn) {

@@ -51,6 +51,7 @@
 
       // Annotation system — init after doc is rendered so anchors can be found
       const currentUser = auth.isSignedIn() ? auth.getUser() : null;
+      const userRole = _computeUserRole(currentUser, proposal, slug);
       await ProposalAnnotations.init({
         proposalId: proposal.id,
         threadStatus: thread.status,
@@ -58,6 +59,7 @@
         sidebarEl: document.getElementById('pr-anno-list'),
         headerCountEl: document.getElementById('pr-anno-count'),
         currentUser: currentUser ? { id: currentUser.id, display_name: currentUser.display_name } : null,
+        userRole,
       });
     } catch (err) {
       console.error(err);
@@ -229,6 +231,22 @@
         submitBtn.disabled = false;
       }
     });
+  }
+
+  // ----------------------------------------------------------------
+  // Role computation for annotation pane badge
+  // ----------------------------------------------------------------
+
+  function _computeUserRole(user, proposal, communitySlug) {
+    if (!user) return null;
+    if (user.id === proposal.created_by?.id) return 'author';
+    const membership = (user.community_memberships || []).find(
+      m => m.community_slug === communitySlug
+    );
+    if (!membership) return 'observer';
+    const FACILITATOR_TIERS = ['facilitator', 'admin'];
+    if (FACILITATOR_TIERS.includes(membership.tier)) return 'facilitator';
+    return 'reviewer';
   }
 
   // ----------------------------------------------------------------

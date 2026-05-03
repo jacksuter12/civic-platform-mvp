@@ -19,7 +19,7 @@
   // Module state
   // ---------------------------------------------------------------------------
 
-  let _config = null;       // { proposalId, threadStatus, docEl, sidebarEl, headerCountEl, currentUser }
+  let _config = null;       // { proposalId, threadStatus, docEl, sidebarEl, headerCountEl, currentUser, userRole }
   let _annotations = [];    // flat list of top-level annotations (replies nested inside)
   let _pendingAnchor = null; // { anchor, range } — set while composer is open
   let _chipEl = null;       // the floating "Annotate" button near the selection
@@ -56,6 +56,7 @@
       currentUser: config.currentUser,
       isReadOnly: !_isWritable(),
       threadStatus: config.threadStatus,
+      userRole: config.userRole || null,
       onReact: (id, reactionType) => react(id, reactionType),
       onReply: (parentId, body) => reply(parentId, body),
       onResolve: (id) => resolve(id),
