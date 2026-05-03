@@ -5,9 +5,11 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from app.api.deps import DB, PlatformAdminUser
+from app.api.deps import DB, CurrentUser, PlatformAdminUser
 from app.models.community import Community
+from app.models.community_membership import CommunityMembership
 from app.models.domain import Domain
+from app.models.user import PlatformRole, UserTier
 
 router = APIRouter()
 
@@ -75,7 +77,7 @@ async def get_domain(
 
 @router.post("", response_model=DomainOut, status_code=status.HTTP_201_CREATED)
 async def create_domain(
-    payload: DomainCreate, admin: PlatformAdminUser, db: DB
+    payload: DomainCreate, user: CurrentUser, db: DB
 ) -> Domain:
     # Validate community exists
     comm_result = await db.execute(
@@ -83,6 +85,22 @@ async def create_domain(
     )
     if not comm_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Community not found.")
+
+    # Platform admin OR facilitator/admin of the target community
+    if user.platform_role != PlatformRole.PLATFORM_ADMIN:
+        membership = await db.execute(
+            select(CommunityMembership).where(
+                CommunityMembership.user_id == user.id,
+                CommunityMembership.community_id == payload.community_id,
+                CommunityMembership.tier.in_([UserTier.FACILITATOR, UserTier.ADMIN]),
+                CommunityMembership.is_active == True,
+            )
+        )
+        if not membership.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Facilitator or admin role in this community required.",
+            )
 
     existing = await db.execute(
         select(Domain).where(

@@ -149,11 +149,13 @@
         ${isPlatformAdmin ? `<div id="settings-section" style="margin-bottom:48px;"><div class="loading">Loading settings…</div></div>` : ""}
         <div id="requests-section"><div class="loading">Loading requests…</div></div>
         <div id="members-section" style="margin-top: 48px;"><div class="loading">Loading members…</div></div>
+        <div id="domains-section" style="margin-top: 48px;"><div class="loading">Loading categories…</div></div>
       `;
 
       if (isPlatformAdmin) loadSettings();
       loadRequests();
       loadMembers();
+      loadDomains();
     }
 
     async function loadRequests() {
@@ -424,6 +426,74 @@
       } finally {
         btn.disabled = false;
         btn.textContent = "Add Member";
+      }
+    }
+
+    async function loadDomains() {
+      const section = document.getElementById("domains-section");
+      try {
+        const domains = await apiFetch(`/domains?community_slug=${encodeURIComponent(communitySlug)}`);
+        renderDomains(section, domains);
+      } catch (err) {
+        section.innerHTML = `<div class="error-message">Could not load categories: ${esc(err.message)}</div>`;
+      }
+    }
+
+    function renderDomains(container, domains) {
+      const rows = domains.length === 0
+        ? `<div class="empty-state">No categories yet.</div>`
+        : domains.map(d => `
+          <div class="member-row">
+            <span class="member-name">${esc(d.name)}</span>
+            <span style="font-size:12px; color:#888;">${esc(d.slug)}</span>
+          </div>`).join("");
+
+      container.innerHTML = `
+        <div class="detail-section">
+          <div class="section-heading">Discussion Categories</div>
+          <div style="display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap; margin-bottom:16px;">
+            <input id="domain-name" type="text" placeholder="Category name"
+              style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px; width:180px;">
+            <input id="domain-slug" type="text" placeholder="slug (e.g. housing)"
+              style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px; width:160px;">
+            <input id="domain-description" type="text" placeholder="Description (optional)"
+              style="padding:7px 10px; border:1px solid #ddd; border-radius:5px; font-size:13px; flex:1; min-width:160px;">
+            <button class="btn-approve" id="add-domain-btn" onclick="handleAddDomain()">Add Category</button>
+            <span id="domain-feedback" style="font-size:13px; align-self:center;"></span>
+          </div>
+          ${rows}
+        </div>`;
+    }
+
+    async function handleAddDomain() {
+      const name  = document.getElementById("domain-name").value.trim();
+      const slug  = document.getElementById("domain-slug").value.trim();
+      const desc  = document.getElementById("domain-description").value.trim();
+      const btn   = document.getElementById("add-domain-btn");
+      const fb    = document.getElementById("domain-feedback");
+      if (!name || !slug) { fb.textContent = "Name and slug are required."; fb.style.color = "#c62828"; return; }
+      if (!/^[a-z0-9-]+$/.test(slug)) { fb.textContent = "Slug must be lowercase letters, numbers, and hyphens only."; fb.style.color = "#c62828"; return; }
+      btn.disabled = true;
+      btn.textContent = "Adding…";
+      fb.textContent = "";
+      try {
+        const community = await getCommunity(communitySlug);
+        await apiFetch("/domains", {
+          method: "POST",
+          body: JSON.stringify({ community_id: community.id, slug, name, description: desc }),
+        });
+        fb.textContent = `"${name}" added.`;
+        fb.style.color = "#2e7d32";
+        document.getElementById("domain-name").value = "";
+        document.getElementById("domain-slug").value = "";
+        document.getElementById("domain-description").value = "";
+        loadDomains();
+      } catch (err) {
+        fb.textContent = err.message;
+        fb.style.color = "#c62828";
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Add Category";
       }
     }
 
