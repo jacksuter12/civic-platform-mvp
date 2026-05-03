@@ -62,7 +62,7 @@ async def register(payload: UserCreate, db: DB) -> dict:
     except IntegrityError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="An account with that email already exists. Sign in instead, or use Forgot password to set a new one.",
+            detail="User already registered.",
         )
 
     await log_event(
