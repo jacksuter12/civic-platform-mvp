@@ -150,9 +150,23 @@
         ? `<p class="account-limit-warning">Your previous application was not approved. You're welcome to apply again.</p>`
         : "";
 
-      // Get the first community ID for the request
-      const firstMembership = memberships[0];
-      const communitySlugAttr = firstMembership ? ` data-community-slug="${escapeHtml(firstMembership.communitySlug || firstMembership.community_slug || '')}"` : "";
+      const eligible = memberships.filter(m => m.tier === "registered");
+
+      if (eligible.length === 0) {
+        return `
+          <div class="detail-section" id="section-facilitator">
+            <div class="section-heading">Apply for Facilitator Status</div>
+            <p class="account-field-desc">
+              Join a community first before applying for facilitator access.
+            </p>
+          </div>`;
+      }
+
+      const communityOptions = eligible.map(m => {
+        const id = m.communityId || m.community_id;
+        const name = m.communityName || m.community_name;
+        return `<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`;
+      }).join("");
 
       return `
         <div class="detail-section" id="section-facilitator">
@@ -162,7 +176,14 @@
             Briefly explain why you'd like facilitator access (1–2 sentences).
           </p>
           ${deniedNote}
-          <form id="facilitator-form" onsubmit="handleFacilitatorSubmit(event)"${communitySlugAttr}>
+          <form id="facilitator-form" onsubmit="handleFacilitatorSubmit(event)">
+            <div class="form-field">
+              <label for="facilitator-community">Which community?</label>
+              <select id="facilitator-community" required
+                style="width:100%; padding:9px 12px; border:1px solid #d0d0d0; border-radius:6px; font-family:inherit; font-size:14px; box-sizing:border-box;">
+                ${communityOptions}
+              </select>
+            </div>
             <div class="form-field">
               <label for="facilitator-reason">Why do you want to facilitate?</label>
               <textarea
@@ -716,21 +737,11 @@
       const btn = document.getElementById("facilitator-submit");
       const feedback = document.getElementById("facilitator-feedback");
       const reason = document.getElementById("facilitator-reason").value.trim();
-      const form = document.getElementById("facilitator-form");
-      const communitySlug = form ? form.dataset.communitySlug || null : null;
+      const communityId = document.getElementById("facilitator-community").value || null;
 
       feedback.style.display = "none";
       btn.disabled = true;
       btn.textContent = "Submitting…";
-
-      // Resolve community UUID from slug if we have one
-      let communityId = null;
-      if (communitySlug) {
-        try {
-          const community = await getCommunity(communitySlug);
-          communityId = community.id;
-        } catch (_) {}
-      }
 
       try {
         await submitFacilitatorRequest(reason, communityId);
