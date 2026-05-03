@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 from fastapi import APIRouter, HTTPException, Response, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import DB, RegisteredUser
 from app.config import settings
@@ -56,7 +57,13 @@ async def register(payload: UserCreate, db: DB) -> dict:
         display_name=payload.display_name,
     )
     db.add(user)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with that email already exists. Sign in instead, or use Forgot password to set a new one.",
+        )
 
     await log_event(
         db,
