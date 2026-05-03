@@ -1,6 +1,6 @@
 # System Architecture
 
-_Last updated: 2026-04-23. Reflects current deployed state._
+_Last updated: 2026-05-03. Reflects current deployed state._
 
 ---
 
@@ -19,7 +19,7 @@ Public deliberation can be translated into legitimate, transparent collective al
 | **ORM** | SQLAlchemy 2.0 (async) + Alembic | Typed queries; migrations in `backend/alembic/` |
 | **Auth** | Supabase Auth (magic links + JWT) | Email friction without passwords; JWTs verified locally |
 | **Frontend** | Plain HTML/CSS/JS | Served directly from FastAPI. No npm, no build step. React migration deferred until user validation. |
-| **Hosting** | Render.com (single web service) | Git-deploy from `main`; config currently in Render dashboard only (no `render.yaml` yet) |
+| **Hosting** | Render.com (two web services) | Production tracks `main`; staging tracks active feature branch. Config in Render dashboard (no `render.yaml` yet) |
 | **Observability** | Sentry + structlog (JSON) | Error tracking; structured logs searchable in prod |
 | **Dev environment** | GitHub Codespaces | Browser-based VS Code + Linux terminal; no local tooling required |
 
@@ -27,19 +27,29 @@ Public deliberation can be translated into legitimate, transparent collective al
 
 ## Hosting Topology
 
+Two environments, identical architecture, separate Supabase projects and Render services:
+
 ```
 Browser (any device)
     │
     │ HTTPS
     ▼
-Render.com — FastAPI web service
-    ├── GET /api/v1/*        → route handlers (JSON responses)
-    ├── GET /static/*        → StaticFiles mount (CSS, JS assets)
-    └── GET /[page routes]   → FileResponse (HTML shells)
+Render.com — FastAPI web service  (production: main branch)
+    │                              (staging: active feature branch)
+    ├── GET /static/js/config.js → dynamic route — injects SUPABASE_URL + SUPABASE_ANON_KEY
+    │                              from env vars (NOT served from static file)
+    ├── GET /api/v1/*            → route handlers (JSON responses)
+    ├── GET /static/*            → StaticFiles mount (CSS, JS assets)
+    └── GET /[page routes]       → FileResponse (HTML shells)
          │
          ├── Supabase PostgreSQL   ← all application data
          └── Supabase Auth         ← magic link email, JWT issuance
 ```
+
+Each environment has its own Supabase project. `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
+`SUPABASE_JWT_SECRET`, and `DATABASE_URL` are set as env vars in the Render dashboard —
+never hardcoded. The frontend receives the correct Supabase credentials for its environment
+via the `config_js` route in `main.py`.
 
 Dev: `uvicorn app.main:app --reload` inside Codespaces on port 8000.
 

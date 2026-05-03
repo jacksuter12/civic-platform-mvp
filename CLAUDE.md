@@ -261,11 +261,50 @@ mypy app --ignore-missing-imports  # type check
 
 ## Hosting Setup (Render)
 
-1. Connect GitHub repo to Render
-2. New Web Service → Python → Build command: `pip install -e .`
-3. Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-4. Set environment variables from `.env.example`
-5. `DEBUG=false` in production
+Two environments are live, each with its own Render service and Supabase project.
+
+| | Production | Staging |
+|---|---|---|
+| **Render service** | civic-platform | civic-platform-staging |
+| **Branch** | `main` | `feature/proposal-review` (or active feature branch) |
+| **URL** | (production URL) | https://civic-platform-staging.onrender.com |
+| **Supabase project** | production project | staging project |
+
+Both services share the same env var names; values differ per environment:
+
+```
+DATABASE_URL          postgresql+asyncpg://postgres.[ref]:[password]@[pooler-host]:5432/postgres
+SUPABASE_URL          https://[project-ref].supabase.co
+SUPABASE_ANON_KEY     sb_publishable_...
+SUPABASE_JWT_SECRET   [JWT secret from Supabase → Project Settings → API]
+```
+
+**Build command** (set in Render dashboard, run from `backend/` root directory):
+```
+pip install -e . && alembic upgrade heads
+```
+Use `heads` (plural) — handles any multi-head situation gracefully.
+
+**Start command:**
+```
+uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+**Supabase project setup checklist** (required for each new Supabase project):
+- Authentication → URL Configuration → Site URL: set to the Render service URL
+- Authentication → URL Configuration → Redirect URLs: add `https://[render-url]/**`
+- Authentication → Providers → Email → "Confirm email": disable for staging (speeds up testing)
+- Networking → add `0.0.0.0/0` to allowed IPs (or use connection pooler URL for DATABASE_URL)
+
+**Frontend Supabase credentials** are injected at runtime by the `config_js` route in
+`main.py` — do NOT hardcode them in `backend/app/static/js/config.js`. The route reads
+`settings.SUPABASE_URL` and `settings.SUPABASE_ANON_KEY` from env vars.
+
+**Migrations:** run against any environment by setting DATABASE_URL in your shell and
+running `alembic upgrade heads` from `backend/`. Use the Session pooler URL (port 5432),
+not the Transaction pooler (port 6543), for migrations.
+
+`DEBUG=false` in production.
 
 ---
 
