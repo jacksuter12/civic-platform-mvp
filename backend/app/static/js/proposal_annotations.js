@@ -78,7 +78,7 @@
   // ---------------------------------------------------------------------------
 
   function _isWritable() {
-    return _config && _config.threadStatus === 'PROPOSING' && _config.currentUser;
+    return _config && _config.threadStatus?.toLowerCase() === 'proposing' && _config.currentUser;
   }
 
   function _totalCount(annotations) {

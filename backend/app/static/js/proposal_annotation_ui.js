@@ -155,7 +155,7 @@
     const el = document.createElement('div');
     el.className = 'paa-empty-state';
     let msg;
-    if (_currentUser && _threadStatus === 'PROPOSING') {
+    if (_currentUser && _threadStatus?.toLowerCase() === 'proposing') {
       msg = 'No annotations yet. Select text in the proposal to add one.';
     } else if (_currentUser) {
       msg = 'No annotations on this proposal.';
@@ -172,15 +172,15 @@
 
   function _renderBanner() {
     if (_bannerEl) { _bannerEl.remove(); _bannerEl = null; }
-    if (!_threadStatus || _threadStatus === 'PROPOSING') return;
+    if (!_threadStatus || _threadStatus?.toLowerCase() === 'proposing') return;
 
     const PHASE_TEXT = {
-      DELIBERATING: 'Annotations open during PROPOSING phase only.',
-      VOTING: 'Annotations are read-only during voting.',
-      CLOSED: 'This thread is closed; annotations are read-only.',
-      ARCHIVED: 'This thread is closed; annotations are read-only.',
+      deliberating: 'Annotations open during PROPOSING phase only.',
+      voting: 'Annotations are read-only during voting.',
+      closed: 'This thread is closed; annotations are read-only.',
+      archived: 'This thread is closed; annotations are read-only.',
     };
-    const text = PHASE_TEXT[_threadStatus] || 'Annotations are read-only.';
+    const text = PHASE_TEXT[_threadStatus.toLowerCase()] || 'Annotations are read-only.';
 
     _bannerEl = document.createElement('div');
     _bannerEl.className = 'paa-readonly-banner';
