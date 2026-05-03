@@ -23,6 +23,14 @@
   let _annotations = [];    // flat list of top-level annotations (replies nested inside)
   let _pendingAnchor = null; // { anchor, range } — set while composer is open
   let _chipEl = null;       // the floating "Annotate" button near the selection
+  let _lastCreatedId = null; // ID of the most recently created annotation, for focus management
+
+  // Polling state
+  let _pollTimer = null;
+  let _pollIntervalMs = 30000;        // 30 seconds when focused
+  let _pollIntervalMsBlurred = 300000; // 5 minutes when hidden
+  let _inFlight = false;
+  let _knownAnnotationIds = new Set();
 
   // ---------------------------------------------------------------------------
   // Init
@@ -47,13 +55,14 @@
       docEl: config.docEl,
       currentUser: config.currentUser,
       isReadOnly: !_isWritable(),
+      threadStatus: config.threadStatus,
       onReact: (id, reactionType) => react(id, reactionType),
       onReply: (parentId, body) => reply(parentId, body),
       onResolve: (id) => resolve(id),
       onUnresolve: (id) => unresolve(id),
       onFeature: (id) => feature(id),
       onUnfeature: (id) => unfeature(id),
-      onModerate: (id) => moderateWithPrompt(id),
+      onModerate: (id, reason) => moderate(id, reason),
       onSubmitNew: (body) => _submitPendingAnnotation(body),
       onCancelNew: () => { _pendingAnchor = null; _removeChip(); },
     });
@@ -61,6 +70,7 @@
     await _load();
     _bindTextSelection();
     _bindHighlightClicks();
+    _startPolling();
   }
 
   // ---------------------------------------------------------------------------
@@ -72,7 +82,6 @@
   }
 
   function _totalCount(annotations) {
-    // Count top-level + all replies
     return annotations.reduce((n, a) => n + 1 + (a.replies ? a.replies.length : 0), 0);
   }
 
@@ -81,14 +90,26 @@
   // ---------------------------------------------------------------------------
 
   async function _load() {
+    ProposalAnnotationUI.renderLoading();
     try {
       _annotations = await fetchAnnotations('proposal', _config.proposalId);
     } catch (e) {
       console.error('[ProposalAnnotations] fetch failed', e);
-      _annotations = [];
+      ProposalAnnotationUI.renderError(() => _load());
+      return;
     }
 
-    // Apply highlights and detect orphans
+    _applyHighlights();
+    _knownAnnotationIds = new Set(_annotations.map(a => a.id));
+    _render();
+
+    if (_lastCreatedId) {
+      ProposalAnnotationUI.focusCard(_lastCreatedId);
+      _lastCreatedId = null;
+    }
+  }
+
+  function _applyHighlights() {
     _clearHighlights();
     const docEl = _config.docEl;
     for (const anno of _annotations) {
@@ -98,12 +119,9 @@
       if (range) {
         ProposalAnchor.applyHighlight(range, anno.id);
       } else if (!anno.orphaned_at) {
-        // Report orphan to server (fire-and-forget)
         markAnnotationOrphaned(anno.id).catch(() => {});
       }
     }
-
-    _render();
   }
 
   function _clearHighlights() {
@@ -127,6 +145,96 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Polling
+  // ---------------------------------------------------------------------------
+
+  function _startPolling() {
+    _scheduleNextPoll();
+    document.addEventListener('visibilitychange', () => _scheduleNextPoll());
+    window.addEventListener('focus', () => _scheduleNextPoll());
+    window.addEventListener('blur', () => _scheduleNextPoll());
+    window.addEventListener('beforeunload', () => clearTimeout(_pollTimer));
+  }
+
+  function _scheduleNextPoll() {
+    clearTimeout(_pollTimer);
+    const interval = document.hidden ? _pollIntervalMsBlurred : _pollIntervalMs;
+    _pollTimer = setTimeout(() => _poll(), interval);
+  }
+
+  async function _poll() {
+    if (_inFlight) return _scheduleNextPoll();
+    _inFlight = true;
+    try {
+      const fresh = await fetchAnnotations('proposal', _config.proposalId);
+      await _mergeUpdates(fresh);
+    } catch (err) {
+      console.warn('[ProposalAnnotations] poll failed', err);
+    } finally {
+      _inFlight = false;
+      _scheduleNextPoll();
+    }
+  }
+
+  async function _mergeUpdates(fresh) {
+    const freshIds = new Set(fresh.map(a => a.id));
+    const hasChanges =
+      fresh.length !== _annotations.length ||
+      fresh.some(a => !_knownAnnotationIds.has(a.id)) ||
+      _annotations.some(a => !freshIds.has(a.id));
+
+    if (!hasChanges) return;
+
+    // Find new annotations not by the current user (for toast)
+    const newAnnos = fresh.filter(a => !_knownAnnotationIds.has(a.id));
+    const newFromOthers = newAnnos.filter(
+      a => !_config.currentUser || a.author?.id !== _config.currentUser.id
+    );
+
+    // Save open reply forms before re-render
+    const openReplyForms = {};
+    _config.sidebarEl.querySelectorAll('.paa-reply-form:not([hidden])').forEach(f => {
+      openReplyForms[f.dataset.parentId] = f.querySelector('textarea').value;
+    });
+
+    _annotations = fresh;
+    _knownAnnotationIds = freshIds;
+
+    _applyHighlights();
+    _render();
+
+    // Restore open reply forms
+    Object.entries(openReplyForms).forEach(([parentId, value]) => {
+      const card = _config.sidebarEl.querySelector(
+        `.proposal-annotation-card[data-anno-id="${CSS.escape(parentId)}"]`
+      );
+      if (!card) return;
+      const form = card.querySelector('.paa-reply-form');
+      if (form) {
+        form.hidden = false;
+        if (value) form.querySelector('textarea').value = value;
+      }
+    });
+
+    if (newFromOthers.length > 0) {
+      _showToast(`${newFromOthers.length} new annotation${newFromOthers.length > 1 ? 's' : ''}`);
+    }
+  }
+
+  function _showToast(message) {
+    const parent = _config.sidebarEl.parentElement;
+    const existing = parent.querySelector('.paa-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = 'paa-toast';
+    toast.textContent = message;
+    toast.addEventListener('click', () => toast.remove());
+    parent.appendChild(toast);
+    setTimeout(() => { if (toast.parentElement) toast.remove(); }, 5000);
+  }
+
+  // ---------------------------------------------------------------------------
   // Text selection → "Annotate" chip
   // ---------------------------------------------------------------------------
 
@@ -144,7 +252,6 @@
     }
 
     const range = sel.getRangeAt(0);
-    // Ensure the selection is within the doc element
     if (!_config.docEl.contains(range.commonAncestorContainer)) {
       _removeChip();
       return;
@@ -156,7 +263,6 @@
       return;
     }
 
-    // Serialize anchor
     const anchor = ProposalAnchor.serialize(range, _config.docEl);
     if (!anchor) {
       _removeChip();
@@ -174,7 +280,6 @@
     chip.textContent = '+ Annotate';
     chip.setAttribute('aria-label', 'Annotate selected text');
 
-    // Position near selection
     const docRect = _config.docEl.getBoundingClientRect();
     const scrollY = window.scrollY || window.pageYOffset;
     chip.style.position = 'absolute';
@@ -183,7 +288,7 @@
     chip.style.zIndex = '200';
 
     chip.addEventListener('mousedown', (e) => {
-      e.preventDefault(); // prevent selection loss
+      e.preventDefault();
       _pendingAnchor = { anchor, range };
       _removeChip();
       window.getSelection().removeAllRanges();
@@ -226,13 +331,16 @@
   }
 
   async function create({ anchor_data, body, parent_id = null }) {
-    await createProposalAnnotation({
+    const created = await createProposalAnnotation({
       target_type: 'proposal',
       target_id: _config.proposalId,
       anchor_data,
       body,
       parent_id,
     });
+    if (created && created.id) {
+      _lastCreatedId = created.id;
+    }
     await _load();
   }
 
@@ -241,7 +349,6 @@
   }
 
   async function react(annotationId, reactionType) {
-    // Find current user's reaction on this annotation to decide toggle vs. set
     const anno = _findAnnotation(annotationId);
     if (anno && anno.my_reaction === reactionType) {
       await unreactAnnotation(annotationId);
@@ -271,11 +378,8 @@
     await _load();
   }
 
-  async function moderateWithPrompt(annotationId) {
-    // Session 3: stub using window.prompt — Session 4 replaces with proper modal
-    const reason = window.prompt('Enter reason for moderation:');
-    if (reason === null || reason.trim() === '') return;
-    await moderateAnnotation(annotationId, reason.trim());
+  async function moderate(annotationId, reason) {
+    await moderateAnnotation(annotationId, reason);
     await _load();
   }
 
@@ -307,6 +411,7 @@
     unresolve,
     feature,
     unfeature,
+    moderate,
   };
 
 })();

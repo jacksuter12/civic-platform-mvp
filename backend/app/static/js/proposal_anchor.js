@@ -226,16 +226,19 @@
 
   /**
    * Scroll the document pane so the first highlight span for annotationId
-   * is visible.
+   * is visible, then briefly flash all matching spans.
    * @param {string} annotationId
    */
   function _scrollTo(annotationId) {
-    const span = document.querySelector(
-      `[data-anno-id="${CSS.escape(annotationId)}"]`
+    const spans = document.querySelectorAll(
+      `.proposal-annotation-highlight[data-anno-id="${CSS.escape(annotationId)}"]`
     );
-    if (span) {
-      span.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    if (!spans.length) return;
+    spans[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    spans.forEach(s => s.classList.add('proposal-annotation-highlight-flash'));
+    setTimeout(() => {
+      spans.forEach(s => s.classList.remove('proposal-annotation-highlight-flash'));
+    }, 600);
   }
 
   // ---------------------------------------------------------------------------

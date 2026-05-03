@@ -18,8 +18,27 @@
   let _docEl = null;
   let _currentUser = null;
   let _isReadOnly = false;
+  let _threadStatus = null;
   let _callbacks = {};
   let _composerEl = null;
+
+  // Persistent UI elements outside sidebarEl
+  let _bannerEl = null;
+  let _controlsEl = null;
+
+  // Annotation lookup map (id → annotation) updated on every render
+  let _annotationsMap = {};
+  let _lastCounts = {};
+
+  // Current filter/sort state (not persisted across page loads)
+  let _currentFilter = 'all';
+  let _currentSort = 'position';
+
+  // Moderation modal state
+  let _modalEl = null;
+  let _modalAnnoId = null;
+  let _modalTriggerEl = null;
+  let _modalKeydownHandler = null;
 
   // ---------------------------------------------------------------------------
   // Init
@@ -31,6 +50,7 @@
    *   docEl:        Element,
    *   currentUser:  {id, display_name} | null,
    *   isReadOnly:   boolean,
+   *   threadStatus: string,
    *   onReact, onReply, onResolve, onUnresolve, onFeature, onUnfeature,
    *   onModerate, onSubmitNew, onCancelNew
    * }} config
@@ -40,6 +60,7 @@
     _docEl = config.docEl;
     _currentUser = config.currentUser;
     _isReadOnly = config.isReadOnly;
+    _threadStatus = config.threadStatus || null;
     _callbacks = {
       onReact: config.onReact || (() => {}),
       onReply: config.onReply || (() => {}),
@@ -51,6 +72,10 @@
       onSubmitNew: config.onSubmitNew || (() => {}),
       onCancelNew: config.onCancelNew || (() => {}),
     };
+
+    // Render persistent siblings above the list (outside sidebarEl)
+    _renderBanner();
+    _renderControls();
 
     // Single delegated click listener on sidebar
     _sidebarEl.addEventListener('click', _onSidebarClick);
@@ -68,6 +93,9 @@
   function render(annotations, state) {
     _isReadOnly = state.isReadOnly;
 
+    // Update lookup map
+    _annotationsMap = Object.fromEntries((annotations || []).map(a => [a.id, a]));
+
     // Keep composer if it's currently open (user is typing)
     const composerOpen = _composerEl && _sidebarEl.contains(_composerEl);
 
@@ -75,24 +103,256 @@
     _sidebarEl.innerHTML = '';
 
     if (composerOpen && _composerEl) {
-      _sidebarEl.appendChild(_composerEl);
+      _sidebarEl.insertBefore(_composerEl, _sidebarEl.firstChild);
     }
 
     if (!annotations || annotations.length === 0) {
       if (!composerOpen) {
-        const empty = document.createElement('div');
-        empty.className = 'paa-empty';
-        empty.textContent = _isReadOnly
-          ? 'No annotations on this proposal.'
-          : 'Select text in the proposal to add an annotation.';
-        _sidebarEl.appendChild(empty);
+        _renderEmpty();
       }
+      _updateFilterCounts([]);
       return;
     }
 
     for (const anno of annotations) {
-      _sidebarEl.appendChild(_buildCard(anno, false));
+      _sidebarEl.appendChild(_buildCard(anno));
     }
+
+    _updateFilterCounts(annotations);
+    _applyCurrentSort();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Loading / error / empty states (called from ProposalAnnotations)
+  // ---------------------------------------------------------------------------
+
+  function renderLoading() {
+    const composerOpen = _composerEl && _sidebarEl.contains(_composerEl);
+    _sidebarEl.innerHTML = '';
+    if (composerOpen && _composerEl) {
+      _sidebarEl.insertBefore(_composerEl, _sidebarEl.firstChild);
+    }
+    const skeleton = document.createElement('div');
+    skeleton.className = 'paa-skeleton';
+    skeleton.innerHTML = '<div class="paa-skeleton-card"></div><div class="paa-skeleton-card"></div>';
+    _sidebarEl.appendChild(skeleton);
+  }
+
+  function renderError(onRetry) {
+    _sidebarEl.innerHTML = '';
+    const el = document.createElement('div');
+    el.className = 'paa-error-state';
+    el.innerHTML = '<p class="paa-error-message">Could not load annotations.</p>';
+    const retryBtn = document.createElement('button');
+    retryBtn.className = 'paa-error-retry';
+    retryBtn.textContent = 'Retry';
+    retryBtn.addEventListener('click', () => { if (onRetry) onRetry(); });
+    el.appendChild(retryBtn);
+    _sidebarEl.appendChild(el);
+  }
+
+  function _renderEmpty() {
+    const el = document.createElement('div');
+    el.className = 'paa-empty-state';
+    let msg;
+    if (_currentUser && _threadStatus === 'PROPOSING') {
+      msg = 'No annotations yet. Select text in the proposal to add one.';
+    } else if (_currentUser) {
+      msg = 'No annotations on this proposal.';
+    } else {
+      msg = 'No annotations yet. Sign in to add one during PROPOSING.';
+    }
+    el.innerHTML = `<p class="paa-empty-message">${_esc(msg)}</p>`;
+    _sidebarEl.appendChild(el);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Persistent sidebar elements (inserted before sidebarEl as siblings)
+  // ---------------------------------------------------------------------------
+
+  function _renderBanner() {
+    if (_bannerEl) { _bannerEl.remove(); _bannerEl = null; }
+    if (!_threadStatus || _threadStatus === 'PROPOSING') return;
+
+    const PHASE_TEXT = {
+      DELIBERATING: 'Annotations open during PROPOSING phase only.',
+      VOTING: 'Annotations are read-only during voting.',
+      CLOSED: 'This thread is closed; annotations are read-only.',
+      ARCHIVED: 'This thread is closed; annotations are read-only.',
+    };
+    const text = PHASE_TEXT[_threadStatus] || 'Annotations are read-only.';
+
+    _bannerEl = document.createElement('div');
+    _bannerEl.className = 'paa-readonly-banner';
+    _bannerEl.setAttribute('role', 'status');
+    _bannerEl.innerHTML = `<strong>Annotations are read-only.</strong> ${_esc(text)}`;
+    _sidebarEl.parentElement.insertBefore(_bannerEl, _sidebarEl);
+  }
+
+  function _renderControls() {
+    if (_controlsEl) { _controlsEl.remove(); _controlsEl = null; }
+
+    _controlsEl = document.createElement('div');
+    _controlsEl.className = 'paa-controls';
+
+    // Filter chips
+    const filtersEl = document.createElement('div');
+    filtersEl.className = 'paa-filters';
+    filtersEl.setAttribute('role', 'tablist');
+    filtersEl.setAttribute('aria-label', 'Filter annotations');
+
+    ['all', 'open', 'resolved', 'featured'].forEach(f => {
+      const btn = document.createElement('button');
+      btn.className = 'paa-chip' + (f === _currentFilter ? ' is-on' : '');
+      btn.dataset.filter = f;
+      btn.setAttribute('role', 'tab');
+      btn.setAttribute('aria-selected', f === _currentFilter ? 'true' : 'false');
+      const label = f.charAt(0).toUpperCase() + f.slice(1);
+      btn.innerHTML = `${label} <span class="paa-chip-count">0</span>`;
+      btn.addEventListener('click', () => _setFilter(f));
+      filtersEl.appendChild(btn);
+    });
+
+    // Sort selector
+    const sortWrap = document.createElement('div');
+    sortWrap.className = 'paa-sort-wrap';
+
+    const sort = document.createElement('select');
+    sort.className = 'paa-sort';
+    sort.setAttribute('aria-label', 'Sort annotations');
+    sort.innerHTML = `
+      <option value="position" selected>By position</option>
+      <option value="newest">Newest first</option>
+      <option value="oldest">Oldest first</option>
+      <option value="reactions">Most reactions</option>
+    `;
+    sort.addEventListener('change', () => {
+      _currentSort = sort.value;
+      _applyCurrentSort();
+    });
+    sortWrap.appendChild(sort);
+
+    _controlsEl.appendChild(filtersEl);
+    _controlsEl.appendChild(sortWrap);
+
+    // Insert before sidebarEl; banner (if present) was already inserted before sidebarEl
+    _sidebarEl.parentElement.insertBefore(_controlsEl, _sidebarEl);
+  }
+
+  function _setFilter(f) {
+    _currentFilter = f;
+    _sidebarEl.dataset.filter = f;
+    if (_controlsEl) {
+      _controlsEl.querySelectorAll('.paa-chip').forEach(chip => {
+        const active = chip.dataset.filter === f;
+        chip.classList.toggle('is-on', active);
+        chip.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+    }
+    _updateFilterEmptyState();
+  }
+
+  function _updateFilterCounts(annotations) {
+    _lastCounts = {
+      all: annotations.length,
+      open: annotations.filter(a => !a.resolved_at).length,
+      resolved: annotations.filter(a => a.resolved_at).length,
+      featured: annotations.filter(a => a.featured_at).length,
+    };
+    if (_controlsEl) {
+      _controlsEl.querySelectorAll('.paa-chip').forEach(chip => {
+        const countEl = chip.querySelector('.paa-chip-count');
+        if (countEl) countEl.textContent = String(_lastCounts[chip.dataset.filter] ?? 0);
+      });
+    }
+    _updateFilterEmptyState();
+  }
+
+  function _updateFilterEmptyState() {
+    const existing = _sidebarEl.querySelector('.paa-filter-empty');
+    if (existing) existing.remove();
+    if (!_currentFilter || _currentFilter === 'all') return;
+
+    const count = _lastCounts[_currentFilter] ?? 0;
+    const total = _lastCounts.all ?? 0;
+    if (count === 0 && total > 0) {
+      const msg = document.createElement('p');
+      msg.className = 'paa-filter-empty';
+      msg.textContent = `No ${_currentFilter} annotations.`;
+      _sidebarEl.appendChild(msg);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sort
+  // ---------------------------------------------------------------------------
+
+  function _applyCurrentSort() {
+    const cards = Array.from(
+      _sidebarEl.querySelectorAll('.proposal-annotation-card:not(.paa-reply-card)')
+    );
+    if (cards.length <= 1) return;
+
+    const sortFn = _getSortFn(_currentSort);
+    const featured = cards.filter(c => c.dataset.featured === 'true');
+    const nonFeatured = cards.filter(c => c.dataset.featured !== 'true');
+    featured.sort(sortFn);
+    nonFeatured.sort(sortFn);
+
+    [...featured, ...nonFeatured].forEach(card => _sidebarEl.appendChild(card));
+
+    // Keep composer first if still open
+    if (_composerEl && _sidebarEl.contains(_composerEl)) {
+      _sidebarEl.insertBefore(_composerEl, _sidebarEl.firstChild);
+    }
+    // Keep filter-empty message last
+    const emptyMsg = _sidebarEl.querySelector('.paa-filter-empty');
+    if (emptyMsg) _sidebarEl.appendChild(emptyMsg);
+  }
+
+  function _getSortFn(sortValue) {
+    switch (sortValue) {
+      case 'newest':
+        return (a, b) => {
+          const annoA = _annotationsMap[a.dataset.annoId];
+          const annoB = _annotationsMap[b.dataset.annoId];
+          if (!annoA || !annoB) return 0;
+          return new Date(annoB.created_at) - new Date(annoA.created_at);
+        };
+      case 'oldest':
+        return (a, b) => {
+          const annoA = _annotationsMap[a.dataset.annoId];
+          const annoB = _annotationsMap[b.dataset.annoId];
+          if (!annoA || !annoB) return 0;
+          return new Date(annoA.created_at) - new Date(annoB.created_at);
+        };
+      case 'reactions':
+        return (a, b) => {
+          const annoA = _annotationsMap[a.dataset.annoId];
+          const annoB = _annotationsMap[b.dataset.annoId];
+          if (!annoA || !annoB) return 0;
+          const rA = (annoA.reactions?.endorse || 0) + (annoA.reactions?.needs_work || 0);
+          const rB = (annoB.reactions?.endorse || 0) + (annoB.reactions?.needs_work || 0);
+          if (rB !== rA) return rB - rA;
+          return new Date(annoB.created_at) - new Date(annoA.created_at);
+        };
+      case 'position':
+      default:
+        return (a, b) => {
+          const aOrph = a.dataset.orphaned === 'true';
+          const bOrph = b.dataset.orphaned === 'true';
+          if (aOrph && !bOrph) return 1;
+          if (!aOrph && bOrph) return -1;
+          return _annotationY(a.dataset.annoId) - _annotationY(b.dataset.annoId);
+        };
+    }
+  }
+
+  function _annotationY(annoId) {
+    const span = document.querySelector(
+      `.proposal-annotation-highlight[data-anno-id="${CSS.escape(annoId)}"]`
+    );
+    return span ? span.getBoundingClientRect().top + window.scrollY : Infinity;
   }
 
   // ---------------------------------------------------------------------------
@@ -100,15 +360,12 @@
   // ---------------------------------------------------------------------------
 
   /**
-   * Show the top-level composer, replacing any empty state in the sidebar.
-   * @param {Object}  anchor      - The pending anchor object
-   * @param {Object}  [opts]      - { replyTo: annotationId | null }
+   * Show the top-level composer at the top of the sidebar.
+   * @param {Object} anchor - The pending anchor object
+   * @param {Object} [opts] - { replyTo: annotationId | null }
    */
   function showComposer(anchor, opts) {
-    if (opts && opts.replyTo) {
-      // Reply composer is shown inline in the card — handled in _buildCard
-      return;
-    }
+    if (opts && opts.replyTo) return; // reply composer is handled inline
 
     hideComposer();
 
@@ -147,6 +404,9 @@
     wrapper.querySelector('.paa-composer-cancel').addEventListener('click', () => {
       hideComposer();
       _callbacks.onCancelNew();
+      // Return focus to first filter chip as fallback
+      const firstChip = _controlsEl && _controlsEl.querySelector('.paa-chip');
+      if (firstChip) firstChip.focus();
     });
 
     _composerEl = wrapper;
@@ -165,17 +425,18 @@
   // Card builder
   // ---------------------------------------------------------------------------
 
-  function _buildCard(anno, isReply) {
+  function _buildCard(anno) {
     const isResolved = !!anno.resolved_at;
     const isFeatured = !!anno.featured_at;
     const isOrphaned = !!anno.orphaned_at;
 
     const card = document.createElement('article');
-    card.className = 'proposal-annotation-card' + (isReply ? ' paa-reply-card' : '');
+    card.className = 'proposal-annotation-card';
     card.dataset.annoId = anno.id;
     card.dataset.status = isResolved ? 'resolved' : 'open';
     card.dataset.featured = isFeatured ? 'true' : 'false';
     card.dataset.orphaned = isOrphaned ? 'true' : 'false';
+    card.tabIndex = 0;
 
     // Header
     const head = document.createElement('header');
@@ -188,7 +449,6 @@
       <span class="paa-orphaned-tag"${isOrphaned ? '' : ' hidden'}>Anchor changed</span>
     `;
 
-    // Action menu button (for moderators/facilitators)
     if (anno.can_moderate || anno.can_feature) {
       const menuBtn = document.createElement('button');
       menuBtn.className = 'paa-menu-btn';
@@ -204,8 +464,17 @@
 
     card.appendChild(head);
 
-    // Anchor quote (only for top-level annotations with quote selectors)
-    if (!isReply && anno.anchor_data && anno.anchor_data.selector) {
+    // Orphan original text — show quoted passage above body
+    if (isOrphaned) {
+      const quoteSelector = anno.anchor_data?.selector?.find(s => s.type === 'TextQuoteSelector');
+      if (quoteSelector && quoteSelector.exact) {
+        const orphanQuote = document.createElement('blockquote');
+        orphanQuote.className = 'paa-orphan-original-text';
+        orphanQuote.textContent = 'Originally annotated: "' + quoteSelector.exact.slice(0, 200) + '"';
+        card.appendChild(orphanQuote);
+      }
+    } else if (anno.anchor_data && anno.anchor_data.selector) {
+      // Live anchor quote for non-orphaned annotations
       const quoteSelector = anno.anchor_data.selector.find(s => s.type === 'TextQuoteSelector');
       if (quoteSelector && quoteSelector.exact) {
         const quote = document.createElement('blockquote');
@@ -222,40 +491,38 @@
     card.appendChild(body);
 
     // Footer actions
-    if (!isReply) {
-      const footer = document.createElement('footer');
-      footer.className = 'paa-card-actions';
+    const footer = document.createElement('footer');
+    footer.className = 'paa-card-actions';
 
-      const endorseCount = anno.reactions?.endorse || 0;
-      const needsWorkCount = anno.reactions?.needs_work || 0;
-      const myReaction = anno.my_reaction;
+    const endorseCount = anno.reactions?.endorse || 0;
+    const needsWorkCount = anno.reactions?.needs_work || 0;
+    const myReaction = anno.my_reaction;
 
-      footer.innerHTML = `
-        <button class="paa-react${myReaction === 'endorse' ? ' is-active' : ''}"
-                data-reaction="endorse" data-anno-id="${anno.id}"
-                ${_isReadOnly || !_currentUser ? 'disabled' : ''}>
-          Endorse · ${endorseCount}
-        </button>
-        <button class="paa-react${myReaction === 'needs_work' ? ' is-active' : ''}"
-                data-reaction="needs_work" data-anno-id="${anno.id}"
-                ${_isReadOnly || !_currentUser ? 'disabled' : ''}>
-          Needs work · ${needsWorkCount}
-        </button>
-        ${!_isReadOnly && _currentUser ? `
-          <button class="paa-reply-btn" data-anno-id="${anno.id}">Reply</button>
-        ` : ''}
-        ${anno.can_resolve && !isResolved && !_isReadOnly ? `
-          <button class="paa-resolve-btn" data-anno-id="${anno.id}">Resolve</button>
-        ` : ''}
-        ${anno.can_resolve && isResolved && !_isReadOnly ? `
-          <button class="paa-unresolve-btn" data-anno-id="${anno.id}">Reopen</button>
-        ` : ''}
-      `;
-      card.appendChild(footer);
-    }
+    footer.innerHTML = `
+      <button class="paa-react${myReaction === 'endorse' ? ' is-active' : ''}"
+              data-reaction="endorse" data-anno-id="${anno.id}"
+              ${_isReadOnly || !_currentUser ? 'disabled' : ''}>
+        Endorse · ${endorseCount}
+      </button>
+      <button class="paa-react${myReaction === 'needs_work' ? ' is-active' : ''}"
+              data-reaction="needs_work" data-anno-id="${anno.id}"
+              ${_isReadOnly || !_currentUser ? 'disabled' : ''}>
+        Needs work · ${needsWorkCount}
+      </button>
+      ${!_isReadOnly && _currentUser ? `
+        <button class="paa-reply-btn" data-anno-id="${anno.id}">Reply</button>
+      ` : ''}
+      ${anno.can_resolve && !isResolved && !_isReadOnly ? `
+        <button class="paa-resolve-btn" data-anno-id="${anno.id}">Resolve</button>
+      ` : ''}
+      ${anno.can_resolve && isResolved && !_isReadOnly ? `
+        <button class="paa-unresolve-btn" data-anno-id="${anno.id}">Reopen</button>
+      ` : ''}
+    `;
+    card.appendChild(footer);
 
     // Nested replies
-    if (!isReply && anno.replies && anno.replies.length > 0) {
+    if (anno.replies && anno.replies.length > 0) {
       const repliesList = document.createElement('ol');
       repliesList.className = 'paa-replies';
       for (const reply of anno.replies) {
@@ -267,7 +534,7 @@
     }
 
     // Inline reply form (hidden by default)
-    if (!isReply && !_isReadOnly && _currentUser) {
+    if (!_isReadOnly && _currentUser) {
       const replyForm = document.createElement('form');
       replyForm.className = 'paa-reply-form';
       replyForm.hidden = true;
@@ -282,9 +549,10 @@
       card.appendChild(replyForm);
     }
 
-    // Clicking the card body (outside buttons) scrolls to the highlight
+    // Card body click → scroll doc to highlight (skip if orphaned or clicking interactive elements)
     card.addEventListener('click', (e) => {
-      if (e.target.closest('button, form, textarea')) return;
+      if (e.target.closest('button, form, textarea, .paa-menu-dropdown, a')) return;
+      if (card.dataset.orphaned === 'true') return;
       ProposalAnchor.scrollTo(anno.id);
     });
 
@@ -295,6 +563,7 @@
     const card = document.createElement('article');
     card.className = 'proposal-annotation-card paa-reply-card';
     card.dataset.annoId = anno.id;
+    card.tabIndex = 0;
 
     card.innerHTML = `
       <header class="paa-card-head">
@@ -324,25 +593,35 @@
   // ---------------------------------------------------------------------------
 
   function _onSidebarClick(e) {
-    const btn = e.target.closest('button[data-action], button.paa-react, button.paa-reply-btn, button.paa-resolve-btn, button.paa-unresolve-btn, button.paa-menu-btn, button.paa-reply-cancel');
+    const btn = e.target.closest(
+      'button[data-action], button.paa-react, button.paa-reply-btn, ' +
+      'button.paa-resolve-btn, button.paa-unresolve-btn, button.paa-menu-btn, button.paa-reply-cancel'
+    );
     if (!btn) return;
 
     const annoId = btn.dataset.annoId;
 
     if (btn.classList.contains('paa-react')) {
-      const reactionType = btn.dataset.reaction;
-      _callbacks.onReact(annoId, reactionType);
+      _callbacks.onReact(annoId, btn.dataset.reaction);
       return;
     }
 
     if (btn.classList.contains('paa-reply-btn')) {
-      _toggleReplyForm(annoId);
+      _toggleReplyForm(annoId, btn);
       return;
     }
 
     if (btn.classList.contains('paa-reply-cancel')) {
       const form = btn.closest('form.paa-reply-form');
-      if (form) form.hidden = true;
+      if (form) {
+        form.hidden = true;
+        // Return focus to the Reply button that opened this form
+        const parentId = form.dataset.parentId;
+        const replyBtn = _sidebarEl.querySelector(
+          `.paa-reply-btn[data-anno-id="${CSS.escape(parentId)}"]`
+        );
+        if (replyBtn) replyBtn.focus();
+      }
       return;
     }
 
@@ -362,27 +641,28 @@
     }
   }
 
-  function _toggleReplyForm(parentId) {
-    const card = _sidebarEl.querySelector(`[data-anno-id="${CSS.escape(parentId)}"]`);
+  function _toggleReplyForm(parentId, replyBtn) {
+    const card = _sidebarEl.querySelector(
+      `.proposal-annotation-card[data-anno-id="${CSS.escape(parentId)}"]`
+    );
     if (!card) return;
     const form = card.querySelector('form.paa-reply-form');
     if (!form) return;
     form.hidden = !form.hidden;
     if (!form.hidden) {
       form.querySelector('textarea').focus();
-      // Wire submit if not already wired
       if (!form.dataset.wired) {
         form.dataset.wired = '1';
         form.addEventListener('submit', async (e) => {
           e.preventDefault();
           const body = form.querySelector('textarea').value.trim();
           if (!body) return;
-          const btn = form.querySelector('[type="submit"]');
-          btn.disabled = true;
+          const submitBtn = form.querySelector('[type="submit"]');
+          submitBtn.disabled = true;
           try {
             await _callbacks.onReply(parentId, body);
           } finally {
-            btn.disabled = false;
+            submitBtn.disabled = false;
           }
           form.hidden = true;
           form.reset();
@@ -392,7 +672,6 @@
   }
 
   function _showMenu(menuBtn) {
-    // Remove any existing menu
     document.querySelectorAll('.paa-menu-dropdown').forEach(el => el.remove());
 
     const annoId = menuBtn.dataset.annoId;
@@ -405,25 +684,24 @@
 
     if (canFeature) {
       const featItem = document.createElement('button');
+      featItem.className = 'paa-menu-item';
       featItem.textContent = isFeatured ? 'Unfeature' : 'Feature';
       featItem.addEventListener('click', () => {
         menu.remove();
-        if (isFeatured) {
-          _callbacks.onUnfeature(annoId);
-        } else {
-          _callbacks.onFeature(annoId);
-        }
+        if (isFeatured) _callbacks.onUnfeature(annoId);
+        else _callbacks.onFeature(annoId);
       });
       menu.appendChild(featItem);
     }
 
     if (canModerate) {
       const modItem = document.createElement('button');
-      modItem.textContent = 'Moderate (remove)';
-      modItem.className = 'paa-menu-item-danger';
+      modItem.className = 'paa-menu-item danger';
+      modItem.textContent = 'Hide…';
       modItem.addEventListener('click', () => {
         menu.remove();
-        _callbacks.onModerate(annoId);
+        const anno = _annotationsMap[annoId];
+        if (anno) showModerateModal(anno, menuBtn);
       });
       menu.appendChild(modItem);
     }
@@ -439,7 +717,6 @@
 
     document.body.appendChild(menu);
 
-    // Close when clicking elsewhere
     setTimeout(() => {
       document.addEventListener('click', function closeMenu(e) {
         if (!menu.contains(e.target)) {
@@ -451,19 +728,170 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Scroll to card
+  // Moderation modal
   // ---------------------------------------------------------------------------
 
   /**
-   * Scroll the sidebar so the card for the given annotation is visible.
+   * Show the moderation modal for a given annotation.
+   * @param {Object}  annotation  - Full annotation object from _annotationsMap
+   * @param {Element} [triggerEl] - The ⋯ menu button (for focus return on close)
+   */
+  function showModerateModal(annotation, triggerEl) {
+    hideModerateModal();
+
+    _modalAnnoId = annotation.id;
+    _modalTriggerEl = triggerEl || _sidebarEl.querySelector(
+      `.paa-menu-btn[data-anno-id="${CSS.escape(annotation.id)}"]`
+    );
+
+    const authorName = annotation.author?.display_name || 'Unknown';
+    const bodyFull = annotation.body || '';
+    const bodyPreview = bodyFull.slice(0, 120) + (bodyFull.length > 120 ? '…' : '');
+
+    _modalEl = document.createElement('div');
+    _modalEl.className = 'paa-modal-backdrop';
+    _modalEl.setAttribute('role', 'dialog');
+    _modalEl.setAttribute('aria-modal', 'true');
+    _modalEl.setAttribute('aria-labelledby', 'paa-modal-title');
+    _modalEl.innerHTML = `
+      <div class="paa-modal">
+        <header class="paa-modal-head">
+          <h3 id="paa-modal-title" class="paa-modal-title">Hide annotation</h3>
+          <button class="paa-modal-close" aria-label="Cancel">×</button>
+        </header>
+        <div class="paa-modal-body">
+          <p class="paa-modal-context">
+            From <strong>${_esc(authorName)}</strong>:
+            <span class="paa-modal-quote">${_esc(bodyPreview)}</span>
+          </p>
+          <label class="paa-modal-label" for="paa-modal-reason">
+            Reason for hiding (required, visible in audit log)
+          </label>
+          <textarea id="paa-modal-reason" class="paa-modal-reason"
+                    minlength="10" maxlength="500"
+                    placeholder="Why is this annotation being hidden?"
+                    required></textarea>
+          <p class="paa-modal-counter" aria-live="polite">0 / 500 — minimum 10 characters</p>
+          <p class="paa-modal-error" hidden></p>
+        </div>
+        <footer class="paa-modal-foot">
+          <button class="paa-btn-ghost paa-modal-cancel">Cancel</button>
+          <button class="paa-btn-danger paa-modal-submit" disabled>Hide annotation</button>
+        </footer>
+      </div>
+    `;
+
+    document.body.appendChild(_modalEl);
+
+    const textarea = _modalEl.querySelector('#paa-modal-reason');
+    const counter = _modalEl.querySelector('.paa-modal-counter');
+    const submitBtn = _modalEl.querySelector('.paa-modal-submit');
+    const errorEl = _modalEl.querySelector('.paa-modal-error');
+
+    textarea.addEventListener('input', () => {
+      const len = textarea.value.length;
+      const valid = len >= 10 && len <= 500;
+      counter.textContent = `${len} / 500`;
+      counter.classList.toggle('is-invalid', !valid);
+      submitBtn.disabled = !valid;
+    });
+
+    _modalEl.addEventListener('click', (e) => {
+      if (e.target === _modalEl) hideModerateModal();
+    });
+
+    _modalEl.querySelector('.paa-modal-close').addEventListener('click', hideModerateModal);
+    _modalEl.querySelector('.paa-modal-cancel').addEventListener('click', hideModerateModal);
+
+    submitBtn.addEventListener('click', async () => {
+      const reason = textarea.value.trim();
+      if (reason.length < 10) return;
+      submitBtn.disabled = true;
+      errorEl.hidden = true;
+      try {
+        await _callbacks.onModerate(_modalAnnoId, reason);
+        hideModerateModal();
+      } catch (err) {
+        errorEl.textContent = 'Failed to hide annotation. Please try again.';
+        errorEl.hidden = false;
+        submitBtn.disabled = false;
+      }
+    });
+
+    // Focus trap + Escape
+    _modalKeydownHandler = (e) => {
+      if (e.key === 'Escape') { hideModerateModal(); return; }
+      if (e.key === 'Tab') {
+        const focusable = Array.from(_modalEl.querySelectorAll(
+          'button:not([disabled]), textarea, [tabindex="0"]'
+        ));
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault(); last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault(); first.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', _modalKeydownHandler);
+
+    textarea.focus();
+  }
+
+  function hideModerateModal() {
+    if (_modalKeydownHandler) {
+      document.removeEventListener('keydown', _modalKeydownHandler);
+      _modalKeydownHandler = null;
+    }
+    if (_modalEl) {
+      _modalEl.remove();
+      _modalEl = null;
+    }
+    // Return focus to the ⋯ button, or fall back to first filter chip
+    if (_modalTriggerEl) {
+      _modalTriggerEl.focus();
+      _modalTriggerEl = null;
+    } else {
+      const firstChip = _controlsEl && _controlsEl.querySelector('.paa-chip');
+      if (firstChip) firstChip.focus();
+    }
+    _modalAnnoId = null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Scroll to card / focus card
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Scroll the sidebar so the card for the given annotation is visible, and flash it.
    * @param {string} annotationId
    */
   function scrollToCard(annotationId) {
-    const card = _sidebarEl.querySelector(`[data-anno-id="${CSS.escape(annotationId)}"]`);
+    const card = _sidebarEl.querySelector(
+      `.proposal-annotation-card[data-anno-id="${CSS.escape(annotationId)}"]`
+    );
     if (card) {
       card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       card.classList.add('paa-card-flash');
       setTimeout(() => card.classList.remove('paa-card-flash'), 600);
+    }
+  }
+
+  /**
+   * Scroll to and focus the card for a given annotation ID.
+   * Used after creating a new annotation or reply.
+   * @param {string} annotationId
+   */
+  function focusCard(annotationId) {
+    if (!annotationId) return;
+    const card = _sidebarEl.querySelector(
+      `.proposal-annotation-card[data-anno-id="${CSS.escape(annotationId)}"]`
+    );
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      card.focus();
     }
   }
 
@@ -482,7 +910,6 @@
   function _timeAgo(iso) {
     if (!iso) return '';
     if (typeof timeAgo === 'function') return timeAgo(iso);
-    // Minimal fallback
     const diff = Date.now() - new Date(iso).getTime();
     const m = Math.floor(diff / 60000);
     if (m < 1) return 'just now';
@@ -499,9 +926,14 @@
   window.ProposalAnnotationUI = {
     init,
     render,
+    renderLoading,
+    renderError,
     showComposer,
     hideComposer,
     scrollToCard,
+    focusCard,
+    showModerateModal,
+    hideModerateModal,
   };
 
 })();
