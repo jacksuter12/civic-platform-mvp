@@ -205,6 +205,58 @@
         </div>`;
     }
 
+    function renderAnnotatorSection(user, annoReq) {
+      if (user.is_annotator || user.is_platform_admin) {
+        return `
+          <div class="detail-section" id="section-annotator">
+            <div class="section-heading">Annotator Access</div>
+            <p class="account-field-desc">
+              You have annotator access. You can leave inline comments on wiki articles and proposal documents.
+            </p>
+          </div>`;
+      }
+
+      if (annoReq && annoReq.status === "pending") {
+        return `
+          <div class="detail-section" id="section-annotator">
+            <div class="section-heading">Annotator Access</div>
+            <div class="account-feedback account-feedback-success" style="display:block; margin-bottom:0;">
+              Application pending — we'll review it shortly.
+            </div>
+          </div>`;
+      }
+
+      const deniedNote = (annoReq && annoReq.status === "denied")
+        ? `<p class="account-limit-warning">Your previous application was not approved. You're welcome to apply again.</p>`
+        : "";
+
+      return `
+        <div class="detail-section" id="section-annotator">
+          <div class="section-heading">Apply for Annotator Access</div>
+          <p class="account-field-desc">
+            Annotators can leave inline comments on wiki articles and proposal documents to help the community refine ideas.
+          </p>
+          ${deniedNote}
+          <form id="annotator-form" onsubmit="handleAnnotatorSubmit(event)">
+            <div class="form-field">
+              <label for="annotator-reason">Why would you like annotator access? (optional)</label>
+              <textarea
+                id="annotator-reason"
+                rows="3"
+                maxlength="500"
+                placeholder="Brief explanation… (optional)"
+                style="width:100%; padding:9px 12px; border:1px solid #d0d0d0; border-radius:6px; font-family:inherit; font-size:14px; resize:vertical; box-sizing:border-box;"
+              ></textarea>
+            </div>
+            <div id="annotator-feedback" class="account-feedback" style="display:none"></div>
+            <button type="submit" class="btn-primary" id="annotator-submit"
+              style="width:auto; padding:8px 20px;">
+              Submit application
+            </button>
+          </form>
+        </div>`;
+    }
+
     function renderCommunityMemberships(memberships) {
       if (!memberships || memberships.length === 0) {
         return `
@@ -244,7 +296,7 @@
         </div>`;
     }
 
-    function renderAccount(user, facReq) {
+    function renderAccount(user, facReq, annoReq) {
       const remaining = user.display_name_changes_remaining;
       const used = user.display_name_changes_this_month;
       const atLimit = remaining === 0;
@@ -258,6 +310,8 @@
         <h1 class="page-title">Account</h1>
 
         ${renderFacilitatorSection(user, facReq)}
+
+        ${renderAnnotatorSection(user, annoReq)}
 
         ${renderCommunityMemberships(memberships)}
 
@@ -760,6 +814,32 @@
       }
     }
 
+    async function handleAnnotatorSubmit(e) {
+      e.preventDefault();
+      const btn = document.getElementById("annotator-submit");
+      const feedback = document.getElementById("annotator-feedback");
+      const reason = (document.getElementById("annotator-reason").value || "").trim() || null;
+
+      feedback.style.display = "none";
+      btn.disabled = true;
+      btn.textContent = "Submitting…";
+
+      try {
+        await submitAnnotatorRequest(reason);
+        btn.closest(".detail-section").innerHTML = `
+          <div class="section-heading">Annotator Access</div>
+          <div class="account-feedback account-feedback-success" style="display:block; margin-bottom:0;">
+            Application pending — we'll review it shortly.
+          </div>`;
+      } catch (err) {
+        feedback.textContent = err.message || "Could not submit application. Please try again.";
+        feedback.className = "account-feedback account-feedback-error";
+        feedback.style.display = "block";
+        btn.disabled = false;
+        btn.textContent = "Submit application";
+      }
+    }
+
     async function handleDisplayNameSubmit(e) {
       e.preventDefault();
       const input = document.getElementById("display-name-input");
@@ -782,7 +862,7 @@
         const updated = await updateDisplayName(newName);
         auth.setUser(updated);
         // Re-render with fresh data
-        document.getElementById("account-container").innerHTML = renderAccount(updated);
+        document.getElementById("account-container").innerHTML = renderAccount(updated, null, null);
         initTooltipToggleBtn();
         buildSideNav();
         // Show success in freshly rendered feedback
@@ -813,6 +893,7 @@
 
       var sections = [
         { id: "section-facilitator",  label: "Facilitator" },
+        { id: "section-annotator",    label: "Annotator" },
         { id: "section-communities",  label: "Communities" },
         { id: "section-profile",      label: "Profile" },
         { id: "section-display-name", label: "Display Name" },
@@ -879,7 +960,13 @@
           try { facReq = await getMyFacilitatorRequest(); } catch (_) {}
         }
 
-        container.innerHTML = renderAccount(user, facReq);
+        // Fetch annotator request status for users who don't already have annotator access
+        let annoReq = null;
+        if (!user.is_annotator && !user.is_platform_admin) {
+          try { annoReq = await getMyAnnotatorRequest(); } catch (_) {}
+        }
+
+        container.innerHTML = renderAccount(user, facReq, annoReq);
         initTooltipToggleBtn();
         const memberships = user.communityMemberships || user.community_memberships || [];
         if (activity) renderEngagement(activity);

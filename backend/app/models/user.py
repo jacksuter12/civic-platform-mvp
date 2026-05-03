@@ -90,4 +90,4 @@ class User(Base, UUIDPKMixin, TimestampMixin):
         Admin tier implicitly carries this capability without requiring
         is_annotator=True to be set explicitly.
         """
-        return self.is_annotator or self.tier == UserTier.ADMIN
+        return self.is_annotator or self.tier == UserTier.ADMIN or self.platform_role == PlatformRole.PLATFORM_ADMIN

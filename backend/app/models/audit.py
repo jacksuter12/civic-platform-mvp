@@ -58,6 +58,9 @@ class AuditEventType(str, PyEnum):
     ANNOTATION_MODERATED = "annotation_moderated"
     USER_ANNOTATOR_GRANTED = "user_annotator_granted"
     USER_ANNOTATOR_REVOKED = "user_annotator_revoked"
+    ANNOTATOR_REQUEST_SUBMITTED = "annotator_request_submitted"
+    ANNOTATOR_REQUEST_APPROVED = "annotator_request_approved"
+    ANNOTATOR_REQUEST_DENIED = "annotator_request_denied"
     # Community
     COMMUNITY_CREATED = "community_created"
     COMMUNITY_UPDATED = "community_updated"

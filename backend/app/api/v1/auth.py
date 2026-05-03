@@ -22,6 +22,7 @@ from app.core.security import TokenError, decode_supabase_token, extract_supabas
 from app.models.audit import AuditEventType, AuditLog
 from app.models.community import Community
 from app.models.community_membership import CommunityMembership
+from app.models.annotator_request import AnnotatorRequest, AnnotatorRequestStatus
 from app.models.facilitator_request import FacilitatorRequest, FacilitatorRequestStatus
 from app.models.post import Post
 from app.models.proposal import Proposal
@@ -30,6 +31,7 @@ from app.models.signal import Signal, SignalType
 from app.models.thread import Thread
 from app.models.user import PlatformRole, User, UserTier
 from app.schemas.community import CommunityMembershipSummary
+from app.schemas.annotator_request import AnnotatorRequestCreate, AnnotatorRequestOut
 from app.schemas.facilitator_request import FacilitatorRequestCreate, FacilitatorRequestOut
 from app.schemas.user import ActivityItem, CommunityActivityOut, DisplayNameUpdate, MyActivityOut, MyHistoryOut, UserCreate, UserMe, UserPublic
 
@@ -247,6 +249,68 @@ async def get_my_facilitator_request(
         select(FacilitatorRequest)
         .where(FacilitatorRequest.user_id == user.id)
         .order_by(FacilitatorRequest.created_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+@router.post(
+    "/annotator-request",
+    response_model=AnnotatorRequestOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def submit_annotator_request(
+    payload: AnnotatorRequestCreate,
+    user: RegisteredUser,
+    db: DB,
+) -> AnnotatorRequest:
+    """Submit an application for annotator capability."""
+    if user.has_annotator_capability():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You already have annotator capability.",
+        )
+
+    existing = await db.execute(
+        select(AnnotatorRequest).where(
+            AnnotatorRequest.user_id == user.id,
+            AnnotatorRequest.status == AnnotatorRequestStatus.PENDING,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You already have a pending annotator request.",
+        )
+
+    req = AnnotatorRequest(
+        user_id=user.id,
+        reason=payload.reason,
+    )
+    db.add(req)
+    await db.flush()
+
+    await log_event(
+        db,
+        event_type=AuditEventType.ANNOTATOR_REQUEST_SUBMITTED,
+        target_type="annotator_request",
+        target_id=req.id,
+        payload={"user_id": str(user.id)},
+        actor_id=user.id,
+    )
+    return req
+
+
+@router.get("/annotator-request", response_model=AnnotatorRequestOut | None)
+async def get_my_annotator_request(
+    user: RegisteredUser,
+    db: DB,
+) -> AnnotatorRequest | None:
+    """Return the user's most recent annotator request (any status), or null."""
+    result = await db.execute(
+        select(AnnotatorRequest)
+        .where(AnnotatorRequest.user_id == user.id)
+        .order_by(AnnotatorRequest.created_at.desc())
         .limit(1)
     )
     return result.scalar_one_or_none()

@@ -20,9 +20,11 @@ from app.core.audit import log_event
 from app.models.audit import AuditEventType
 from app.models.community import Community
 from app.models.community_membership import CommunityMembership
+from app.models.annotator_request import AnnotatorRequest, AnnotatorRequestStatus
 from app.models.facilitator_request import FacilitatorRequest, FacilitatorRequestStatus
 from app.models.user import PlatformRole, User, UserTier, TIER_ORDER
 from app.schemas.annotation import AnnotatorGrantBody, UserAdminSummary, UserAnnotatorOut
+from app.schemas.annotator_request import AnnotatorRequestDetail
 from app.schemas.facilitator_request import FacilitatorRequestDetail
 
 router = APIRouter()
@@ -258,6 +260,120 @@ async def deny_facilitator_request(
 
     await db.refresh(req, ["user"])
     return FacilitatorRequestDetail.model_validate(req)
+
+
+# ---------------------------------------------------------------------------
+# Annotator requests — list / approve / deny  (platform admin only)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/annotator-requests", response_model=list[AnnotatorRequestDetail])
+async def list_annotator_requests(
+    admin: PlatformAdminUser,
+    db: DB,
+) -> list[AnnotatorRequestDetail]:
+    """List pending annotator requests. Platform admin only."""
+    result = await db.execute(
+        select(AnnotatorRequest)
+        .where(AnnotatorRequest.status == AnnotatorRequestStatus.PENDING)
+        .order_by(AnnotatorRequest.created_at.asc())
+    )
+    requests = list(result.scalars())
+    out = []
+    for req in requests:
+        await db.refresh(req, ["user"])
+        out.append(AnnotatorRequestDetail.model_validate(req))
+    return out
+
+
+@router.post(
+    "/annotator-requests/{request_id}/approve",
+    response_model=AnnotatorRequestDetail,
+)
+async def approve_annotator_request(
+    request_id: uuid.UUID,
+    admin: PlatformAdminUser,
+    db: DB,
+) -> AnnotatorRequestDetail:
+    """Approve an annotator request — sets is_annotator=True on the user."""
+    result = await db.execute(
+        select(AnnotatorRequest).where(AnnotatorRequest.id == request_id)
+    )
+    req = result.scalar_one_or_none()
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found.")
+    if req.status != AnnotatorRequestStatus.PENDING:
+        raise HTTPException(status_code=409, detail="Request already reviewed.")
+
+    req.status = AnnotatorRequestStatus.APPROVED
+    req.reviewed_by_id = admin.id
+    req.reviewed_at = datetime.now(UTC)
+    db.add(req)
+
+    user_result = await db.execute(select(User).where(User.id == req.user_id))
+    target_user = user_result.scalar_one()
+    target_user.is_annotator = True
+    db.add(target_user)
+
+    await db.flush()
+
+    await log_event(
+        db,
+        event_type=AuditEventType.ANNOTATOR_REQUEST_APPROVED,
+        target_type="annotator_request",
+        target_id=req.id,
+        payload={"user_id": str(req.user_id)},
+        actor_id=admin.id,
+    )
+    await log_event(
+        db,
+        event_type=AuditEventType.USER_ANNOTATOR_GRANTED,
+        target_type="user",
+        target_id=req.user_id,
+        payload={"via": "annotator_request", "request_id": str(req.id)},
+        actor_id=admin.id,
+    )
+
+    await db.refresh(req, ["user"])
+    return AnnotatorRequestDetail.model_validate(req)
+
+
+@router.post(
+    "/annotator-requests/{request_id}/deny",
+    response_model=AnnotatorRequestDetail,
+)
+async def deny_annotator_request(
+    request_id: uuid.UUID,
+    admin: PlatformAdminUser,
+    db: DB,
+) -> AnnotatorRequestDetail:
+    """Deny an annotator request. Platform admin only."""
+    result = await db.execute(
+        select(AnnotatorRequest).where(AnnotatorRequest.id == request_id)
+    )
+    req = result.scalar_one_or_none()
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found.")
+    if req.status != AnnotatorRequestStatus.PENDING:
+        raise HTTPException(status_code=409, detail="Request already reviewed.")
+
+    req.status = AnnotatorRequestStatus.DENIED
+    req.reviewed_by_id = admin.id
+    req.reviewed_at = datetime.now(UTC)
+    db.add(req)
+    await db.flush()
+
+    await log_event(
+        db,
+        event_type=AuditEventType.ANNOTATOR_REQUEST_DENIED,
+        target_type="annotator_request",
+        target_id=req.id,
+        payload={"user_id": str(req.user_id)},
+        actor_id=admin.id,
+    )
+
+    await db.refresh(req, ["user"])
+    return AnnotatorRequestDetail.model_validate(req)
 
 
 # ---------------------------------------------------------------------------

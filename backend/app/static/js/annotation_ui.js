@@ -61,9 +61,9 @@
     }
     if (!_user) return;
 
-    // isAnnotator: the is_annotator flag OR admin tier (matches server logic)
-    _isAnnotator = !!(_user.is_annotator || _user.tier === "admin");
-    _isAdmin = _user.tier === "admin";
+    // isAnnotator: is_annotator flag OR admin tier OR platform admin (matches server logic)
+    _isAnnotator = !!(_user.is_annotator || _user.tier === "admin" || _user.is_platform_admin);
+    _isAdmin = _user.tier === "admin" || !!_user.is_platform_admin;
 
     // Only activate on pages with an annotatable root
     if (!_getAnnotatableRoot()) return;

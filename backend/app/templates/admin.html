@@ -419,11 +419,15 @@
     // -----------------------------------------------------------------------
 
     let allUsers = [];
+    let pendingAnnotatorReqs = [];
 
     async function loadAnnotatorSection() {
       const section = document.getElementById("annotator-section");
       try {
-        allUsers = await listUsers();
+        [allUsers, pendingAnnotatorReqs] = await Promise.all([
+          listUsers(),
+          getAnnotatorRequests().catch(() => []),
+        ]);
         renderAnnotatorSection(section, allUsers);
       } catch (err) {
         section.innerHTML = `<div class="error-message">Could not load users: ${escapeHtml(err.message)}</div>`;
@@ -432,6 +436,10 @@
 
     function renderAnnotatorSection(container, users) {
       container.innerHTML = `
+        <div class="detail-section">
+          <div class="section-heading">Pending Annotator Requests</div>
+          <div id="annotator-req-list">${renderAnnotatorReqRows(pendingAnnotatorReqs)}</div>
+        </div>
         <div class="detail-section">
           <div class="section-heading">Annotator Management</div>
           <input
@@ -448,6 +456,59 @@
           <div id="user-list">${renderUserRows(users.filter(u => !isSeedAccount(u)))}</div>
         </div>
       `;
+    }
+
+    function renderAnnotatorReqRows(reqs) {
+      if (!reqs || reqs.length === 0) {
+        return `<div style="font-size:14px;color:#888;padding:4px 0;">No pending requests.</div>`;
+      }
+      return reqs.map(req => `
+        <div class="user-row" id="anno-req-${req.id}">
+          <div>
+            <div class="user-name">${escapeHtml(req.user.display_name)}</div>
+            <div class="user-email">${escapeHtml(req.user.email)}</div>
+            <div class="user-meta" style="margin-top:4px;font-size:13px;color:#555;">
+              ${req.reason ? `<em>${escapeHtml(req.reason)}</em>` : `<em style="color:#aaa;">No reason given</em>`}
+            </div>
+            <div style="font-size:12px;color:#aaa;margin-top:2px;">${new Date(req.created_at).toLocaleDateString("en-US", {year:"numeric",month:"short",day:"numeric"})}</div>
+            <div class="inline-error" id="anno-req-err-${req.id}"></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-start;">
+            <button class="btn-grant" onclick="doAnnotatorReqAction('${req.id}', 'approve')">Approve</button>
+            <button class="btn-revoke" onclick="doAnnotatorReqAction('${req.id}', 'deny')">Deny</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    async function doAnnotatorReqAction(reqId, action) {
+      const errEl = document.getElementById(`anno-req-err-${reqId}`);
+      errEl.textContent = "";
+      const row = document.getElementById(`anno-req-${reqId}`);
+      row.querySelectorAll("button").forEach(b => b.disabled = true);
+
+      try {
+        if (action === "approve") {
+          const result = await approveAnnotatorRequest(reqId);
+          // Update allUsers so the grant/revoke list reflects the new annotator status
+          const u = allUsers.find(u => u.id === result.user_id);
+          if (u) u.is_annotator = true;
+          const urow = document.getElementById(`urow-${result.user_id}`);
+          if (urow && u) urow.outerHTML = renderUserRow(u);
+        } else {
+          await denyAnnotatorRequest(reqId);
+        }
+        // Remove the request row
+        row.remove();
+        pendingAnnotatorReqs = pendingAnnotatorReqs.filter(r => r.id !== reqId);
+        if (pendingAnnotatorReqs.length === 0) {
+          document.getElementById("annotator-req-list").innerHTML =
+            `<div style="font-size:14px;color:#888;padding:4px 0;">No pending requests.</div>`;
+        }
+      } catch (err) {
+        row.querySelectorAll("button").forEach(b => b.disabled = false);
+        errEl.textContent = `Error: ${err.message}`;
+      }
     }
 
     function isSeedAccount(u) {

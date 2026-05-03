@@ -12,6 +12,7 @@ from app.models.vote import Vote, VoteChoice
 from app.models.pool import FundingPool
 from app.models.allocation import AllocationDecision
 from app.models.audit import AuditLog, AuditEventType
+from app.models.annotator_request import AnnotatorRequest, AnnotatorRequestStatus
 from app.models.facilitator_request import FacilitatorRequest, FacilitatorRequestStatus
 from app.models.proposal_comment import ProposalComment
 from app.models.amendment import Amendment, AmendmentStatus
@@ -41,6 +42,8 @@ __all__ = [
     "AllocationDecision",
     "AuditLog",
     "AuditEventType",
+    "AnnotatorRequest",
+    "AnnotatorRequestStatus",
     "FacilitatorRequest",
     "FacilitatorRequestStatus",
     "ProposalComment",

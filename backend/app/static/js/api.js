@@ -296,6 +296,29 @@ async function deactivateAccount() {
   return apiFetch("/auth/me/deactivate", { method: "POST" });
 }
 
+async function submitAnnotatorRequest(reason = null) {
+  return apiFetch("/auth/annotator-request", {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+}
+
+async function getMyAnnotatorRequest() {
+  return apiFetch("/auth/annotator-request");
+}
+
+async function getAnnotatorRequests() {
+  return apiFetch("/admin/annotator-requests");
+}
+
+async function approveAnnotatorRequest(requestId) {
+  return apiFetch(`/admin/annotator-requests/${requestId}/approve`, { method: "POST" });
+}
+
+async function denyAnnotatorRequest(requestId) {
+  return apiFetch(`/admin/annotator-requests/${requestId}/deny`, { method: "POST" });
+}
+
 async function getFacilitatorRequests(communitySlug = null) {
   const params = communitySlug ? `?community_slug=${encodeURIComponent(communitySlug)}` : "";
   return apiFetch(`/admin/facilitator-requests${params}`);
