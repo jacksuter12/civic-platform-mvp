@@ -6,7 +6,7 @@ import structlog
 import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sentry_sdk.integrations.fastapi import FastApiIntegration
@@ -64,7 +64,25 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 app.include_router(api_router, prefix="/api/v1")
 
-# Serve static assets (CSS, JS)
+
+@app.get("/static/js/config.js", include_in_schema=False)
+async def config_js() -> Response:
+    content = (
+        "/**\n"
+        " * config.js — Supabase connection config and browser client.\n"
+        " * Values injected by FastAPI from environment variables.\n"
+        " * Exposes: supabaseClient (global)\n"
+        " */\n"
+        f'const SUPABASE_URL      = "{settings.SUPABASE_URL}";\n'
+        f'const SUPABASE_ANON_KEY = "{settings.SUPABASE_ANON_KEY}";\n'
+        "\n"
+        "const { createClient } = window.supabase;\n"
+        "const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);\n"
+    )
+    return Response(content=content, media_type="application/javascript")
+
+
+# Serve static assets (CSS, JS) — config.js is intercepted by the route above
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Jinja2 templates — used only for wiki pages (existing pages use FileResponse)
