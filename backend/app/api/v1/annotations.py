@@ -21,9 +21,12 @@ All mutation routes write to the audit log inside the same DB transaction.
 Rate limiting is not implemented here — note for future operational setup.
 """
 
+import logging
 import uuid
 from datetime import UTC, datetime
 from typing import Annotated
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
