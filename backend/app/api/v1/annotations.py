@@ -21,12 +21,13 @@ All mutation routes write to the audit log inside the same DB transaction.
 Rate limiting is not implemented here — note for future operational setup.
 """
 
-import logging
 import uuid
 from datetime import UTC, datetime
 from typing import Annotated
 
-logger = logging.getLogger(__name__)
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
@@ -244,30 +245,54 @@ async def create_annotation(
     - proposal: requires registered community membership + PROPOSING phase
     """
     if payload.parent_id is not None:
-        parent_result = await db.execute(
-            select(Annotation).where(Annotation.id == payload.parent_id)
-        )
-        parent = parent_result.scalar_one_or_none()
-        if parent is None:
-            raise HTTPException(status_code=404, detail="Parent annotation not found.")
-        same_target = (
-            parent.target_type == payload.target_type
-            and parent.target_id == payload.target_id
-        )
-        if not same_target:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Parent annotation must be on the same target.",
+        try:
+            parent_result = await db.execute(
+                select(Annotation).where(Annotation.id == payload.parent_id)
             )
-        if parent.parent_id is not None:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Cannot reply to a reply. One level of nesting only.",
+            parent = parent_result.scalar_one_or_none()
+            if parent is None:
+                raise HTTPException(status_code=404, detail="Parent annotation not found.")
+            same_target = (
+                parent.target_type == payload.target_type
+                and parent.target_id == payload.target_id
             )
+            logger.debug(
+                "reply_target_check",
+                parent_target_type=repr(parent.target_type),
+                payload_target_type=repr(payload.target_type),
+                parent_target_id=repr(parent.target_id),
+                payload_target_id=repr(payload.target_id),
+                same_target=same_target,
+            )
+            if not same_target:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Parent annotation must be on the same target.",
+                )
+            if parent.parent_id is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Cannot reply to a reply. One level of nesting only.",
+                )
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("reply_parent_validation_error", parent_id=str(payload.parent_id))
+            raise
 
-    proposal, thread = await require_can_annotate(
-        db, user, payload.target_type.value, payload.target_id
-    )
+    try:
+        proposal, thread = await require_can_annotate(
+            db, user, payload.target_type.value, payload.target_id
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception(
+            "reply_require_can_annotate_error",
+            target_type=payload.target_type.value,
+            target_id=payload.target_id,
+        )
+        raise
     community_id = thread.community_id if thread is not None else None
 
     annotation = Annotation(
