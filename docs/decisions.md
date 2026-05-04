@@ -291,7 +291,7 @@ These decisions have been identified as needed but not yet resolved. They are qu
 | Fork rights (what's forkable, what triggers a fork, what process?) | Governance | Constitution & Strategy, Chat 2 |
 | Target state and sub-issue for MVP deployment | Strategy | Constitution & Strategy, Chat 1 |
 | Incentive design for sustained participation | Mechanism | Mechanism Design, Chat 4 |
-| Deployment architecture (single Render service vs. split) | Technical | Resolved: single Render service (Platform Development, Chat 1) |
+| Deployment architecture (single Render service vs. split) | Technical | Resolved: two Render services — production (`main`) + staging (`feature/*`), each with its own Supabase project (2026-05-03) |
 
 ---
 
@@ -312,3 +312,44 @@ These decisions have been identified as needed but not yet resolved. They are qu
 **Rationale:** The wiki annotation system was designed for a different context (annotators with a platform-level capability, no threading, simple endorse/needs_work reactions). Proposal annotations require: (1) multi-strategy W3C text anchoring resilient to proposal edits, (2) threaded replies, (3) resolve/feature/moderate workflows tied to the deliberation phase, (4) community-membership-based permissions rather than platform annotator capability. Sharing code would require invasive refactoring of the wiki system with high regression risk and would couple two unrelated product surfaces.
 
 **Constraint:** The wiki annotation system (`/wiki/...`) remains unchanged. The new proposal annotation system operates only within the proposal review page (`/c/{slug}/thread/{tid}/proposal/{pid}`). Per-community wikis, if built in Phase 2, would need their own annotation system designed at that time.
+
+---
+
+# Session 3D / Staging Setup Decisions (2026-05-03)
+
+---
+
+## 2026-05-03 — Two-Environment Deployment (Production + Staging)
+**Status:** Active
+**Domain:** Technical
+**Context:** Staging was needed to test the proposal annotation feature before merging to production. The existing setup was a single Render service pointing at the production Supabase project, with Supabase credentials hardcoded in `config.js`. Running tests against production carries risk of data contamination and gives no safe place to validate Alembic migrations before they hit the live DB.
+**Options considered:** (a) Keep single environment, test only in production; (b) Add a staging Render service backed by the same Supabase project; (c) Add a staging Render service backed by a separate Supabase project.
+**Decision:** Option (c). Two fully independent environments: production and staging, each with its own Render web service and its own Supabase project. Each service has its own set of environment variables (`DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_JWT_SECRET`).
+**Reasoning:** Sharing a Supabase project between production and staging would share auth state, user records, and magic-link email flows — impossible to isolate test data without a full tenant separation scheme. A separate Supabase project gives a clean DB and an independent auth namespace. The cost is two free-tier Supabase projects and two Render services, both of which are within the free tier for current scale.
+**Implications:** Alembic migrations must be applied to the staging DB (`alembic upgrade heads`) before testing any feature that touches the schema. Each new Render service must have all four env vars set correctly before first deploy. The `alembic upgrade heads` (plural, not `head`) command is required when the branch being deployed has new migrations that haven't yet been merged to `main`.
+**Revisit if:** The project moves to a dedicated CI/CD pipeline with automated migration runs, at which point a more structured staging→production promotion workflow may be appropriate.
+
+---
+
+## 2026-05-03 — Dynamic config.js Injection (No Hardcoded Supabase Credentials)
+**Status:** Active
+**Domain:** Technical / Security
+**Context:** `config.js` originally hardcoded the production Supabase URL and anon key. With two environments, this creates a key mismatch: the staging backend verifies JWTs against the staging Supabase JWT secret, but the frontend (serving the hardcoded production URL) sends tokens from the production Supabase project → authentication always fails on staging.
+**Options considered:** (a) Keep hardcoded values, update them per-deploy by hand; (b) Serve `config.js` as a template rendered server-side; (c) Add a FastAPI route that generates `config.js` on the fly from environment variables, registered before the static file mount.
+**Decision:** Option (c). A `GET /static/js/config.js` route in `main.py` intercepts requests before `app.mount("/static", ...)` and returns a JavaScript response with `SUPABASE_URL` and `SUPABASE_ANON_KEY` inlined from `settings`. The static file on disk (`app/static/js/config.js`) retains the `createClient` call as a fallback comment but does not contain credentials.
+**Reasoning:** FastAPI's route registration takes priority over the static file mount for the same path when the route is declared first. This means no HTML changes, no new env vars, and no build step — the frontend still loads `/static/js/config.js` at the same URL it always has, but the content is now environment-aware. Credentials never appear in the git repository.
+**Implications:** Any new Render service automatically serves the correct Supabase credentials as long as its env vars are set. The static `config.js` on disk is not served in production — it exists only as documentation of the expected shape of the file. Any developer running without the env vars set will get an error from `settings` validation (which is the right failure mode).
+**Revisit if:** The frontend migrates to React with a build step — at that point, `VITE_SUPABASE_URL` / `.env.local` is the idiomatic approach and this route can be removed.
+
+---
+
+## 2026-05-03 — Domain Auto-Creation on Community Creation
+**Status:** Active
+**Domain:** Technical / UX
+**Context:** The `domains` table is required for thread creation (`Domain.id` is a non-nullable FK on `Thread`). New communities created via the `/admin` UI had no domains, causing "No active domains available" on the thread creation page. The production `test` community also had no domains because it predated the domains system.
+**Options considered:** (a) Require platform admin to create a domain before the community is usable; (b) Auto-create a default "General" domain on community creation; (c) Make domain optional on thread creation.
+**Decision:** Option (b). `POST /api/v1/communities` now auto-creates a `general` / "General" domain in the same transaction as the community. A backfill migration (`c1d2e3f4a5b6`) creates the same default domain for any existing community that has none. Community facilitators and admins (and platform admins) can create additional domains via the community admin page (`/c/{slug}/admin`).
+**Reasoning:** Option (a) creates a mandatory two-step setup that will be forgotten or missed. Option (c) would require restructuring the thread data model and removing the FK — too large a change for an MVP patch. Option (b) makes communities immediately usable after creation, matches user expectations (every forum has a "General" category), and the backfill migration is a one-time safe operation.
+**Implications:** Every new community has at least one domain from birth. The community admin page has a domain management section (list, add). Domain creation is gated at facilitator/admin tier in that community (or platform admin). The `create_domain` route in `domains.py` was updated from `PlatformAdminUser` to `CurrentUser` with an inline tier check to support community-level domain management.
+**Revisit if:** Communities need domain templates (e.g., pre-seeded sets of domains for specific community types like HOA vs. city council vs. union).
+

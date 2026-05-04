@@ -18,7 +18,7 @@ Legitimacy is harder to test than functionality — plan for both.
 - [x] Open Codespaces, install Claude Code
 - [x] `pip install -e ".[dev]"` — all deps install in Codespaces
 - [x] Copy `.env.example` → `.env`, fill in Supabase credentials
-- [x] `alembic upgrade head` — migration runs against Supabase PG
+- [x] `alembic upgrade heads` — migration runs against Supabase PG
 - [x] `uvicorn app.main:app --reload` — server starts
 - [x] `pytest` — all existing tests pass
 - [x] Manually create `healthcare` domain via `/docs`
@@ -115,7 +115,10 @@ reconstructs every decision.
 - [x] Inline annotation system on wiki (annotator capability, endorse/needs_work reactions)
 - [x] Account page: 10 sections, activity history feed with filter/search, sticky side nav
 - [x] Legacy routes redirect to `/c/test/...`
-- [x] 17 migrations total; head: `d6e7f8a9b0c1`; 58 passing tests
+- [x] Annotator request system: user-facing apply flow, admin review queue, approve/deny routes
+- [x] Proposal annotation system: W3C text anchoring, threaded replies, resolve/feature/moderate, polling, role badge
+- [x] Two-environment deployment: production (`main`) + staging (`feature/proposal-review`), each with separate Supabase project
+- [x] 22 migrations total; head: `e8f9a0b1c2d3`; 106 passing tests
 
 ---
 
@@ -155,10 +158,11 @@ deliberation without it is working.
 | Work | Where |
 |---|---|
 | All backend dev | GitHub Codespaces (primary) |
-| Database | Supabase cloud (free tier) |
+| Database | Supabase cloud (two projects: production + staging) |
 | Auth | Supabase cloud |
 | CI/CD | GitHub Actions |
-| Production | Render.com |
+| Production | Render.com (`main` branch → production Supabase project) |
+| Staging | Render.com (`feature/*` branch → staging Supabase project) |
 | Landing page | GitHub Pages (jacksuter12.github.io/civic-platform-mvp) |
 
 **Codespaces notes:**
@@ -166,6 +170,11 @@ deliberation without it is working.
 - Claude Code installed once per Codespace: `curl -fsSL https://claude.ai/install.sh | bash`
 - `.env` file configured inside Codespace — never committed to git
 - Free tier: 120 core-hours/month (sufficient for solo development)
+
+**Two-environment deployment notes:**
+- Each Render service has its own set of env vars (`DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_JWT_SECRET`) pointing to the correct Supabase project
+- `SUPABASE_URL` and `SUPABASE_ANON_KEY` are injected into `config.js` at runtime by the FastAPI `config_js` route — they are never hardcoded in source files
+- Run `alembic upgrade heads` (plural) in staging to apply all pending migrations before testing
 
 ---
 
