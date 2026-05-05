@@ -723,9 +723,9 @@
   font-weight: 500;
 }
 .paa-react[data-reaction="needs_work"].is-active {
-  border-color: #BA7517;
-  background: #FAEEDA;
-  color: #854F0B;
+  border-color: #C53030;
+  background: #FEF2F2;
+  color: #991B1B;
 }
 
 .paa-react-count {
