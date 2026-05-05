@@ -789,6 +789,9 @@
   flex-direction: column;
   gap: 6px;
 }
+.paa-reply-form[hidden] {
+  display: none;
+}
 
 .paa-reply-form textarea {
   width: 100%;
