@@ -196,7 +196,7 @@
 
   function _renderRoleBadge() {
     if (_roleBadgeEl) { _roleBadgeEl.remove(); _roleBadgeEl = null; }
-    if (!_currentUser) return;
+    if (!_currentUser || _userRole === 'author') return;
 
     const ROLE_CONFIG = {
       author:      { label: 'Proposal author',  cls: 'paa-role--author' },
@@ -466,12 +466,18 @@
     // Header
     const head = document.createElement('header');
     head.className = 'paa-card-head';
+    const isOwnAnnotation = _currentUser && anno.author?.id === _currentUser.id;
     head.innerHTML = `
-      <span class="paa-author">${_esc(anno.author?.display_name || 'Unknown')}</span>
-      <time class="paa-ts">${_timeAgo(anno.created_at)}</time>
-      <span class="paa-featured-tag"${isFeatured ? '' : ' hidden'}>Featured</span>
-      <span class="paa-resolved-tag"${isResolved ? '' : ' hidden'}>Resolved</span>
-      <span class="paa-orphaned-tag"${isOrphaned ? '' : ' hidden'}>Anchor changed</span>
+      <div class="paa-author-ts">
+        <span class="paa-author">${_esc(anno.author?.display_name || 'Unknown')}</span>
+        ${isOwnAnnotation ? '<span class="paa-you-tag">You · Author</span>' : ''}
+        <time class="paa-ts">${_timeAgo(anno.created_at)}</time>
+      </div>
+      <div class="paa-tags">
+        <span class="paa-featured-tag"${isFeatured ? '' : ' hidden'}>Featured</span>
+        <span class="paa-resolved-tag"${isResolved ? '' : ' hidden'}>Resolved</span>
+        <span class="paa-orphaned-tag"${isOrphaned ? '' : ' hidden'}>Anchor changed</span>
+      </div>
     `;
 
     if (anno.can_moderate || anno.can_feature) {
@@ -484,7 +490,7 @@
       menuBtn.dataset.isFeatured = isFeatured ? 'true' : 'false';
       menuBtn.dataset.canFeature = anno.can_feature ? 'true' : 'false';
       menuBtn.dataset.canModerate = anno.can_moderate ? 'true' : 'false';
-      head.appendChild(menuBtn);
+      head.querySelector('.paa-author-ts').appendChild(menuBtn);
     }
 
     card.appendChild(head);
@@ -527,24 +533,28 @@
       <button class="paa-react${myReaction === 'endorse' ? ' is-active' : ''}"
               data-reaction="endorse" data-anno-id="${anno.id}"
               ${_isReadOnly || !_currentUser ? 'disabled' : ''}>
-        Endorse · ${endorseCount}
+        ↑ Endorse <span class="paa-react-count">(${endorseCount})</span>
       </button>
       <button class="paa-react${myReaction === 'needs_work' ? ' is-active' : ''}"
               data-reaction="needs_work" data-anno-id="${anno.id}"
               ${_isReadOnly || !_currentUser ? 'disabled' : ''}>
-        Needs work · ${needsWorkCount}
+        ↓ Needs work <span class="paa-react-count">(${needsWorkCount})</span>
       </button>
       ${!_isReadOnly && _currentUser ? `
         <button class="paa-reply-btn" data-anno-id="${anno.id}">Reply</button>
       ` : ''}
-      ${anno.can_resolve && !isResolved && !_isReadOnly ? `
-        <button class="paa-resolve-btn" data-anno-id="${anno.id}">Resolve</button>
-      ` : ''}
-      ${anno.can_resolve && isResolved && !_isReadOnly ? `
-        <button class="paa-unresolve-btn" data-anno-id="${anno.id}">Reopen</button>
-      ` : ''}
     `;
     card.appendChild(footer);
+
+    // Resolve / Reopen on its own row
+    if (anno.can_resolve && !_isReadOnly) {
+      const resolveRow = document.createElement('div');
+      resolveRow.className = 'paa-resolve-row';
+      resolveRow.innerHTML = isResolved
+        ? `<button class="paa-unresolve-btn" data-anno-id="${anno.id}">Reopen</button>`
+        : `<button class="paa-resolve-btn" data-anno-id="${anno.id}">Resolve</button>`;
+      card.appendChild(resolveRow);
+    }
 
     // Nested replies
     if (anno.replies && anno.replies.length > 0) {
@@ -591,10 +601,14 @@
     card.dataset.annoId = anno.id;
     card.tabIndex = 0;
 
+    const isOwnReply = _currentUser && anno.author?.id === _currentUser.id;
     card.innerHTML = `
       <header class="paa-card-head">
-        <span class="paa-author">${_esc(anno.author?.display_name || 'Unknown')}</span>
-        <time class="paa-ts">${_timeAgo(anno.created_at)}</time>
+        <div class="paa-author-ts">
+          <span class="paa-author">${_esc(anno.author?.display_name || 'Unknown')}</span>
+          ${isOwnReply ? '<span class="paa-you-tag">You · Author</span>' : ''}
+          <time class="paa-ts">${_timeAgo(anno.created_at)}</time>
+        </div>
       </header>
       <div class="paa-body">${_esc(anno.body || '')}</div>
       ${!_isReadOnly && _currentUser ? `
