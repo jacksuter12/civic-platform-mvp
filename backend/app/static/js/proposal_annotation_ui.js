@@ -676,15 +676,15 @@
   }
 
   function _toggleReplyForm(parentId, replyBtn) {
-    console.debug('[reply] toggleReplyForm called, parentId=', parentId);
+    console.log('[reply] toggleReplyForm called, parentId=', parentId);
     const card = _sidebarEl.querySelector(
       `.proposal-annotation-card[data-anno-id="${CSS.escape(parentId)}"]`
     );
-    if (!card) { console.debug('[reply] card not found'); return; }
+    if (!card) { console.log('[reply] card not found'); return; }
     const form = card.querySelector('form.paa-reply-form');
-    if (!form) { console.debug('[reply] form not found in card'); return; }
+    if (!form) { console.log('[reply] form not found in card'); return; }
     form.hidden = !form.hidden;
-    console.debug('[reply] form.hidden=', form.hidden, 'wired=', form.dataset.wired);
+    console.log('[reply] form.hidden=', form.hidden, 'wired=', form.dataset.wired);
     if (!form.hidden) {
       form.querySelector('textarea').focus();
       if (!form.dataset.wired) {
@@ -692,16 +692,16 @@
         form.addEventListener('submit', async (e) => {
           e.preventDefault();
           const body = form.querySelector('textarea').value.trim();
-          console.debug('[reply] submit fired, body length=', body.length, 'parentId=', parentId);
-          if (!body) { console.debug('[reply] body empty, aborting'); return; }
+          console.log('[reply] submit fired, body length=', body.length, 'parentId=', parentId);
+          if (!body) { console.log('[reply] body empty, aborting'); return; }
           const submitBtn = form.querySelector('[type="submit"]');
           const errorEl = form.querySelector('.paa-reply-error');
           submitBtn.disabled = true;
           if (errorEl) errorEl.hidden = true;
           try {
-            console.debug('[reply] calling onReply…');
+            console.log('[reply] calling onReply…');
             await _callbacks.onReply(parentId, body);
-            console.debug('[reply] onReply resolved OK');
+            console.log('[reply] onReply resolved OK');
             form.hidden = true;
             form.reset();
           } catch (err) {

@@ -76,8 +76,11 @@ async def config_js() -> Response:
         f'const SUPABASE_URL      = "{settings.SUPABASE_URL}";\n'
         f'const SUPABASE_ANON_KEY = "{settings.SUPABASE_ANON_KEY}";\n'
         "\n"
-        "const { createClient } = window.supabase;\n"
-        "const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);\n"
+        "// supabaseClient is only defined on pages that load the Supabase JS CDN.\n"
+        "// Other pages (e.g. proposal_review) use auth.js/localStorage only.\n"
+        "const supabaseClient = window.supabase\n"
+        "  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)\n"
+        "  : undefined;\n"
     )
     return Response(content=content, media_type="application/javascript")
 
