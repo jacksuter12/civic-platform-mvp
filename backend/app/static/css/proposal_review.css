@@ -27,6 +27,8 @@
   color: #888;
   margin-bottom: 6px;
 }
+.pr-crumb a { color: #888; text-decoration: none; }
+.pr-crumb a:hover { color: #374151; text-decoration: underline; }
 
 .pr-titlebar {
   display: flex;

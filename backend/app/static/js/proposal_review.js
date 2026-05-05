@@ -73,8 +73,8 @@
   // ----------------------------------------------------------------
 
   function renderHeader(p, thread) {
-    document.getElementById('pr-crumb').textContent =
-      `${slug} › Thread › Proposal`;
+    document.getElementById('pr-crumb').innerHTML =
+      `<a href="/c/${slug}">${esc(slug)}</a> › <a href="/c/${slug}/thread/${threadId}">${esc(thread.title || 'Thread')}</a> › Proposal`;
     const phaseBadge = document.getElementById('pr-phase');
     phaseBadge.textContent = capitalize(thread.status || '');
     document.getElementById('pr-title').textContent = p.title;
