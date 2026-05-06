@@ -35,7 +35,7 @@ def upgrade() -> None:
             nullable=True,
         ),
     )
-    op.execute("ALTER TYPE audit_event_type ADD VALUE IF NOT EXISTS 'proposal_deleted'")
+    op.execute("ALTER TYPE audit_event_type ADD VALUE IF NOT EXISTS 'PROPOSAL_DELETED'")
 
 
 def downgrade() -> None:
