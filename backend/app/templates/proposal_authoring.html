@@ -50,7 +50,7 @@
 
         document.title = 'New proposal — ' + esc(thread.title || 'Thread');
 
-        if (thread.status !== 'PROPOSING') {
+        if (thread.status !== 'proposing') {
           main.innerHTML =
             '<div class="pe-error-panel">Proposals can only be submitted during the PROPOSING phase.' +
             ' This thread is currently in <strong>' + esc(thread.status) + '</strong>.' +
