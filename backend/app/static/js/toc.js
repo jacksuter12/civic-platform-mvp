@@ -30,7 +30,10 @@
       a.dataset.tocId = h.id;
       a.addEventListener('click', (e) => {
         e.preventDefault();
-        h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const headerEl = document.querySelector('.pr-header');
+        const offset = (headerEl ? headerEl.offsetHeight : 0) + 16;
+        const top = h.getBoundingClientRect().top + window.scrollY - offset;
+        window.scrollTo({ top, behavior: 'smooth' });
       });
       _containerEl.appendChild(a);
       entries.push({ id: h.id, el: h, link: a });

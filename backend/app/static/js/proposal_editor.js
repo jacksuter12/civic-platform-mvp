@@ -332,6 +332,8 @@
           body: this.body,
           edit_summary: this.editSummary.trim() || undefined,
         });
+        // Mark clean so beforeunload doesn't warn during the caller's navigation
+        this._initialSnapshot = this._snapshot();
         // Caller handles navigation or unmount on success
       } catch (err) {
         console.error('[ProposalEditor] submit error:', err);
