@@ -124,9 +124,12 @@
 }
 .pr-toc.is-open { display: block; }
 
-/* Collapse the TOC grid column when hidden */
+/* Collapse grid columns when sidebars are hidden */
 .pr-body.toc-hidden {
   grid-template-columns: minmax(0, 1fr) 320px;
+}
+.pr-body.toc-hidden.anno-hidden {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .pr-toc-label {
@@ -181,6 +184,11 @@
 .pr-doc {
   padding: 28px 40px;
   min-height: 400px;
+  max-width: 860px;
+}
+
+.pr-body.toc-hidden.anno-hidden .pr-doc {
+  margin: 0 auto;
 }
 
 /* Document typography — long-form readable */
