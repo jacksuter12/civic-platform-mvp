@@ -9,12 +9,19 @@ from markdown_it import MarkdownIt
 from mdit_py_plugins.anchors import anchors_plugin
 import bleach
 
+def _link_open(self, tokens, idx, options, env):
+    tokens[idx].attrSet("target", "_blank")
+    tokens[idx].attrSet("rel", "noopener nofollow ugc")
+    return self.renderToken(tokens, idx, options, env)
+
+
 _md = (
     MarkdownIt("commonmark", {"breaks": True, "linkify": True, "html": False})
     .enable("table")
     .enable("strikethrough")
     .use(anchors_plugin, min_level=1, max_level=3, slug_func=None, permalink=False)
 )
+_md.add_render_rule("link_open", _link_open)
 
 _ALLOWED_TAGS = [
     "p", "br", "hr",
@@ -27,7 +34,7 @@ _ALLOWED_TAGS = [
     "span",
 ]
 _ALLOWED_ATTRS = {
-    "a": ["href", "title", "rel"],
+    "a": ["href", "title", "rel", "target"],
     "h1": ["id"], "h2": ["id"], "h3": ["id"],
     "h4": ["id"], "h5": ["id"], "h6": ["id"],
     "th": ["align"], "td": ["align"],
@@ -51,7 +58,7 @@ def render_markdown(source: str) -> str:
     cleaned = bleach.linkify(
         cleaned,
         callbacks=[
-            lambda attrs, new: {**attrs, (None, "rel"): "noopener nofollow ugc"},
+            lambda attrs, new: {**attrs, (None, "rel"): "noopener nofollow ugc", (None, "target"): "_blank"},
         ],
     )
     return cleaned
