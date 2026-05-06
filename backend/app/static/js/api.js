@@ -180,6 +180,18 @@ async function getProposalVersions(proposalId) {
   return apiFetch(`/proposals/${proposalId}/versions`);
 }
 
+/**
+ * Render markdown to HTML via the backend renderer. For the editor's Preview tab.
+ * @param {string} markdown
+ * @returns {{ html: string }}
+ */
+async function previewProposalMarkdown(markdown) {
+  return apiFetch('/proposals/preview', {
+    method: 'POST',
+    body: JSON.stringify({ markdown }),
+  });
+}
+
 // ===== Proposal Comments =====
 
 async function getProposalComments(proposalId) {

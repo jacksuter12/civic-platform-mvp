@@ -17,9 +17,11 @@ from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from app.api.deps import CurrentUser, DB, OptionalUser, check_community_membership
+from app.api.v1._annotation_perms import check_can_edit_proposal, require_can_edit_proposal
 from app.core.audit import log_event
 from app.core.markdown import render_markdown
 from app.models.audit import AuditEventType
@@ -166,6 +168,23 @@ async def create_proposal(
     return _build_summary(proposal, VoteSummary(), versions_count=0)
 
 
+class _PreviewRequest(BaseModel):
+    markdown: str
+
+
+class _PreviewResponse(BaseModel):
+    html: str
+
+
+@router.post("/preview", response_model=_PreviewResponse)
+async def preview_proposal_markdown(
+    payload: _PreviewRequest,
+    user: CurrentUser,
+) -> _PreviewResponse:
+    """Render markdown to HTML for the editor's Preview tab. Auth required, stateless."""
+    return _PreviewResponse(html=render_markdown(payload.markdown))
+
+
 @router.patch("/{proposal_id}", response_model=ProposalSummary)
 async def edit_proposal(
     proposal_id: uuid.UUID,
@@ -177,30 +196,16 @@ async def edit_proposal(
     Edit a proposal's title and description. Only the proposal's author may
     call this, and only while the parent thread is in PROPOSING phase.
     """
-    result = await db.execute(select(Proposal).where(Proposal.id == proposal_id))
-    proposal = result.scalar_one_or_none()
-    if not proposal:
-        raise HTTPException(status_code=404, detail="Proposal not found.")
+    proposal, thread = await require_can_edit_proposal(db, user, proposal_id)
 
-    if proposal.created_by_id != user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only the proposal's author may edit it.",
-        )
-
-    thread_result = await db.execute(select(Thread).where(Thread.id == proposal.thread_id))
-    thread = thread_result.scalar_one_or_none()
-    if not thread:
-        raise HTTPException(status_code=404, detail="Thread not found.")
-
-    if thread.status != ThreadStatus.PROPOSING:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=(
-                f"Proposals can only be edited during 'proposing' phase. "
-                f"Current: '{thread.status.value}'."
-            ),
-        )
+    # Find the most recent existing version id to chain parent_version_id
+    prior_ver_result = await db.execute(
+        select(ProposalVersion.id)
+        .where(ProposalVersion.proposal_id == proposal.id)
+        .order_by(ProposalVersion.version_number.desc())
+        .limit(1)
+    )
+    prior_version_id = prior_ver_result.scalar_one_or_none()
 
     # Snapshot current state before overwriting
     version = ProposalVersion(
@@ -213,10 +218,10 @@ async def edit_proposal(
         edit_summary=payload.edit_summary,
         status=ProposalVersionStatus.accepted,
         authored_by_id=user.id,
-        parent_version_id=None,
+        parent_version_id=prior_version_id,
         decided_at=datetime.now(timezone.utc),
-        decided_by_id=proposal.created_by_id,
-        decision_reason=None,
+        decided_by_id=user.id,
+        decision_reason=payload.edit_summary,
     )
     db.add(version)
 
@@ -234,6 +239,7 @@ async def edit_proposal(
         target_id=proposal.id,
         payload={
             "version_archived": version.version_number,
+            "version_id": str(version.id),
             "new_version": proposal.current_version_number,
             "edit_summary": payload.edit_summary,
             "thread_id": str(thread.id),
@@ -267,10 +273,12 @@ async def get_proposal(
         )
         v = vr.scalar_one_or_none()
         my_vote = v.choice if v else None
+    can_edit = await check_can_edit_proposal(db, user, proposal)
     summary = _build_summary(proposal, vs, vc, my_vote)
     return ProposalDetail(
         **summary.model_dump(),
         created_by=UserPublic.model_validate(proposal.created_by),
+        can_edit=can_edit,
     )
 
 

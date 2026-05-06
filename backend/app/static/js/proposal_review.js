@@ -83,6 +83,65 @@
       `by ${authorName} · v${p.current_version_number || 1} · ${timeAgo(p.created_at)}`;
     document.getElementById('pr-back').href = `/c/${slug}/thread/${threadId}`;
     document.title = `${p.title} · Proposal review`;
+
+    if (p.can_edit) {
+      const editBtn = document.getElementById('pr-edit-btn');
+      editBtn.hidden = false;
+      editBtn.addEventListener('click', (e) => { e.preventDefault(); enterEditMode(p); });
+    }
+  }
+
+  // ----------------------------------------------------------------
+  // Inline edit mode
+  // ----------------------------------------------------------------
+
+  let _editorInstance = null;
+  let _docOriginalHtml = null;
+
+  function enterEditMode(proposal) {
+    if (_editorInstance) return;
+    const docEl = document.getElementById('pr-doc');
+    _docOriginalHtml = docEl.innerHTML;
+    docEl.innerHTML = '<div id="pr-edit-mount"></div>';
+
+    _editorInstance = window.ProposalEditor.mount(
+      document.getElementById('pr-edit-mount'),
+      {
+        initialBody: proposal.description,
+        showTitle: false,
+        showEditSummary: true,
+        submitLabel: 'Save changes',
+        onSubmit: async ({ body, edit_summary }) => {
+          const updated = await editProposal(proposal.id, proposal.title, body, edit_summary);
+          exitEditMode();
+          document.getElementById('pr-doc').innerHTML = updated.body_html;
+          Toc.init({
+            containerEl: document.getElementById('pr-toc-nav'),
+            sourceEl:    document.getElementById('pr-doc'),
+          });
+          if (window.ProposalAnnotations?.reload) {
+            await window.ProposalAnnotations.reload();
+          }
+          Object.assign(proposal, updated);
+        },
+        onCancel: () => exitEditMode(),
+      }
+    );
+    document.getElementById('pr-toc')?.classList.add('is-muted-edit');
+    document.getElementById('pr-anno')?.classList.add('is-muted-edit');
+  }
+
+  function exitEditMode() {
+    if (!_editorInstance) return;
+    _editorInstance.destroy();
+    _editorInstance = null;
+    const docEl = document.getElementById('pr-doc');
+    if (_docOriginalHtml !== null) {
+      docEl.innerHTML = _docOriginalHtml;
+      _docOriginalHtml = null;
+    }
+    document.getElementById('pr-toc')?.classList.remove('is-muted-edit');
+    document.getElementById('pr-anno')?.classList.remove('is-muted-edit');
   }
 
   // ----------------------------------------------------------------

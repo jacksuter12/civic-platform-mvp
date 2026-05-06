@@ -549,22 +549,14 @@ function renderProposalCompactCard(proposal) {
 // ===================================================================
 
 function renderNewProposalForm() {
-  if (!inProposing() || !auth.hasTier("participant")) return "";
+  if (!inProposing() || !auth.isSignedIn()) return "";
   return `
-    <form class="proposal-form" data-action-form="create-proposal" novalidate>
-      <div class="form-field">
-        <label>Title <span class="field-hint">10–200 characters</span></label>
-        <input type="text" name="title" placeholder="A clear, specific title" minlength="10" maxlength="200" required>
-      </div>
-      <div class="form-field">
-        <label>Description <span class="field-hint">50–5000 characters</span></label>
-        <textarea name="description" placeholder="Describe the proposal, its rationale, and how it would work…" minlength="50" maxlength="5000" rows="6" required></textarea>
-      </div>
-      <div class="form-footer">
-        <span class="form-error" data-error-for="new-proposal"></span>
-        <button type="submit" class="btn-primary">Submit Proposal</button>
-      </div>
-    </form>`;
+    <div class="thread-new-proposal">
+      <a class="thread-new-proposal-btn"
+         href="/c/${esc(S.communitySlug)}/thread/${esc(S.threadId)}/new-proposal">
+        Submit a proposal
+      </a>
+    </div>`;
 }
 
 // ===================================================================
@@ -1045,30 +1037,6 @@ async function handleSubmit(e) {
     } catch (ex) {
       if (errEl) errEl.textContent = ex.message || "Could not post.";
       if (btn) { btn.disabled = false; btn.textContent = "Reply"; }
-    }
-    return;
-  }
-
-  // ---- New proposal ----
-  if (actionForm === "create-proposal") {
-    const title = form.querySelector("[name=title]")?.value.trim() || "";
-    const description = form.querySelector("[name=description]")?.value.trim() || "";
-    const errEl = form.querySelector(`[data-error-for="new-proposal"]`);
-    if (title.length < 10)    { if (errEl) errEl.textContent = "Title must be at least 10 characters."; return; }
-    if (description.length < 50) { if (errEl) errEl.textContent = "Description must be at least 50 characters."; return; }
-    if (errEl) errEl.textContent = "";
-    const btn = form.querySelector("button[type=submit]");
-    if (btn) { btn.disabled = true; btn.textContent = "Submitting…"; }
-    try {
-      await createProposal(S.threadId, title, description);
-      S.proposals = await getProposals(S.threadId);
-      await loadProposalData();
-      renderPage();
-      await hydrateSignals();
-    } catch (ex) {
-      if (errEl) errEl.textContent = ex.message || "Could not submit proposal.";
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = "Submit Proposal"; }
     }
     return;
   }

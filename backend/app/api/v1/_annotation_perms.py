@@ -181,3 +181,45 @@ async def check_can_feature(
         return True
     except HTTPException:
         return False
+
+
+# ---------------------------------------------------------------------------
+# Proposal edit permission helpers
+# ---------------------------------------------------------------------------
+
+
+async def require_can_edit_proposal(
+    db: AsyncSession, user: User, proposal_id
+) -> tuple[Proposal, Thread]:
+    """Author-only, PROPOSING phase only. Raises HTTPException on denial."""
+    if isinstance(proposal_id, str):
+        proposal_id = _uuid.UUID(proposal_id)
+    result = await db.execute(select(Proposal).where(Proposal.id == proposal_id))
+    proposal = result.scalar_one_or_none()
+    if not proposal:
+        raise HTTPException(404, "Proposal not found")
+    if proposal.created_by_id != user.id:
+        raise HTTPException(403, "Only the proposal author can edit their proposal")
+    result = await db.execute(select(Thread).where(Thread.id == proposal.thread_id))
+    thread = result.scalar_one_or_none()
+    if not thread:
+        raise HTTPException(500, "Thread not found for proposal")
+    if thread.status != ThreadStatus.PROPOSING:
+        raise HTTPException(
+            403,
+            f"Proposals can only be edited during the PROPOSING phase. "
+            f"This thread is in {thread.status.value}.",
+        )
+    return proposal, thread
+
+
+async def check_can_edit_proposal(
+    db: AsyncSession, user: "User | None", proposal: Proposal
+) -> bool:
+    if not user:
+        return False
+    try:
+        await require_can_edit_proposal(db, user, proposal.id)
+        return True
+    except HTTPException:
+        return False

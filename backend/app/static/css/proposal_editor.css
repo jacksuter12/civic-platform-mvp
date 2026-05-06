@@ -1,0 +1,398 @@
+/* =====================================================================
+   proposal_editor.css — Styles for the shared ProposalEditor component
+   and the dedicated proposal authoring page.
+   ===================================================================== */
+
+/* ---- Authoring page shell ---- */
+
+.pa-page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+}
+
+.pa-header {
+  margin-bottom: 24px;
+}
+
+.pa-crumb {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.pa-crumb a {
+  color: #888;
+  text-decoration: none;
+}
+
+.pa-crumb a:hover { text-decoration: underline; }
+
+.pa-title-page {
+  font-size: 22px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+/* ---- Editor container ---- */
+
+.pe-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ---- Labels and hints ---- */
+
+.pe-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.pe-hint {
+  font-size: 12px;
+  font-weight: 400;
+  color: #888;
+  margin-left: 4px;
+}
+
+/* ---- Text inputs (title, edit summary) ---- */
+
+.pe-input {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 15px;
+  font-family: inherit;
+  color: #1a1a1a;
+  background: #fafafa;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.pe-input:focus {
+  outline: none;
+  border-color: #555;
+  background: #fff;
+}
+
+/* ---- Write / Preview tabs ---- */
+
+.pe-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #ddd;
+}
+
+.pe-tab {
+  padding: 7px 16px;
+  font-size: 14px;
+  font-family: inherit;
+  font-weight: 500;
+  color: #777;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+  margin-bottom: -1px;
+}
+
+.pe-tab:hover { color: #333; }
+
+.pe-tab.is-on {
+  color: #1a1a1a;
+  border-bottom-color: #1a1a1a;
+}
+
+/* ---- Toolbar ---- */
+
+.pe-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+  padding: 6px 8px;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+}
+
+.pe-toolbar-btn {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 600;
+  color: #333;
+  background: #fff;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.pe-toolbar-btn:hover {
+  background: #ebebeb;
+  border-color: #bbb;
+}
+
+.pe-toolbar-btn:active {
+  background: #e0e0e0;
+}
+
+.pe-toolbar-divider {
+  display: inline-block;
+  width: 1px;
+  height: 18px;
+  background: #ccc;
+  margin: 0 4px;
+  align-self: center;
+}
+
+/* ---- Textarea ---- */
+
+.pe-write-pane {
+  display: flex;
+  flex-direction: column;
+}
+
+.pe-textarea {
+  display: block;
+  width: 100%;
+  min-height: 400px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  font-size: 14px;
+  font-family: 'Menlo', 'Consolas', 'Monaco', monospace;
+  line-height: 1.6;
+  color: #1a1a1a;
+  background: #fff;
+  box-sizing: border-box;
+  resize: vertical;
+  transition: border-color 0.15s;
+}
+
+.pe-textarea:focus {
+  outline: none;
+  border-color: #555;
+}
+
+/* ---- Character counter ---- */
+
+.pe-counter {
+  font-size: 12px;
+  color: #aaa;
+  text-align: right;
+  margin: 4px 0 0;
+}
+
+/* ---- Preview pane ---- */
+
+.pe-preview-pane {
+  min-height: 200px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 20px 24px;
+  background: #fff;
+}
+
+.pe-preview-doc {
+  /* Match .pr-doc typography from proposal_review.css */
+  font-size: 15px;
+  line-height: 1.65;
+  color: #1a1a1a;
+}
+
+.pe-preview-doc h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 1.4em 0 0.5em;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #eee;
+}
+
+.pe-preview-doc h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 1.2em 0 0.4em;
+}
+
+.pe-preview-doc p { margin: 0 0 1em; }
+
+.pe-preview-doc ul,
+.pe-preview-doc ol {
+  padding-left: 1.5em;
+  margin: 0 0 1em;
+}
+
+.pe-preview-doc li { margin-bottom: 0.25em; }
+
+.pe-preview-doc code {
+  font-size: 13px;
+  font-family: 'Menlo', 'Consolas', monospace;
+  background: #f4f4f4;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.pe-preview-doc pre {
+  background: #f4f4f4;
+  border-radius: 6px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 0 0 1em;
+}
+
+.pe-preview-doc pre code {
+  background: none;
+  padding: 0;
+}
+
+.pe-preview-doc table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 1em;
+  font-size: 14px;
+}
+
+.pe-preview-doc th,
+.pe-preview-doc td {
+  border: 1px solid #ddd;
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.pe-preview-doc th {
+  background: #f8f8f8;
+  font-weight: 600;
+}
+
+.pe-preview-doc a {
+  color: #1565c0;
+  text-decoration: underline;
+}
+
+.pe-preview-empty,
+.pe-preview-loading,
+.pe-preview-error {
+  font-size: 14px;
+  color: #aaa;
+  font-style: italic;
+}
+
+.pe-preview-error { color: #c62828; }
+
+/* ---- Actions row ---- */
+
+.pe-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pe-btn-primary {
+  padding: 9px 20px;
+  background: #1a1a1a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.pe-btn-primary:hover:not(:disabled) { background: #333; }
+
+.pe-btn-primary:disabled {
+  background: #999;
+  cursor: not-allowed;
+}
+
+.pe-btn-ghost {
+  padding: 9px 16px;
+  background: none;
+  color: #555;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+
+.pe-btn-ghost:hover { border-color: #888; color: #1a1a1a; }
+
+/* ---- Status message ---- */
+
+.pe-status {
+  font-size: 13px;
+  color: #555;
+}
+
+.pe-status[data-kind="error"]   { color: #c62828; }
+.pe-status[data-kind="pending"] { color: #888; font-style: italic; }
+
+/* ---- Page-level error panel ---- */
+
+.pe-error-panel {
+  padding: 20px 24px;
+  background: #fff3f3;
+  border: 1px solid #f5c6c6;
+  border-radius: 6px;
+  color: #c62828;
+  font-size: 14px;
+}
+
+/* ---- Muted state during inline edit (TOC + annotations pane) ---- */
+
+.is-muted-edit {
+  opacity: 0.45;
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 0.2s;
+}
+
+/* ---- Thread page: new-proposal link button ---- */
+
+.thread-new-proposal {
+  margin-top: 20px;
+}
+
+.thread-new-proposal-btn {
+  display: inline-block;
+  padding: 9px 20px;
+  background: #1a1a1a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.thread-new-proposal-btn:hover {
+  background: #333;
+  color: #fff;
+  text-decoration: none;
+}

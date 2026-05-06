@@ -62,6 +62,7 @@ class ProposalSummary(UUIDSchema, TimestampSchema):
 class ProposalDetail(ProposalSummary):
     description: str
     created_by: UserPublic
+    can_edit: bool = False
 
 
 class ProposalVersionRead(UUIDSchema, TimestampSchema):

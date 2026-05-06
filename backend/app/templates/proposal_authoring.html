@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>New proposal — Civic Platform</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <link rel="stylesheet" href="/static/css/proposal_editor.css">
+</head>
+<body>
+  <div id="nav-placeholder"></div>
+
+  <main class="pa-page">
+    <header class="pa-header">
+      <div class="pa-crumb" id="pa-crumb"></div>
+      <h1 class="pa-title-page">New proposal</h1>
+    </header>
+    <div id="pa-editor-mount"></div>
+  </main>
+
+  <script src="/static/js/config.js"></script>
+  <script src="/static/js/utils.js"></script>
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/nav.js"></script>
+  <script src="/static/js/proposal_editor.js"></script>
+  <script>
+    (async function () {
+      // Path: /c/{slug}/thread/{threadId}/new-proposal
+      //        0  1  2    3      4    5
+      const parts    = window.location.pathname.split('/');
+      const slug     = parts[2];
+      const threadId = parts[4];
+
+      const main = document.querySelector('main');
+
+      if (!auth.isSignedIn()) {
+        window.location.href = '/signin?next=' + encodeURIComponent(window.location.pathname);
+        return;
+      }
+
+      try {
+        const thread = await getThread(threadId);
+
+        // Build breadcrumb
+        document.getElementById('pa-crumb').innerHTML =
+          '<a href="/c/' + esc(slug) + '">' + esc(slug) + '</a>' +
+          ' › <a href="/c/' + esc(slug) + '/thread/' + esc(threadId) + '">' +
+          esc(thread.title || 'Thread') + '</a> › New proposal';
+
+        document.title = 'New proposal — ' + esc(thread.title || 'Thread');
+
+        if (thread.status !== 'PROPOSING') {
+          main.innerHTML =
+            '<div class="pe-error-panel">Proposals can only be submitted during the PROPOSING phase.' +
+            ' This thread is currently in <strong>' + esc(thread.status) + '</strong>.' +
+            ' <a href="/c/' + esc(slug) + '/thread/' + esc(threadId) + '">Back to thread</a></div>';
+          return;
+        }
+
+        window.ProposalEditor.mount(
+          document.getElementById('pa-editor-mount'),
+          {
+            initialTitle: '',
+            initialBody: '',
+            showTitle: true,
+            showEditSummary: false,
+            submitLabel: 'Submit Proposal',
+            onSubmit: async function (payload) {
+              var created = await createProposal(threadId, payload.title, payload.body);
+              window.location.href =
+                '/c/' + slug + '/thread/' + threadId + '/proposal/' + created.id;
+            },
+            onCancel: function () {
+              window.location.href = '/c/' + slug + '/thread/' + threadId;
+            },
+          }
+        );
+      } catch (err) {
+        console.error('[new-proposal]', err);
+        main.innerHTML =
+          '<div class="pe-error-panel">Could not load page. ' + esc(err.message || '') + '</div>';
+      }
+    })();
+  </script>
+</body>
+</html>

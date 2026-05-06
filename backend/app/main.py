@@ -416,3 +416,8 @@ async def community_admin_page(slug: str) -> FileResponse:
 @app.get("/c/{slug}/thread/{thread_id}/proposal/{proposal_id}")
 async def proposal_review_page(slug: str, thread_id: str, proposal_id: str) -> FileResponse:
     return FileResponse("app/templates/proposal_review.html")
+
+
+@app.get("/c/{slug}/thread/{thread_id}/new-proposal")
+async def new_proposal_page(slug: str, thread_id: str) -> FileResponse:
+    return FileResponse("app/templates/proposal_authoring.html")
