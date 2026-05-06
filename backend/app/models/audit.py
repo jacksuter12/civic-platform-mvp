@@ -27,6 +27,7 @@ class AuditEventType(str, PyEnum):
     PROPOSAL_SUBMITTED = "proposal_submitted"
     PROPOSAL_STATUS_CHANGED = "proposal_status_changed"
     PROPOSAL_EDITED = "proposal_edited"
+    PROPOSAL_DELETED = "proposal_deleted"
     # Voting
     VOTE_CAST = "vote_cast"
     # Allocation

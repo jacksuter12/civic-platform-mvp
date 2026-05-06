@@ -13,7 +13,7 @@ _md = (
     MarkdownIt("commonmark", {"breaks": True, "linkify": True, "html": False})
     .enable("table")
     .enable("strikethrough")
-    .use(anchors_plugin, min_level=2, max_level=3, slug_func=None, permalink=False)
+    .use(anchors_plugin, min_level=1, max_level=3, slug_func=None, permalink=False)
 )
 
 _ALLOWED_TAGS = [

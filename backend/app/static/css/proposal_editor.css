@@ -262,6 +262,9 @@
   padding: 0;
 }
 
+.pe-preview-doc a { color: #1d4ed8; text-decoration: underline; }
+.pe-preview-doc a:hover { color: #1e40af; }
+
 .pe-preview-doc table {
   border-collapse: collapse;
   width: 100%;

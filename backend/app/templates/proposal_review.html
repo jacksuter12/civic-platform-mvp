@@ -24,6 +24,9 @@
           <button id="pr-toc-toggle" class="pr-btn" aria-pressed="true">
             Hide contents
           </button>
+          <button id="pr-anno-toggle" class="pr-btn" aria-pressed="true">
+            Hide annotations
+          </button>
           <a id="pr-edit-btn" class="pr-btn" href="#" hidden>Edit proposal</a>
           <a id="pr-back" class="pr-btn" href="#">Back to thread</a>
         </div>
@@ -40,7 +43,7 @@
         <div class="pr-doc-loading">Loading proposal…</div>
       </article>
 
-      <aside class="pr-anno" id="pr-anno" aria-label="Annotations">
+      <aside class="pr-anno is-open" id="pr-anno" aria-label="Annotations">
         <div class="pr-anno-head">
           <div class="pr-anno-title">
             Annotations · <span id="pr-anno-count">—</span>
@@ -52,6 +55,9 @@
     </div>
 
     <footer class="pr-footer">
+      <div class="pr-footer-danger">
+        <a id="pr-delete-btn" class="pr-delete-link" href="#" hidden>Delete this proposal</a>
+      </div>
       <section class="pr-signal">
         <div class="pr-signal-label">Your signal on this proposal</div>
         <div class="pr-signal-buttons" id="pr-signal-buttons"></div>
@@ -83,6 +89,8 @@
   <script src="/static/js/proposal_annotations.js"></script>
   <script src="/static/js/nav.js"></script>
   <script src="/static/js/toc.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/turndown@7.2.0/dist/turndown.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/turndown-plugin-gfm@1.0.2/dist/turndown-plugin-gfm.js"></script>
   <script src="/static/js/proposal_editor.js"></script>
   <script src="/static/js/proposal_review.js"></script>
 </body>

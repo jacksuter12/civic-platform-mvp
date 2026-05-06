@@ -45,6 +45,7 @@
       renderHeader(proposal, thread);
       renderDoc(proposal);
       initTOC();
+      initAnnoToggle();
       renderSignals(signals, mySignal);
       renderComments(comments);
       setupCommentForm();
@@ -89,6 +90,52 @@
       editBtn.hidden = false;
       editBtn.addEventListener('click', (e) => { e.preventDefault(); enterEditMode(p); });
     }
+
+    if (p.can_delete) {
+      const deleteBtn = document.getElementById('pr-delete-btn');
+      deleteBtn.hidden = false;
+      deleteBtn.addEventListener('click', (e) => { e.preventDefault(); _showDeleteModal(p); });
+    }
+  }
+
+  // ----------------------------------------------------------------
+  // Delete modal
+  // ----------------------------------------------------------------
+
+  function _showDeleteModal(proposal) {
+    const overlay = document.createElement('div');
+    overlay.className = 'paa-modal-backdrop';
+    overlay.innerHTML = `
+      <div class="paa-modal" role="dialog" aria-modal="true" aria-labelledby="pr-del-title">
+        <header class="paa-modal-head">
+          <span id="pr-del-title" class="paa-modal-title">Delete this proposal?</span>
+        </header>
+        <div class="paa-modal-body">
+          <p>This will remove the proposal from the thread. The deletion will be recorded
+          in the audit log. This action cannot be undone from the UI.</p>
+        </div>
+        <footer class="paa-modal-foot">
+          <button id="pr-del-cancel" class="paa-btn-ghost" autofocus>Cancel</button>
+          <button id="pr-del-confirm" class="paa-btn-danger">Delete proposal</button>
+        </footer>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+    overlay.querySelector('#pr-del-cancel').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+    overlay.querySelector('#pr-del-confirm').addEventListener('click', async () => {
+      const confirmBtn = overlay.querySelector('#pr-del-confirm');
+      confirmBtn.disabled = true;
+      try {
+        await deleteProposal(proposal.id);
+        window.location.href = `/c/${slug}/thread/${threadId}`;
+      } catch (err) {
+        confirmBtn.disabled = false;
+        alert('Could not delete proposal: ' + err.message);
+      }
+    });
   }
 
   // ----------------------------------------------------------------
@@ -107,12 +154,13 @@
     _editorInstance = window.ProposalEditor.mount(
       document.getElementById('pr-edit-mount'),
       {
+        initialTitle: proposal.title,
         initialBody: proposal.description,
-        showTitle: false,
+        showTitle: true,
         showEditSummary: true,
         submitLabel: 'Save changes',
-        onSubmit: async ({ body, edit_summary }) => {
-          const updated = await editProposal(proposal.id, proposal.title, body, edit_summary);
+        onSubmit: async ({ body, title, edit_summary }) => {
+          const updated = await editProposal(proposal.id, title || proposal.title, body, edit_summary);
           exitEditMode();
           document.getElementById('pr-doc').innerHTML = updated.body_html;
           Toc.init({
@@ -123,6 +171,11 @@
             await window.ProposalAnnotations.reload();
           }
           Object.assign(proposal, updated);
+          // Update header elements that aren't re-rendered
+          document.getElementById('pr-title').textContent = proposal.title;
+          document.title = `${proposal.title} · Proposal review`;
+          document.getElementById('pr-meta').textContent =
+            `by ${proposal.created_by?.display_name || 'Unknown'} · v${proposal.current_version_number || 1} · ${timeAgo(proposal.created_at)}`;
         },
         onCancel: () => exitEditMode(),
       }
@@ -172,6 +225,24 @@
       Toc.toggle();
       toggleBtn.textContent = Toc.isOpen ? 'Hide contents' : 'Show contents';
       toggleBtn.setAttribute('aria-pressed', String(Toc.isOpen));
+    });
+  }
+
+  // ----------------------------------------------------------------
+  // Annotation sidebar toggle
+  // ----------------------------------------------------------------
+
+  function initAnnoToggle() {
+    const toggleBtn = document.getElementById('pr-anno-toggle');
+    if (!toggleBtn) return;
+    toggleBtn.addEventListener('click', () => {
+      const anno = document.getElementById('pr-anno');
+      const body = document.getElementById('pr-body');
+      if (!anno || !body) return;
+      const isOpen = anno.classList.toggle('is-open');
+      body.classList.toggle('anno-hidden', !isOpen);
+      toggleBtn.textContent = isOpen ? 'Hide annotations' : 'Show annotations';
+      toggleBtn.setAttribute('aria-pressed', String(isOpen));
     });
   }
 

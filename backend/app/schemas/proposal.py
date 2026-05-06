@@ -57,12 +57,14 @@ class ProposalSummary(UUIDSchema, TimestampSchema):
     my_vote: VoteChoice | None = None
     current_version_number: int = 1
     versions_count: int = 0
+    created_by: UserPublic | None = None
 
 
 class ProposalDetail(ProposalSummary):
     description: str
     created_by: UserPublic
     can_edit: bool = False
+    can_delete: bool = False
 
 
 class ProposalVersionRead(UUIDSchema, TimestampSchema):

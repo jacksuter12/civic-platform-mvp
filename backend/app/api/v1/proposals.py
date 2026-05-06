@@ -21,7 +21,12 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from app.api.deps import CurrentUser, DB, OptionalUser, check_community_membership
-from app.api.v1._annotation_perms import check_can_edit_proposal, require_can_edit_proposal
+from app.api.v1._annotation_perms import (
+    check_can_delete_proposal,
+    check_can_edit_proposal,
+    require_can_delete_proposal,
+    require_can_edit_proposal,
+)
 from app.core.audit import log_event
 from app.core.markdown import render_markdown
 from app.models.audit import AuditEventType
@@ -72,6 +77,7 @@ def _build_summary(
     versions_count: int,
     my_vote: VoteChoice | None = None,
 ) -> ProposalSummary:
+    created_by = UserPublic.model_validate(p.created_by) if p.created_by is not None else None
     return ProposalSummary(
         id=p.id,
         thread_id=p.thread_id,
@@ -85,6 +91,7 @@ def _build_summary(
         current_version_number=p.current_version_number,
         versions_count=versions_count,
         created_at=p.created_at,
+        created_by=created_by,
     )
 
 
@@ -96,13 +103,14 @@ async def list_proposals(
 ) -> list[ProposalSummary]:
     result = await db.execute(
         select(Proposal)
-        .where(Proposal.thread_id == thread_id)
+        .where(Proposal.thread_id == thread_id, Proposal.deleted_at.is_(None))
         .order_by(Proposal.created_at)
     )
     proposals = list(result.scalars())
 
     summaries = []
     for p in proposals:
+        await db.refresh(p, ["created_by"])
         vs = await _vote_summary(db, p.id)
         vc = await _versions_count(db, p.id)
         my_vote = None
@@ -261,7 +269,7 @@ async def get_proposal(
 ) -> ProposalDetail:
     result = await db.execute(select(Proposal).where(Proposal.id == proposal_id))
     proposal = result.scalar_one_or_none()
-    if not proposal:
+    if not proposal or proposal.deleted_at is not None:
         raise HTTPException(status_code=404, detail="Proposal not found.")
     await db.refresh(proposal, ["created_by"])
     vs = await _vote_summary(db, proposal.id)
@@ -274,11 +282,13 @@ async def get_proposal(
         v = vr.scalar_one_or_none()
         my_vote = v.choice if v else None
     can_edit = await check_can_edit_proposal(db, user, proposal)
+    can_delete = await check_can_delete_proposal(db, user, proposal)
     summary = _build_summary(proposal, vs, vc, my_vote)
     return ProposalDetail(
-        **summary.model_dump(),
+        **summary.model_dump(exclude={"created_by"}),
         created_by=UserPublic.model_validate(proposal.created_by),
         can_edit=can_edit,
+        can_delete=can_delete,
     )
 
 
@@ -365,3 +375,25 @@ async def update_proposal_status(
     )
 
     return _build_summary(proposal, vs, vc)
+
+
+@router.delete("/{proposal_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_proposal(
+    proposal_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+) -> None:
+    """Soft-delete a proposal. Author-only, PROPOSING phase only."""
+    proposal, thread = await require_can_delete_proposal(db, user, proposal_id)
+    proposal.deleted_at = datetime.now(timezone.utc)
+    proposal.deleted_by_id = user.id
+    await db.flush()
+    await log_event(
+        db,
+        event_type=AuditEventType.PROPOSAL_DELETED,
+        target_type="proposal",
+        target_id=proposal.id,
+        payload={"title": proposal.title, "thread_id": str(thread.id)},
+        actor_id=user.id,
+        community_id=thread.community_id,
+    )

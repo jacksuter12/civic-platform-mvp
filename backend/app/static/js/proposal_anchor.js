@@ -235,10 +235,12 @@
     );
     if (!spans.length) return;
     spans[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-    spans.forEach(s => s.classList.add('proposal-annotation-highlight-flash'));
     setTimeout(() => {
-      spans.forEach(s => s.classList.remove('proposal-annotation-highlight-flash'));
-    }, 600);
+      spans.forEach(s => s.classList.add('proposal-annotation-highlight-flash'));
+      setTimeout(() => {
+        spans.forEach(s => s.classList.remove('proposal-annotation-highlight-flash'));
+      }, 600);
+    }, 200);
   }
 
   // ---------------------------------------------------------------------------
@@ -286,7 +288,15 @@
       const posSelector = selectors.find(s => s.type === 'TextPositionSelector');
       if (posSelector) {
         const range = _matchTextPosition(posSelector, rootEl);
-        if (range) return range;
+        if (range) {
+          if (quoteSelector) {
+            // Safety check: TextPosition resolved but TextQuote failed (text was edited).
+            // If the text at the resolved position doesn't match the original quote,
+            // the highlight would land on the wrong words — treat as orphaned instead.
+            if (range.toString().trim() !== quoteSelector.exact.trim()) return null;
+          }
+          return range;
+        }
       }
 
       return null; // all strategies failed — anchor is orphaned

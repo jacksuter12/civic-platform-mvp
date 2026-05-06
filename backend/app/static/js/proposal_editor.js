@@ -108,6 +108,7 @@
 
     _toolbarHtml() {
       const buttons = [
+        { action: 'h1',    label: 'H1',  title: 'Heading 1 (# )' },
         { action: 'h2',    label: 'H2',  title: 'Heading 2 (## )' },
         { action: 'h3',    label: 'H3',  title: 'Heading 3 (### )' },
         { divider: true },
@@ -181,6 +182,22 @@
         }
       });
 
+      // Paste HTML → Markdown conversion via Turndown (optional CDN dep)
+      if (window.TurndownService && window.turndownPluginGfm) {
+        const _td = new window.TurndownService({
+          headingStyle: 'atx',
+          codeBlockStyle: 'fenced',
+          bulletListMarker: '-',
+        });
+        _td.use(window.turndownPluginGfm.gfm);
+        ta.addEventListener('paste', (e) => {
+          const html = e.clipboardData?.getData('text/html');
+          if (!html || !html.trim()) return;
+          e.preventDefault();
+          this._insertAtCursor(ta, _td.turndown(html));
+        });
+      }
+
       // Warn before unload if dirty
       this._beforeUnload = (e) => {
         if (this._isDirty()) {
@@ -194,12 +211,13 @@
     _applyAction(action) {
       const ta = this.container.querySelector('#pe-body');
       switch (action) {
+        case 'h1':     return this._applyLinePrefix(ta, '# ');
         case 'h2':     return this._applyLinePrefix(ta, '## ');
         case 'h3':     return this._applyLinePrefix(ta, '### ');
         case 'bold':   return this._applyWrap(ta, '**', '**');
         case 'italic': return this._applyWrap(ta, '*', '*');
         case 'ul':     return this._applyLinePrefix(ta, '- ');
-        case 'ol':     return this._applyLinePrefix(ta, '1. ');
+        case 'ol':     return this._applyLinePrefix(ta, '1. ', true);
         case 'link':   return this._applyLink(ta);
         case 'code':   return this._applyCodeBlock(ta);
         case 'table':  return this._applyTable(ta);
@@ -215,7 +233,7 @@
       this._syncBody(ta);
     }
 
-    _applyLinePrefix(ta, prefix) {
+    _applyLinePrefix(ta, prefix, ordered = false) {
       const start     = ta.selectionStart;
       const end       = ta.selectionEnd;
       const lineStart = ta.value.lastIndexOf('\n', start - 1) + 1;
@@ -225,13 +243,13 @@
       const lines = ta.value.substring(lineStart, lineEnd).split('\n');
       const allHavePrefix = lines.every(l => l.startsWith(prefix));
 
-      const transformed = lines.map(l => {
+      const transformed = lines.map((l, i) => {
         if (allHavePrefix) {
           return l.startsWith(prefix) ? l.slice(prefix.length) : l;
         }
         // Strip any existing heading/list prefix before applying the new one
         const stripped = l.replace(/^(#+\s|[-*]\s|\d+\.\s)/, '');
-        return prefix + stripped;
+        return ordered ? `${i + 1}. ${stripped}` : prefix + stripped;
       }).join('\n');
 
       ta.value = ta.value.substring(0, lineStart) + transformed + ta.value.substring(lineEnd);
@@ -273,6 +291,15 @@
     _syncBody(ta) {
       this.body = ta.value;
       this.container.querySelector('#pe-char-count').textContent = ta.value.length;
+    }
+
+    _insertAtCursor(ta, text) {
+      const start = ta.selectionStart;
+      const end   = ta.selectionEnd;
+      ta.value = ta.value.substring(0, start) + text + ta.value.substring(end);
+      const newPos = start + text.length;
+      ta.setSelectionRange(newPos, newPos);
+      this._syncBody(ta);
     }
 
     _switchTab(which) {
@@ -326,16 +353,27 @@
       btn.disabled = true;
       this._showStatus('Saving…', 'pending');
 
+      // Remove beforeunload before submitting so a successful navigation
+      // (window.location.href in onSubmit) doesn't trigger the "unsaved changes" warning.
+      // Re-added in the catch block if submit fails.
+      const savedHandler = this._beforeUnload;
+      if (savedHandler) {
+        window.removeEventListener('beforeunload', savedHandler);
+        this._beforeUnload = null;
+      }
+
       try {
         await opts.onSubmit({
           title: this.title.trim(),
           body: this.body,
           edit_summary: this.editSummary.trim() || undefined,
         });
-        // Mark clean so beforeunload doesn't warn during the caller's navigation
         this._initialSnapshot = this._snapshot();
         // Caller handles navigation or unmount on success
       } catch (err) {
+        // Submit failed — restore the beforeunload guard
+        this._beforeUnload = savedHandler;
+        if (savedHandler) window.addEventListener('beforeunload', savedHandler);
         console.error('[ProposalEditor] submit error:', err);
         this._showStatus(err.message || 'Save failed.', 'error');
         btn.disabled = false;

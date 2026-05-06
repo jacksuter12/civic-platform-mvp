@@ -15,7 +15,7 @@
   let _isOpen = true;
 
   function _buildEntries() {
-    const headings = _sourceEl.querySelectorAll('h2, h3');
+    const headings = _sourceEl.querySelectorAll('h1, h2, h3');
     _containerEl.innerHTML = '';
     const entries = [];
 
@@ -23,9 +23,11 @@
       if (!h.id) return;
       const a = document.createElement('a');
       a.href = '#' + h.id;
-      a.className = h.tagName === 'H2'
+      a.className = h.tagName === 'H1'
         ? 'pr-toc-item'
-        : 'pr-toc-item pr-toc-item--sub';
+        : h.tagName === 'H2'
+          ? 'pr-toc-item pr-toc-item--sub'
+          : 'pr-toc-item pr-toc-item--sub pr-toc-item--sub2';
       a.textContent = h.textContent;
       a.dataset.tocId = h.id;
       a.addEventListener('click', (e) => {
@@ -78,6 +80,7 @@
       if (!panel) return;
       _isOpen = !_isOpen;
       panel.classList.toggle('is-open', _isOpen);
+      document.getElementById('pr-body')?.classList.toggle('toc-hidden', !_isOpen);
     },
     get isOpen() { return _isOpen; },
   };

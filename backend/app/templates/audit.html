@@ -215,30 +215,63 @@
 
     // ---- Human-readable event type labels ----
     const EVENT_LABELS = {
+      // Identity
       user_registered:               "User Registered",
       user_tier_changed:             "Tier Changed",
       user_deactivated:              "User Deactivated",
+      display_name_changed:          "Display Name Changed",
+      // Threads
       thread_created:                "Thread Created",
       thread_phase_advanced:         "Phase Advanced",
+      // Posts
       post_created:                  "Post Created",
       post_removed:                  "Post Removed",
+      // Signals
       signal_cast:                   "Signal Cast",
       signal_updated:                "Signal Updated",
+      // Proposals
       proposal_created:              "Proposal Created",
       proposal_submitted:            "Proposal Submitted",
       proposal_status_changed:       "Proposal Status Changed",
       proposal_edited:               "Proposal Edited",
-      vote_cast:                     "Vote Cast",
-      allocation_decided:            "Allocation Decided",
-      facilitator_request_submitted: "Facilitator Request Submitted",
-      facilitator_request_approved:  "Facilitator Request Approved",
-      facilitator_request_denied:    "Facilitator Request Denied",
-      display_name_changed:          "Display Name Changed",
+      proposal_deleted:              "Proposal Deleted",
+      // Comments & amendments
       proposal_comment_created:      "Comment Created",
       proposal_comment_removed:      "Comment Removed",
       amendment_submitted:           "Amendment Submitted",
       amendment_accepted:            "Amendment Accepted",
       amendment_rejected:            "Amendment Rejected",
+      // Voting & allocation
+      vote_cast:                     "Vote Cast",
+      allocation_decided:            "Allocation Decided",
+      // Facilitator requests
+      facilitator_request_submitted: "Facilitator Request Submitted",
+      facilitator_request_approved:  "Facilitator Request Approved",
+      facilitator_request_denied:    "Facilitator Request Denied",
+      // Annotations
+      annotation_created:            "Annotation Created",
+      annotation_updated:            "Annotation Updated",
+      annotation_deleted:            "Annotation Deleted",
+      annotation_reaction_added:     "Annotation Reaction Added",
+      annotation_reaction_removed:   "Annotation Reaction Removed",
+      annotation_resolved:           "Annotation Resolved",
+      annotation_unresolved:         "Annotation Reopened",
+      annotation_featured:           "Annotation Featured",
+      annotation_unfeatured:         "Annotation Unfeatured",
+      annotation_orphaned:           "Annotation Orphaned",
+      annotation_moderated:          "Annotation Moderated",
+      // Annotator management
+      user_annotator_granted:        "Annotator Granted",
+      user_annotator_revoked:        "Annotator Revoked",
+      annotator_request_submitted:   "Annotator Request Submitted",
+      annotator_request_approved:    "Annotator Request Approved",
+      annotator_request_denied:      "Annotator Request Denied",
+      // Community
+      community_created:             "Community Created",
+      community_updated:             "Community Updated",
+      community_member_joined:       "Member Joined",
+      community_member_promoted:     "Member Promoted",
+      // LLM (future)
       llm_summary_generated:         "LLM Summary Generated",
     };
 
@@ -254,11 +287,25 @@
       proposal_submitted:            "#00695c",
       proposal_status_changed:       "#00695c",
       proposal_edited:               "#00695c",
+      proposal_deleted:              "#c62828",
       vote_cast:                     "#1565c0",
       allocation_decided:            "#4a148c",
       facilitator_request_submitted: "#4e342e",
       facilitator_request_approved:  "#2e7d32",
       facilitator_request_denied:    "#c62828",
+      annotation_created:            "#37474f",
+      annotation_updated:            "#37474f",
+      annotation_deleted:            "#c62828",
+      annotation_reaction_added:     "#37474f",
+      annotation_reaction_removed:   "#37474f",
+      annotation_resolved:           "#2e7d32",
+      annotation_unresolved:         "#e65100",
+      annotation_featured:           "#f59e0b",
+      annotation_moderated:          "#c62828",
+      community_created:             "#1565c0",
+      community_updated:             "#1565c0",
+      community_member_joined:       "#2e7d32",
+      community_member_promoted:     "#6a1b9a",
     };
 
     function eventLabel(type) {

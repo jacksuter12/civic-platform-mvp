@@ -72,7 +72,7 @@ class User(Base, UUIDPKMixin, TimestampMixin):
         "Vote", back_populates="voter"
     )
     proposals: Mapped[list["Proposal"]] = relationship(  # type: ignore[name-defined]
-        "Proposal", back_populates="created_by"
+        "Proposal", back_populates="created_by", foreign_keys="Proposal.created_by_id"
     )
     annotations: Mapped[list["Annotation"]] = relationship(  # type: ignore[name-defined]
         "Annotation", back_populates="author", foreign_keys="Annotation.author_id"

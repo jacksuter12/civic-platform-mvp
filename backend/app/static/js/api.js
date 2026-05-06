@@ -173,6 +173,10 @@ async function editProposal(proposalId, title, description, editSummary) {
   });
 }
 
+async function deleteProposal(proposalId) {
+  return apiFetch(`/proposals/${proposalId}`, { method: 'DELETE' });
+}
+
 /**
  * Fetch the full version history for a proposal (reverse chronological).
  */

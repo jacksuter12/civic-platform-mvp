@@ -1,8 +1,9 @@
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from enum import Enum as PyEnum
 
-from sqlalchemy import DECIMAL, Enum as SAEnum, ForeignKey, Integer, String, Text
+from sqlalchemy import DECIMAL, DateTime, Enum as SAEnum, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -56,13 +57,22 @@ class Proposal(Base, UUIDPKMixin, TimestampMixin):
     # frontend doesn't need a markdown parser. Annotation anchors reference
     # text ranges in this HTML, so rendering must be deterministic.
     body_html: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    deleted_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Relationships
     thread: Mapped["Thread"] = relationship(  # type: ignore[name-defined]
         "Thread", back_populates="proposals"
     )
     created_by: Mapped["User"] = relationship(  # type: ignore[name-defined]
-        "User", back_populates="proposals"
+        "User", foreign_keys=[created_by_id], back_populates="proposals"
+    )
+    deleted_by: Mapped["User | None"] = relationship(  # type: ignore[name-defined]
+        "User", foreign_keys=[deleted_by_id]
     )
     votes: Mapped[list["Vote"]] = relationship(  # type: ignore[name-defined]
         "Vote", back_populates="proposal"
