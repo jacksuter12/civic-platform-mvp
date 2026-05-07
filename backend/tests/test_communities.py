@@ -350,6 +350,60 @@ async def test_platform_audit_returns_only_null_community_events(
     assert data["entries"][0]["event_type"] == "user_registered"
 
 
+@pytest.mark.asyncio
+async def test_community_member_can_read_private_community_audit(
+    db_session: AsyncSession,
+    private_community: Community,
+    regular_user: User,
+    platform_admin: User,
+) -> None:
+    """Private community audit: member → 200; non-member → 404; unauthenticated → 404."""
+    # Give regular_user a membership in the private community
+    membership = CommunityMembership(
+        community_id=private_community.id,
+        user_id=regular_user.id,
+        tier=UserTier.REGISTERED,
+        joined_at=datetime.now(UTC),
+    )
+    db_session.add(membership)
+    await db_session.commit()
+
+    slug = private_community.slug
+
+    # Member can read
+    async with _make_client(db_session, regular_user) as c:
+        resp = await c.get(f"/api/v1/communities/{slug}/audit")
+    app.dependency_overrides.clear()
+    assert resp.status_code == 200
+
+    # Platform admin can always read
+    async with _make_client(db_session, platform_admin) as c:
+        resp = await c.get(f"/api/v1/communities/{slug}/audit")
+    app.dependency_overrides.clear()
+    assert resp.status_code == 200
+
+    # Non-member gets 404
+    non_member = User(
+        supabase_uid="uid-non-member",
+        email="nonmember@example.com",
+        display_name="NonMember",
+        tier=UserTier.REGISTERED,
+    )
+    db_session.add(non_member)
+    await db_session.commit()
+
+    async with _make_client(db_session, non_member) as c:
+        resp = await c.get(f"/api/v1/communities/{slug}/audit")
+    app.dependency_overrides.clear()
+    assert resp.status_code == 404
+
+    # Unauthenticated gets 404
+    async with _make_client(db_session) as c:
+        resp = await c.get(f"/api/v1/communities/{slug}/audit")
+    app.dependency_overrides.clear()
+    assert resp.status_code == 404
+
+
 # ---------------------------------------------------------------------------
 # Tests: facilitator request approval
 # ---------------------------------------------------------------------------

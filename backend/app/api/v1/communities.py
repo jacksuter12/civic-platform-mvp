@@ -402,14 +402,21 @@ async def community_audit_log(
 ) -> AuditLogPage:
     """
     Audit log scoped to this community's events.
-    Public if community.is_public; 404 for private communities without auth.
+    Public if community.is_public; accessible to community members and platform admins otherwise.
     """
     is_platform_admin = user is not None and user.platform_role == PlatformRole.PLATFORM_ADMIN
     if not community.is_public and not is_platform_admin:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Community not found.",
+        # Private community audit: allow members of any non-banned tier.
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Community not found.")
+        membership_result = await db.execute(
+            select(CommunityMembership).where(
+                CommunityMembership.community_id == community.id,
+                CommunityMembership.user_id == user.id,
+            )
         )
+        if membership_result.scalar_one_or_none() is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Community not found.")
 
     q = select(AuditLog).where(AuditLog.community_id == community.id)
     if event_type:

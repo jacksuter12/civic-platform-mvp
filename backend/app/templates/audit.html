@@ -148,6 +148,17 @@
     .audit-page-btn:hover:not(:disabled) { background: #f5f5f5; }
     .audit-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .audit-page-info { font-size: 13px; color: #888; }
+
+    .audit-wiki-badge {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: #e8f4f8;
+      color: #0277bd;
+      border-radius: 3px;
+      padding: 2px 6px;
+    }
   </style>
 </head>
 <body>
@@ -157,12 +168,7 @@
   <main class="container">
     <h1 class="page-title">Transparency Log</h1>
 
-    <div class="audit-intro">
-      <strong>Every significant action on this platform is recorded here.</strong>
-      This log is append-only, public, and unauthenticated — no login required to verify it.
-      Use it to answer questions like: <em>What happened to a thread? What did a facilitator do?
-      Can this decision be reconstructed from the record alone?</em>
-    </div>
+    <div class="audit-intro">Loading…</div>
 
     <!-- Filter toolbar -->
     <div class="audit-toolbar">
@@ -343,6 +349,9 @@
       const timeAgoStr = timeAgo(entry.created_at);
       const payload   = renderPayload(entry.payload || {});
 
+      const isWikiAnnotation = COMMUNITY_SLUG === null && entry.event_type.startsWith('annotation_');
+      const wikiBadge = isWikiAnnotation ? `<span class="audit-wiki-badge">wiki</span>` : '';
+
       const actorHtml = entry.actor_id
         ? `<span><span class="audit-id-label">Actor:</span>
            <span class="audit-id-link" onclick="filterById('${esc(entry.actor_id)}')"
@@ -358,6 +367,7 @@
           <div class="audit-entry-header">
             <span class="audit-event-type" style="color:${color}">${esc(label)}</span>
             <span class="audit-target-badge">${esc(entry.target_type)}</span>
+            ${wikiBadge}
             <span class="audit-time" title="${esc(timeStr)}">${esc(timeAgoStr)}</span>
           </div>
           <div class="audit-ids">${actorHtml}${targetHtml}</div>
@@ -454,12 +464,64 @@
         });
     }
 
+    // ---- Dynamic intro copy ----
+
+    async function loadAuditIntro() {
+      const intro = document.querySelector('.audit-intro');
+
+      if (COMMUNITY_SLUG) {
+        intro.innerHTML = `
+          <strong>Community audit log — <em>${esc(COMMUNITY_SLUG)}</em>.</strong>
+          An append-only record of deliberation events in this community:
+          proposals, threads, votes, signals, and membership changes.
+          <br>Platform-level events (wiki annotations, user management) are at the
+          <a href="/audit">platform transparency log</a>.
+        `;
+        return;
+      }
+
+      // Platform audit: build community navigation links
+      let communityLinksHtml = '';
+      try {
+        const publicCommunities = await listCommunities();
+        const bySlug = new Map(publicCommunities.map(c => [c.slug, c.name]));
+
+        // If logged in, also surface communities the user is a member of
+        if (auth.isSignedIn()) {
+          try {
+            const me = await getMe();
+            for (const m of (me.communityMemberships || [])) {
+              if (!bySlug.has(m.communitySlug)) {
+                bySlug.set(m.communitySlug, m.communityName);
+              }
+            }
+          } catch (_) { /* non-fatal */ }
+        }
+
+        if (bySlug.size > 0) {
+          const links = [...bySlug.entries()]
+            .map(([slug, name]) => `<a href="/c/${esc(slug)}/audit">${esc(name)}</a>`)
+            .join(' · ');
+          communityLinksHtml = `<br>Community audit logs: ${links}`;
+        }
+      } catch (_) { /* non-fatal — skip links if fetch fails */ }
+
+      intro.innerHTML = `
+        <strong>Platform transparency log.</strong>
+        An append-only public record of platform-level events: user onboarding,
+        wiki annotations, annotator management, and community creation. No login required.${communityLinksHtml}
+        <br>Deliberation events (proposals, threads, votes, signals) are in each community's
+        own audit log, linked above.
+      `;
+    }
+
     // ---- Wire up filters ----
     document.getElementById("event-type-filter").addEventListener("change",  () => { currentOffset = 0; loadAudit(); });
     document.getElementById("target-type-filter").addEventListener("change", () => { currentOffset = 0; loadAudit(); });
     document.getElementById("id-search").addEventListener("input", () => { currentOffset = 0; loadAudit(); });
 
     populateEventTypes();
+    loadAuditIntro();
     loadAudit();
   </script>
 
