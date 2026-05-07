@@ -557,6 +557,23 @@
   border-bottom-color: #9ca3af;            /* gray-400 */
 }
 
+/* Hanging highlight — dotted-underline breadcrumb for orphaned annotations */
+.proposal-annotation-highlight.proposal-annotation-hanging {
+  background-color: transparent;
+  border-bottom: 2px dotted #9ca3af;       /* gray-400, matches orphaned card treatment */
+  border-radius: 0;
+  padding: 0 2px;                          /* widens hit area around the zero-width char */
+}
+
+.proposal-annotation-highlight.proposal-annotation-hanging:hover {
+  background-color: rgba(156, 163, 175, 0.15);
+}
+
+.proposal-annotation-highlight-flash.proposal-annotation-hanging {
+  border-bottom-color: #555;
+  background-color: rgba(156, 163, 175, 0.25);
+}
+
 /* Floating "Annotate" chip */
 .paa-annotate-chip {
   background: #1d4ed8;                     /* blue-700 */

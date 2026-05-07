@@ -244,6 +244,28 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Hanging highlight — single-char breadcrumb for orphaned anchors
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Insert a single-character hanging highlight at `position` in rootEl.
+   * Used when an anchor can't be resolved — leaves a visual breadcrumb at the
+   * annotation's approximate former location in the document.
+   *
+   * The wrapped character is visible to CSS; the class `.proposal-annotation-hanging`
+   * overrides the normal amber fill with a dotted-underline marker.
+   */
+  function _applyHangingHighlight(rootEl, position, annotationId) {
+    const totalLength = rootEl.textContent.length;
+    if (totalLength === 0) return;
+    const start = Math.min(position, totalLength - 1);
+    const range = _rangeFromOffsets(rootEl, start, start + 1);
+    if (!range) return;
+    _applyHighlight(range, annotationId,
+      'proposal-annotation-highlight proposal-annotation-hanging');
+  }
+
+  // ---------------------------------------------------------------------------
   // Public API
   // ---------------------------------------------------------------------------
 
@@ -270,9 +292,16 @@
      * Deserialize an anchor object back to a DOM Range. Tries TextQuote first
      * (resilient to minor edits), then TextPosition as fallback.
      *
+     * When both selectors fail but a TextPositionSelector exists, returns an
+     * OrphanedAnchor sentinel instead of null so the caller can place a hanging
+     * highlight at the annotation's approximate former position.
+     *
      * @param {Object}  anchor  - { selector: [...] } or legacy shape
      * @param {Element} rootEl  - The root element
-     * @returns {Range|null}    - null means the anchor is orphaned
+     * @returns {Range|{orphaned:true,hangingPosition:number}|null}
+     *   Range    → healthy anchor resolved
+     *   object   → orphaned; hangingPosition is a clamped char offset for a hanging mark
+     *   null     → orphaned with no position data; no visual anchor possible
      */
     deserialize(anchor, rootEl) {
       if (!anchor || !rootEl) return null;
@@ -288,18 +317,17 @@
       const posSelector = selectors.find(s => s.type === 'TextPositionSelector');
       if (posSelector) {
         const range = _matchTextPosition(posSelector, rootEl);
-        if (range) {
-          if (quoteSelector) {
-            // Safety check: TextPosition resolved but TextQuote failed (text was edited).
-            // If the text at the resolved position doesn't match the original quote,
-            // the highlight would land on the wrong words — treat as orphaned instead.
-            if (range.toString().trim() !== quoteSelector.exact.trim()) return null;
-          }
+        if (range && (!quoteSelector || range.toString().trim() === quoteSelector.exact.trim())) {
+          // Position valid; content matches quote (or no quote to validate against)
           return range;
         }
+        // Position failed or content mismatch — orphaned, but place a hanging mark
+        const totalLength = rootEl.textContent.length;
+        const hangingPos = Math.min(posSelector.start, Math.max(0, totalLength - 1));
+        return { orphaned: true, hangingPosition: hangingPos };
       }
 
-      return null; // all strategies failed — anchor is orphaned
+      return null; // no TextPositionSelector — no hanging anchor possible
     },
 
     /**
@@ -329,6 +357,18 @@
      */
     scrollTo(annotationId) {
       _scrollTo(annotationId);
+    },
+
+    /**
+     * Insert a hanging highlight at a character offset. Called when deserialize
+     * returns an OrphanedAnchor sentinel instead of a Range.
+     *
+     * @param {Element} rootEl        - The root element containing the document text
+     * @param {number}  position      - Character offset (clamped to doc length)
+     * @param {string}  annotationId
+     */
+    applyHanging(rootEl, position, annotationId) {
+      _applyHangingHighlight(rootEl, position, annotationId);
     },
   };
 

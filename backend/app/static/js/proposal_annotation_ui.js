@@ -585,10 +585,10 @@
       card.appendChild(replyForm);
     }
 
-    // Card body click → scroll doc to highlight (skip if orphaned or clicking interactive elements)
+    // Card body click → scroll doc to highlight. For orphaned annotations this
+    // scrolls to the hanging highlight span (if one exists); no-op if none.
     card.addEventListener('click', (e) => {
       if (e.target.closest('button, form, textarea, .paa-menu-dropdown, a')) return;
-      if (card.dataset.orphaned === 'true') return;
       ProposalAnchor.scrollTo(anno.id);
     });
 
