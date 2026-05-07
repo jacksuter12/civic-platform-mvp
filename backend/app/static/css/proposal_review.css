@@ -499,6 +499,10 @@
   /* Reset desktop column pins — auto-placement works fine at 2-column */
   .pr-doc  { grid-column: auto; }
   .pr-anno { grid-column: auto; }
+  /* Override desktop visibility variants — their 2-class specificity beats .pr-body above */
+  .pr-body.toc-hidden             { grid-template-columns: minmax(0, 1fr) 280px; }
+  .pr-body.anno-hidden            { grid-template-columns: minmax(0, 1fr); }
+  .pr-body.toc-hidden.anno-hidden { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 767px) {
@@ -507,6 +511,10 @@
   }
   .pr-toc { display: none !important; }
   .pr-anno { display: none; }
+  /* Override visibility variants at mobile — panels are hidden anyway */
+  .pr-body.toc-hidden,
+  .pr-body.anno-hidden,
+  .pr-body.toc-hidden.anno-hidden { grid-template-columns: minmax(0, 1fr); }
   .pr-doc { padding: 20px 16px; }
   .pr-footer { padding: 20px 16px 32px; }
   .pr-header { padding: 10px 16px 12px; }
