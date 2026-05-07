@@ -113,15 +113,33 @@
   function _applyHighlights() {
     _clearHighlights();
     const docEl = _config.docEl;
+    const newlyOrphanedIds = [];
+
     for (const anno of _annotations) {
       if (anno.deleted_at) continue;
       if (!anno.anchor_data || !anno.anchor_data.selector) continue;
-      const range = ProposalAnchor.deserialize(anno.anchor_data, docEl);
-      if (range) {
-        ProposalAnchor.applyHighlight(range, anno.id);
-      } else if (!anno.orphaned_at) {
-        markAnnotationOrphaned(anno.id).catch(() => {});
+
+      const result = ProposalAnchor.deserialize(anno.anchor_data, docEl);
+
+      if (result instanceof Range) {
+        ProposalAnchor.applyHighlight(result, anno.id);
+      } else {
+        // Orphaned — result is { orphaned: true, hangingPosition: N } or null
+        if (result && result.orphaned) {
+          ProposalAnchor.applyHanging(docEl, result.hangingPosition, anno.id);
+        }
+        // Update local state immediately so _render() sees the orphan flag without
+        // waiting for the server to confirm (fixes the post-save half-update state)
+        if (!anno.orphaned_at) {
+          anno.orphaned_at = new Date().toISOString();
+          newlyOrphanedIds.push(anno.id);
+        }
       }
+    }
+
+    // Sync server state in background for newly detected orphans
+    for (const id of newlyOrphanedIds) {
+      markAnnotationOrphaned(id).catch(() => {});
     }
   }
 
