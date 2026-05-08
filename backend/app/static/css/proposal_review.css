@@ -190,11 +190,8 @@
   padding: 28px 40px;
   min-height: 400px;
   max-width: 860px;
-  grid-column: 2;
-}
-
-.pr-body.toc-hidden.anno-hidden .pr-doc {
   margin: 0 auto;
+  grid-column: 2;
 }
 
 /* Document typography — long-form readable */
