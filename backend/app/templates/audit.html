@@ -188,6 +188,7 @@
   <div id="nav-placeholder"></div>
 
   <main class="container">
+    <div id="audit-breadcrumb" style="font-size:13px; color:#888; margin-bottom:12px;"></div>
     <h1 class="page-title">Transparency Log</h1>
 
     <div class="audit-intro">Loading…</div>
@@ -492,6 +493,13 @@
       const intro = document.querySelector('.audit-intro');
 
       if (COMMUNITY_SLUG) {
+        try {
+          const community = await getCommunity(COMMUNITY_SLUG);
+          const breadcrumb = document.getElementById("audit-breadcrumb");
+          if (breadcrumb) {
+            breadcrumb.innerHTML = `<a href="/c/${esc(COMMUNITY_SLUG)}" style="color:#1565c0; text-decoration:none;">← ${esc(community.name)}</a> / Transparency Log`;
+          }
+        } catch (_) { /* non-fatal */ }
         intro.innerHTML = `
           <strong>Community audit log — <em>${esc(COMMUNITY_SLUG)}</em>.</strong>
           An append-only record of deliberation events in this community:
