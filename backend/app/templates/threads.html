@@ -75,6 +75,7 @@
   <div id="nav-placeholder"></div>
 
   <main class="container">
+    <div id="community-breadcrumb" style="font-size:13px; color:#888; margin-bottom:12px;"></div>
     <div style="display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:16px;">
       <h1 class="page-title" style="margin-bottom:0;">Active Discussions</h1>
       <a id="create-thread-btn" href="#"
@@ -373,7 +374,16 @@
     async function loadThreads() {
       const container = document.getElementById("thread-list-container");
       try {
-        allThreads = await getThreads({ communitySlug, limit: 100 });
+        const [community, threads] = await Promise.all([
+          getCommunity(communitySlug),
+          getThreads({ communitySlug, limit: 100 }),
+        ]);
+        allThreads = threads;
+
+        const breadcrumb = document.getElementById("community-breadcrumb");
+        if (breadcrumb && community) {
+          breadcrumb.innerHTML = `<a href="/c/${communitySlug}" style="color:#1565c0; text-decoration:none;">← ${community.name}</a> / Discussions`;
+        }
 
         if (allThreads.length === 0) {
           container.innerHTML = `<div class="empty-state">No discussions yet. A facilitator can create the first one.</div>`;

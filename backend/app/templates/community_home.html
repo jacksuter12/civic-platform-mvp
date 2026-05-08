@@ -285,7 +285,10 @@
         </div>
 
         <div class="detail-section">
-          <div class="section-heading">Active Deliberations</div>
+          <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:12px;">
+            <div class="section-heading" style="margin-bottom:0;">Active Deliberations</div>
+            <a href="/c/${esc(communitySlug)}/threads" style="font-size:13px; color:#1565c0; text-decoration:none; white-space:nowrap;">Browse all →</a>
+          </div>
           ${renderActiveThreads(threads)}
         </div>
 
