@@ -159,6 +159,28 @@
       border-radius: 3px;
       padding: 2px 6px;
     }
+
+    .audit-intro a { color: #1565c0; text-decoration: underline; font-weight: 500; }
+    .audit-intro a:hover { color: #0d47a1; }
+
+    .audit-community-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .audit-community-chip {
+      display: inline-block;
+      padding: 4px 12px;
+      border: 1px solid #1565c0;
+      border-radius: 20px;
+      font-size: 12px;
+      color: #1565c0;
+      text-decoration: none;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .audit-community-chip:hover { background: #e3f0fc; color: #0d47a1; }
   </style>
 </head>
 <body>
@@ -499,19 +521,19 @@
         }
 
         if (bySlug.size > 0) {
-          const links = [...bySlug.entries()]
-            .map(([slug, name]) => `<a href="/c/${esc(slug)}/audit">${esc(name)}</a>`)
-            .join(' · ');
-          communityLinksHtml = `<br>Community audit logs: ${links}`;
+          const chips = [...bySlug.entries()]
+            .map(([slug, name]) => `<a href="/c/${esc(slug)}/audit" class="audit-community-chip">${esc(name)}</a>`)
+            .join('');
+          communityLinksHtml = `<div class="audit-community-nav">${chips}</div>`;
         }
       } catch (_) { /* non-fatal — skip links if fetch fails */ }
 
       intro.innerHTML = `
         <strong>Platform transparency log.</strong>
         An append-only public record of platform-level events: user onboarding,
-        wiki annotations, annotator management, and community creation. No login required.${communityLinksHtml}
+        wiki annotations, annotator management, and community creation. No login required.
         <br>Deliberation events (proposals, threads, votes, signals) are in each community's
-        own audit log, linked above.
+        own audit log.${communityLinksHtml}
       `;
     }
 
