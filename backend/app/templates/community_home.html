@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Community — Civic Platform</title>
   <link rel="stylesheet" href="/static/css/main.css">
-  <script src="/static/js/auth.js"></script>
-  <script src="/static/js/nav.js"></script>
+  <script src="/static/js/auth.js?v={{ static_v }}"></script>
+  <script src="/static/js/nav.js?v={{ static_v }}"></script>
   <style>
     .community-header {
       padding: 28px 0 20px;
@@ -145,8 +145,8 @@
     </div>
   </main>
 
-  <script src="/static/js/utils.js"></script>
-  <script src="/static/js/api.js"></script>
+  <script src="/static/js/utils.js?v={{ static_v }}"></script>
+  <script src="/static/js/api.js?v={{ static_v }}"></script>
   <script>
 
     function parseCommunitySlug() {
@@ -242,6 +242,8 @@
         startBtn = `<a href="/c/${esc(communitySlug)}/new-thread" class="btn-join">+ Start a Discussion</a>`;
       } else if (!auth.isSignedIn()) {
         startBtn = `<a href="/signin" class="btn-join">+ Start a Discussion</a>`;
+      } else if (community.is_invite_only && community.allow_membership_requests) {
+        startBtn = `<button class="btn-join" onclick="showRequestAccessForm()">+ Start a Discussion</button>`;
       } else if (community.is_invite_only) {
         startBtn = `<button class="btn-join" onclick="showInviteOnlyNotice()">+ Start a Discussion</button>`;
       } else {
@@ -253,8 +255,10 @@
       if (!myMembership) {
         if (!auth.isSignedIn()) {
           joinBtn = `<a href="/signin" class="btn-outline">Sign in to join</a>`;
+        } else if (community.is_invite_only && community.allow_membership_requests) {
+          joinBtn = `<button class="btn-outline" id="request-btn" onclick="showRequestAccessForm()">Request Access</button>`;
         } else if (community.is_invite_only) {
-          joinBtn = `<button class="btn-outline" disabled style="cursor:default; color:#999;" title="Contact an admin to request an invitation">Invite-only</button>`;
+          joinBtn = `<button class="btn-outline" disabled style="cursor:default; color:#999;" title="This is an invite-only community">Invite-only</button>`;
         } else {
           joinBtn = `<button class="btn-outline" id="join-btn" onclick="handleJoin()">Join This Community</button>`;
         }
@@ -340,6 +344,54 @@
         feedback.textContent = "This is an invite-only community. Contact an admin to request access.";
         feedback.className = "join-feedback join-feedback-error";
         feedback.style.display = "block";
+      }
+    }
+
+    function showRequestAccessForm() {
+      const feedback = document.getElementById("join-feedback");
+      if (!feedback) return;
+      feedback.style.display = "block";
+      feedback.className = "join-feedback";
+      feedback.innerHTML = `
+        <div style="background:#f5f7fa; border:1px solid #dde2ea; border-radius:6px; padding:14px 16px; max-width:480px;">
+          <p style="margin:0 0 10px; font-size:14px; font-weight:600; color:#1a1a2e;">Request access to this community</p>
+          <textarea id="request-reason" rows="3" maxlength="500"
+            placeholder="Briefly explain why you'd like to join (optional)"
+            style="width:100%; box-sizing:border-box; border:1px solid #ccc; border-radius:4px; padding:8px; font-size:13px; resize:vertical;"></textarea>
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <button class="btn-primary" onclick="handleRequestAccess()">Send Request</button>
+            <button class="btn-outline" onclick="document.getElementById('join-feedback').style.display='none'">Cancel</button>
+          </div>
+          <div id="request-error" style="color:#c62828; font-size:13px; margin-top:8px;"></div>
+        </div>
+      `;
+    }
+
+    async function handleRequestAccess() {
+      const reason = document.getElementById("request-reason")?.value.trim() || null;
+      const errEl = document.getElementById("request-error");
+      const btn = document.querySelector("#join-feedback .btn-primary");
+      if (btn) { btn.disabled = true; btn.textContent = "Sending…"; }
+      if (errEl) errEl.textContent = "";
+
+      try {
+        await submitMembershipRequest(communitySlug, reason);
+        const feedback = document.getElementById("join-feedback");
+        if (feedback) {
+          feedback.innerHTML = `<div style="color:#2e7d32; font-size:14px; padding:10px 0;">
+            ✓ Request sent. A community admin will review your application.
+          </div>`;
+        }
+        // Grey out the request button so they don't double-submit on reload
+        const requestBtn = document.getElementById("request-btn");
+        if (requestBtn) { requestBtn.disabled = true; requestBtn.textContent = "Request Sent"; }
+      } catch (err) {
+        if (btn) { btn.disabled = false; btn.textContent = "Send Request"; }
+        if (errEl) {
+          errEl.textContent = err.message === "You already have a pending membership request for this community."
+            ? "You already have a pending request."
+            : (err.message || "Could not send request. Please try again.");
+        }
       }
     }
 

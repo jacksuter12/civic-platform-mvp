@@ -18,14 +18,14 @@
     <div id="pa-editor-mount"></div>
   </main>
 
-  <script src="/static/js/config.js"></script>
-  <script src="/static/js/utils.js"></script>
-  <script src="/static/js/auth.js"></script>
-  <script src="/static/js/api.js"></script>
-  <script src="/static/js/nav.js"></script>
+  <script src="/static/js/config.js?v={{ static_v }}"></script>
+  <script src="/static/js/utils.js?v={{ static_v }}"></script>
+  <script src="/static/js/auth.js?v={{ static_v }}"></script>
+  <script src="/static/js/api.js?v={{ static_v }}"></script>
+  <script src="/static/js/nav.js?v={{ static_v }}"></script>
   <script src="https://cdn.jsdelivr.net/npm/turndown@7.2.0/dist/turndown.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/turndown-plugin-gfm@1.0.2/dist/turndown-plugin-gfm.js"></script>
-  <script src="/static/js/proposal_editor.js"></script>
+  <script src="/static/js/proposal_editor.js?v={{ static_v }}"></script>
   <script>
     (async function () {
       // Path: /c/{slug}/thread/{threadId}/new-proposal

@@ -17,6 +17,12 @@ class CommunityUpdate(CamelBase):
     is_invite_only: bool | None = None
 
 
+class CommunitySettingsUpdate(CamelBase):
+    """Community admin: update toggleable settings without touching core fields."""
+
+    allow_membership_requests: bool | None = None
+
+
 class CommunityCreate(CamelBase):
     slug: str = Field(min_length=2, max_length=60, pattern=r"^[a-z0-9-]+$")
     name: str = Field(min_length=2, max_length=120)
@@ -38,6 +44,7 @@ class CommunityRead(UUIDSchema, TimestampSchema):
     verification_method: str
     is_public: bool
     is_invite_only: bool
+    allow_membership_requests: bool
     is_active: bool
     member_count: int = 0
     active_thread_count: int = 0

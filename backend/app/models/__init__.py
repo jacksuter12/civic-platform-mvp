@@ -18,6 +18,7 @@ from app.models.proposal_comment import ProposalComment
 from app.models.amendment import Amendment, AmendmentStatus
 from app.models.proposal_version import ProposalVersion
 from app.models.annotation import Annotation, AnnotationReaction, AnnotationTargetType, ReactionType
+from app.models.membership_request import MembershipRequest, MembershipRequestStatus
 
 __all__ = [
     "Base",
@@ -54,4 +55,6 @@ __all__ = [
     "AnnotationReaction",
     "AnnotationTargetType",
     "ReactionType",
+    "MembershipRequest",
+    "MembershipRequestStatus",
 ]

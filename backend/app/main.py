@@ -1,4 +1,5 @@
 import re
+import time
 from pathlib import Path
 
 import markdown
@@ -6,7 +7,7 @@ import structlog
 import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
@@ -93,8 +94,9 @@ async def config_js() -> Response:
 # Serve static assets (CSS, JS) — config.js is intercepted by the route above
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# Jinja2 templates — used only for wiki pages (existing pages use FileResponse)
+# Jinja2 templates for all page routes (static_v global enables cache-busting)
 templates = Jinja2Templates(directory="app/templates")
+templates.env.globals["static_v"] = int(time.time())
 
 # ---------------------------------------------------------------------------
 # Wiki helpers
@@ -317,47 +319,47 @@ async def wiki_article(request: Request, slug: str) -> HTMLResponse:
 
 
 # ---------------------------------------------------------------------------
-# Existing page routes (FileResponse — unchanged)
+# Page routes (TemplateResponse so Jinja2 substitutes static_v for cache-busting)
 # ---------------------------------------------------------------------------
 
 @app.get("/")
-async def index_page() -> FileResponse:
-    return FileResponse("app/templates/index.html")
+async def index_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "index.html")
 
 
 @app.get("/how-it-works")
-async def how_it_works_page() -> FileResponse:
-    return FileResponse("app/templates/how-it-works.html")
+async def how_it_works_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "how-it-works.html")
 
 
 @app.get("/quiz")
-async def quiz_page() -> FileResponse:
-    return FileResponse("app/templates/quiz.html")
+async def quiz_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "quiz.html")
 
 
 @app.get("/signin")
-async def signin_page() -> FileResponse:
-    return FileResponse("app/templates/signin.html")
+async def signin_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "signin.html")
 
 
 @app.get("/account")
-async def account_page() -> FileResponse:
-    return FileResponse("app/templates/account.html")
+async def account_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "account.html")
 
 
 @app.get("/admin")
-async def admin_page() -> FileResponse:
-    return FileResponse("app/templates/admin.html")
+async def admin_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "admin.html")
 
 
 @app.get("/audit")
-async def audit_page() -> FileResponse:
-    return FileResponse("app/templates/audit.html")
+async def audit_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "audit.html")
 
 
 @app.get("/communities")
-async def communities_page() -> FileResponse:
-    return FileResponse("app/templates/communities.html")
+async def communities_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "communities.html")
 
 
 # ---------------------------------------------------------------------------
@@ -384,13 +386,13 @@ async def thread_redirect(thread_id: str) -> RedirectResponse:
 # ---------------------------------------------------------------------------
 
 @app.get("/c/{slug}")
-async def community_home_page(slug: str) -> FileResponse:
-    return FileResponse("app/templates/community_home.html")
+async def community_home_page(request: Request, slug: str) -> HTMLResponse:
+    return templates.TemplateResponse(request, "community_home.html")
 
 
 @app.get("/c/{slug}/threads")
-async def community_threads_page(slug: str) -> FileResponse:
-    return FileResponse("app/templates/threads.html")
+async def community_threads_page(request: Request, slug: str) -> HTMLResponse:
+    return templates.TemplateResponse(request, "threads.html")
 
 
 @app.get("/c/{slug}/thread/{thread_id}", response_class=HTMLResponse)
@@ -417,30 +419,30 @@ async def community_thread_page(request: Request, slug: str, thread_id: str) -> 
 
 
 @app.get("/c/{slug}/new-thread")
-async def community_new_thread_page(slug: str) -> FileResponse:
-    return FileResponse("app/templates/new-thread.html")
+async def community_new_thread_page(request: Request, slug: str) -> HTMLResponse:
+    return templates.TemplateResponse(request, "new-thread.html")
 
 
 @app.get("/c/{slug}/audit")
-async def community_audit_page(slug: str) -> FileResponse:
-    return FileResponse("app/templates/audit.html")
+async def community_audit_page(request: Request, slug: str) -> HTMLResponse:
+    return templates.TemplateResponse(request, "audit.html")
 
 
 @app.get("/c/{slug}/members")
-async def community_members_page(slug: str) -> FileResponse:
-    return FileResponse("app/templates/community_members.html")
+async def community_members_page(request: Request, slug: str) -> HTMLResponse:
+    return templates.TemplateResponse(request, "community_members.html")
 
 
 @app.get("/c/{slug}/admin")
-async def community_admin_page(slug: str) -> FileResponse:
-    return FileResponse("app/templates/community_admin.html")
+async def community_admin_page(request: Request, slug: str) -> HTMLResponse:
+    return templates.TemplateResponse(request, "community_admin.html")
 
 
 @app.get("/c/{slug}/thread/{thread_id}/proposal/{proposal_id}")
-async def proposal_review_page(slug: str, thread_id: str, proposal_id: str) -> FileResponse:
-    return FileResponse("app/templates/proposal_review.html")
+async def proposal_review_page(request: Request, slug: str, thread_id: str, proposal_id: str) -> HTMLResponse:
+    return templates.TemplateResponse(request, "proposal_review.html")
 
 
 @app.get("/c/{slug}/thread/{thread_id}/new-proposal")
-async def new_proposal_page(slug: str, thread_id: str) -> FileResponse:
-    return FileResponse("app/templates/proposal_authoring.html")
+async def new_proposal_page(request: Request, slug: str, thread_id: str) -> HTMLResponse:
+    return templates.TemplateResponse(request, "proposal_authoring.html")

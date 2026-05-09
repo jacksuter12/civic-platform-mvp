@@ -39,6 +39,7 @@ class Community(Base, UUIDPKMixin, TimestampMixin):
     verification_method: Mapped[str] = mapped_column(Text, nullable=False)
     is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_invite_only: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    allow_membership_requests: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # JSONB on PostgreSQL (GIN-indexable), JSON on SQLite (tests)
     default_phase_durations: Mapped[dict | None] = mapped_column(
         JSONB().with_variant(JSON(), "sqlite"), nullable=True

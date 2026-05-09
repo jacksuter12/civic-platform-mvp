@@ -10,7 +10,7 @@ All deliberation lives inside a community. These routes handle:
 """
 
 import uuid
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -19,8 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
     DB,
-    CurrentUser,
     CommunityAdminUser,
+    CurrentUser,
     OptionalUser,
     PlatformAdminUser,
     get_community,
@@ -28,12 +28,26 @@ from app.api.deps import (
 from app.core.audit import log_event
 from app.models.audit import AuditEventType, AuditLog
 from app.models.community import Community
-from app.models.domain import Domain
 from app.models.community_membership import CommunityMembership
+from app.models.domain import Domain
+from app.models.membership_request import MembershipRequest, MembershipRequestStatus
 from app.models.thread import Thread, ThreadStatus
 from app.models.user import PlatformRole, User, UserTier
 from app.schemas.audit import AuditLogEntry, AuditLogPage
-from app.schemas.community import CommunityCreate, CommunityMemberAdd, CommunityMemberRead, CommunityRead, CommunityUpdate
+from app.schemas.community import (
+    CommunityCreate,
+    CommunityMemberAdd,
+    CommunityMemberRead,
+    CommunityRead,
+    CommunitySettingsUpdate,
+    CommunityUpdate,
+)
+from app.schemas.membership_request import (
+    MembershipRequestCreate,
+    MembershipRequestDetail,
+    MembershipRequestOut,
+    MembershipRequestReview,
+)
 
 router = APIRouter()
 
@@ -70,6 +84,7 @@ async def _build_community_read(community: Community, db: AsyncSession) -> Commu
         verification_method=community.verification_method,
         is_public=community.is_public,
         is_invite_only=community.is_invite_only,
+        allow_membership_requests=community.allow_membership_requests,
         is_active=community.is_active,
         member_count=member_count,
         active_thread_count=active_thread_count,
@@ -436,3 +451,235 @@ async def community_audit_log(
     entries = [AuditLogEntry.model_validate(row) for row in result.scalars()]
 
     return AuditLogPage(entries=entries, total=total, limit=limit, offset=offset)
+
+
+# ---------------------------------------------------------------------------
+# PATCH /communities/{slug}/settings — community admin: update toggleable settings
+# ---------------------------------------------------------------------------
+
+
+@router.patch("/{slug}/settings", response_model=CommunityRead)
+async def update_community_settings(
+    payload: CommunitySettingsUpdate,
+    community: Annotated[Community, Depends(get_community)],
+    admin: CommunityAdminUser,
+    db: DB,
+) -> CommunityRead:
+    """Update toggleable community settings. Community facilitator/admin or platform admin only."""
+    changed: dict = {}
+    if payload.allow_membership_requests is not None:
+        community.allow_membership_requests = payload.allow_membership_requests
+        changed["allow_membership_requests"] = payload.allow_membership_requests
+
+    if changed:
+        db.add(community)
+        await db.flush()
+        await log_event(
+            db,
+            event_type=AuditEventType.COMMUNITY_SETTINGS_UPDATED,
+            target_type="community",
+            target_id=community.id,
+            payload=changed,
+            actor_id=admin.id,
+            community_id=community.id,
+        )
+
+    return await _build_community_read(community, db)
+
+
+# ---------------------------------------------------------------------------
+# POST /communities/{slug}/membership-request — submit a join request
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/{slug}/membership-request",
+    response_model=MembershipRequestOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def submit_membership_request(
+    payload: MembershipRequestCreate,
+    community: Annotated[Community, Depends(get_community)],
+    user: CurrentUser,
+    db: DB,
+) -> MembershipRequestOut:
+    """
+    Submit a request to join an invite-only community.
+    Only available when Community.allow_membership_requests is True.
+    """
+    if not community.is_invite_only:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This community is open to join directly.",
+        )
+    if not community.allow_membership_requests:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This community is not accepting membership requests.",
+        )
+
+    # Already a member?
+    existing_membership = await db.execute(
+        select(CommunityMembership).where(
+            CommunityMembership.community_id == community.id,
+            CommunityMembership.user_id == user.id,
+            CommunityMembership.is_active == True,
+        )
+    )
+    if existing_membership.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You are already a member of this community.",
+        )
+
+    # Already has a pending request?
+    existing_request = await db.execute(
+        select(MembershipRequest).where(
+            MembershipRequest.community_id == community.id,
+            MembershipRequest.user_id == user.id,
+            MembershipRequest.status == MembershipRequestStatus.PENDING,
+        )
+    )
+    if existing_request.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You already have a pending membership request for this community.",
+        )
+
+    req = MembershipRequest(
+        community_id=community.id,
+        user_id=user.id,
+        reason=payload.reason,
+        status=MembershipRequestStatus.PENDING,
+    )
+    db.add(req)
+    await db.flush()
+
+    await log_event(
+        db,
+        event_type=AuditEventType.MEMBERSHIP_REQUEST_SUBMITTED,
+        target_type="membership_request",
+        target_id=req.id,
+        payload={"community_id": str(community.id)},
+        actor_id=user.id,
+        community_id=community.id,
+    )
+
+    return MembershipRequestOut.model_validate(req)
+
+
+# ---------------------------------------------------------------------------
+# GET /communities/{slug}/membership-requests — list requests (admin only)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{slug}/membership-requests", response_model=list[MembershipRequestDetail])
+async def list_membership_requests(
+    community: Annotated[Community, Depends(get_community)],
+    admin: CommunityAdminUser,
+    db: DB,
+    status_filter: Annotated[MembershipRequestStatus | None, Query(alias="status")] = None,
+) -> list[MembershipRequestDetail]:
+    """List membership requests for a community. Defaults to pending requests."""
+    q = select(MembershipRequest).where(MembershipRequest.community_id == community.id)
+    if status_filter is not None:
+        q = q.where(MembershipRequest.status == status_filter)
+    else:
+        q = q.where(MembershipRequest.status == MembershipRequestStatus.PENDING)
+    q = q.order_by(MembershipRequest.created_at.asc())
+
+    result = await db.execute(q)
+    requests = result.scalars().all()
+
+    out = []
+    for req in requests:
+        await db.refresh(req, ["user"])
+        out.append(
+            MembershipRequestDetail(
+                id=req.id,
+                community_id=req.community_id,
+                user_id=req.user_id,
+                reason=req.reason,
+                status=req.status,
+                reviewed_at=req.reviewed_at,
+                created_at=req.created_at,
+                user={"id": req.user.id, "display_name": req.user.display_name, "email": req.user.email},
+            )
+        )
+    return out
+
+
+# ---------------------------------------------------------------------------
+# PATCH /communities/{slug}/membership-requests/{request_id} — approve or deny
+# ---------------------------------------------------------------------------
+
+
+@router.patch(
+    "/{slug}/membership-requests/{request_id}",
+    response_model=MembershipRequestDetail,
+)
+async def review_membership_request(
+    request_id: uuid.UUID,
+    payload: MembershipRequestReview,
+    community: Annotated[Community, Depends(get_community)],
+    admin: CommunityAdminUser,
+    db: DB,
+) -> MembershipRequestDetail:
+    """Approve or deny a membership request. Community facilitator/admin or platform admin only."""
+    result = await db.execute(
+        select(MembershipRequest).where(
+            MembershipRequest.id == request_id,
+            MembershipRequest.community_id == community.id,
+        )
+    )
+    req = result.scalar_one_or_none()
+    if req is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found.")
+    if req.status != MembershipRequestStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This request has already been reviewed.",
+        )
+
+    req.reviewed_by_id = admin.id
+    req.reviewed_at = datetime.now(UTC)
+
+    if payload.action == "approve":
+        req.status = MembershipRequestStatus.APPROVED
+        # Create the membership
+        membership = CommunityMembership(
+            community_id=community.id,
+            user_id=req.user_id,
+            tier=UserTier.REGISTERED,
+            joined_at=datetime.now(UTC),
+        )
+        db.add(membership)
+        event_type = AuditEventType.MEMBERSHIP_REQUEST_APPROVED
+    else:
+        req.status = MembershipRequestStatus.DENIED
+        event_type = AuditEventType.MEMBERSHIP_REQUEST_DENIED
+
+    db.add(req)
+    await db.flush()
+
+    await log_event(
+        db,
+        event_type=event_type,
+        target_type="membership_request",
+        target_id=req.id,
+        payload={"action": payload.action, "community_id": str(community.id)},
+        actor_id=admin.id,
+        community_id=community.id,
+    )
+
+    await db.refresh(req, ["user"])
+    return MembershipRequestDetail(
+        id=req.id,
+        community_id=req.community_id,
+        user_id=req.user_id,
+        reason=req.reason,
+        status=req.status,
+        reviewed_at=req.reviewed_at,
+        created_at=req.created_at,
+        user={"id": req.user.id, "display_name": req.user.display_name, "email": req.user.email},
+    )

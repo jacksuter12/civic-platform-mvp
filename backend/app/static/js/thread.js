@@ -20,6 +20,7 @@ const S = {
   threadId:      null,
   communitySlug: null,
   thread:        null,
+  community:     null,         // CommunityRead for this thread's community
   me:            null,         // null if not signed in
   posts:         [],           // flat list from /posts/flat
   proposals:     [],
@@ -237,6 +238,14 @@ function countDescendants(id, childrenOf) {
 // ===================================================================
 
 function renderNewPostForm() {
+  if (auth.isSignedIn()) {
+    const memberships = S.me?.community_memberships || [];
+    const isMember = memberships.some(m => m.community_slug === S.communitySlug);
+    if (!isMember) {
+      return renderNonMemberPostGate();
+    }
+  }
+
   if (!canPost()) {
     if (!auth.isSignedIn()) {
       return `<div class="phase-locked"><a href="/signin">Sign in</a> to join the discussion.</div>`;
@@ -259,6 +268,58 @@ function renderNewPostForm() {
         <button type="submit" class="btn-primary">Post</button>
       </div>
     </form>`;
+}
+
+function renderNonMemberPostGate() {
+  if (S.community?.allow_membership_requests) {
+    return `
+      <div class="phase-locked non-member-gate">
+        <p style="margin:0 0 8px;">You're not a member of this community.</p>
+        <button class="btn-outline" onclick="showThreadRequestForm()">Request Access</button>
+        <div id="thread-request-feedback" style="margin-top:10px;"></div>
+      </div>`;
+  }
+  return `<div class="phase-locked">You're not a member of this community. Contact an admin to request access.</div>`;
+}
+
+function showThreadRequestForm() {
+  const feedback = document.getElementById("thread-request-feedback");
+  if (!feedback) return;
+  feedback.innerHTML = `
+    <textarea id="thread-request-reason" rows="3" maxlength="500"
+      placeholder="Briefly explain why you'd like to join (optional)"
+      style="width:100%; box-sizing:border-box; border:1px solid #ccc; border-radius:4px; padding:8px; font-size:13px; resize:vertical; margin-bottom:8px;"></textarea>
+    <div style="display:flex; gap:8px;">
+      <button class="btn-primary" onclick="handleThreadRequestAccess()">Send Request</button>
+      <button class="btn-outline" onclick="document.getElementById('thread-request-feedback').innerHTML=''">Cancel</button>
+    </div>
+    <div id="thread-request-error" style="color:#c62828; font-size:13px; margin-top:6px;"></div>
+  `;
+}
+
+async function handleThreadRequestAccess() {
+  const reason = document.getElementById("thread-request-reason")?.value.trim() || null;
+  const errEl = document.getElementById("thread-request-error");
+  const btn = document.querySelector("#thread-request-feedback .btn-primary");
+  if (btn) { btn.disabled = true; btn.textContent = "Sending…"; }
+  if (errEl) errEl.textContent = "";
+
+  try {
+    await submitMembershipRequest(S.communitySlug, reason);
+    const feedback = document.getElementById("thread-request-feedback");
+    if (feedback) {
+      feedback.innerHTML = `<p style="color:#2e7d32; font-size:13px; margin:0;">
+        ✓ Request sent. A community admin will review your application.
+      </p>`;
+    }
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = "Send Request"; }
+    if (errEl) {
+      errEl.textContent = err.message === "You already have a pending membership request for this community."
+        ? "You already have a pending request for this community."
+        : (err.message || "Could not send request. Please try again.");
+    }
+  }
 }
 
 // ===================================================================
@@ -1262,12 +1323,14 @@ async function init() {
   }
 
   try {
-    const [thread, posts] = await Promise.all([
+    const [thread, posts, community] = await Promise.all([
       getThread(S.threadId),
       getPostsFlat(S.threadId),
+      getCommunity(S.communitySlug).catch(() => null),
     ]);
-    S.thread = thread;
-    S.posts  = posts;
+    S.thread     = thread;
+    S.posts      = posts;
+    S.community  = community;
 
     // Load proposals only in relevant phases
     if (showProposals()) {

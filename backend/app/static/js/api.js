@@ -618,3 +618,33 @@ async function moderateAnnotation(id, reason) {
     body: JSON.stringify({ reason }),
   });
 }
+
+// ---------------------------------------------------------------------------
+// Membership requests
+// ---------------------------------------------------------------------------
+
+async function submitMembershipRequest(communitySlug, reason) {
+  return apiFetch(`/communities/${communitySlug}/membership-request`, {
+    method: "POST",
+    body: JSON.stringify({ reason: reason || null }),
+  });
+}
+
+async function getMembershipRequests(communitySlug, statusFilter) {
+  const qs = statusFilter ? `?status=${statusFilter}` : "";
+  return apiFetch(`/communities/${communitySlug}/membership-requests${qs}`);
+}
+
+async function reviewMembershipRequest(communitySlug, requestId, action) {
+  return apiFetch(`/communities/${communitySlug}/membership-requests/${requestId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ action }),
+  });
+}
+
+async function updateCommunitySettings(communitySlug, settings) {
+  return apiFetch(`/communities/${communitySlug}/settings`, {
+    method: "PATCH",
+    body: JSON.stringify(settings),
+  });
+}

@@ -67,6 +67,11 @@ class AuditEventType(str, PyEnum):
     COMMUNITY_UPDATED = "community_updated"
     COMMUNITY_MEMBER_JOINED = "community_member_joined"
     COMMUNITY_MEMBER_PROMOTED = "community_member_promoted"
+    COMMUNITY_SETTINGS_UPDATED = "community_settings_updated"
+    # Membership requests
+    MEMBERSHIP_REQUEST_SUBMITTED = "membership_request_submitted"
+    MEMBERSHIP_REQUEST_APPROVED = "membership_request_approved"
+    MEMBERSHIP_REQUEST_DENIED = "membership_request_denied"
     # LLM (future)
     LLM_SUMMARY_GENERATED = "llm_summary_generated"
 

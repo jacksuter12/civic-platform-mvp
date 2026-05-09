@@ -593,3 +593,242 @@ async def test_platform_admin_sees_private_community(
     app.dependency_overrides.clear()
     assert resp.status_code == 200
     assert resp.json()["slug"] == "private-group"
+
+
+# ---------------------------------------------------------------------------
+# Tests: membership requests
+# ---------------------------------------------------------------------------
+
+
+@pytest_asyncio.fixture
+async def invite_only_community(db_session: AsyncSession) -> Community:
+    c = Community(
+        slug="bitcoin-bookclub",
+        name="Bitcoin Bookclub",
+        description="An invite-only community for testing membership requests.",
+        community_type=CommunityType.TOPICAL,
+        boundary_desc="Online community",
+        verification_method="Manual invite",
+        is_public=True,
+        is_invite_only=True,
+        allow_membership_requests=True,
+    )
+    db_session.add(c)
+    await db_session.commit()
+    return c
+
+
+@pytest_asyncio.fixture
+async def invite_only_admin(db_session: AsyncSession, invite_only_community: Community) -> User:
+    u = User(
+        supabase_uid="uid-bookclub-admin",
+        email="bookclub-admin@example.com",
+        display_name="BookclubAdmin",
+        tier=UserTier.FACILITATOR,
+    )
+    db_session.add(u)
+    await db_session.flush()
+    db_session.add(
+        CommunityMembership(
+            community_id=invite_only_community.id,
+            user_id=u.id,
+            tier=UserTier.FACILITATOR,
+            joined_at=datetime.now(UTC),
+        )
+    )
+    await db_session.commit()
+    return u
+
+
+@pytest.mark.asyncio
+async def test_user_can_submit_membership_request(
+    db_session: AsyncSession,
+    regular_user: User,
+    invite_only_community: Community,
+) -> None:
+    async with _make_client(db_session, regular_user) as c:
+        resp = await c.post(
+            f"/api/v1/communities/{invite_only_community.slug}/membership-request",
+            json={"reason": "I love Bitcoin literature."},
+        )
+    app.dependency_overrides.clear()
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["status"] == "pending"
+
+
+@pytest.mark.asyncio
+async def test_membership_request_creates_audit_event(
+    db_session: AsyncSession,
+    regular_user: User,
+    invite_only_community: Community,
+) -> None:
+    async with _make_client(db_session, regular_user) as c:
+        await c.post(
+            f"/api/v1/communities/{invite_only_community.slug}/membership-request",
+            json={"reason": "I want to join."},
+        )
+    app.dependency_overrides.clear()
+
+    from sqlalchemy import select as sa_select
+    result = await db_session.execute(
+        sa_select(AuditLog).where(
+            AuditLog.event_type == AuditEventType.MEMBERSHIP_REQUEST_SUBMITTED,
+            AuditLog.community_id == invite_only_community.id,
+        )
+    )
+    assert result.scalar_one_or_none() is not None
+
+
+@pytest.mark.asyncio
+async def test_duplicate_membership_request_returns_409(
+    db_session: AsyncSession,
+    regular_user: User,
+    invite_only_community: Community,
+) -> None:
+    async with _make_client(db_session, regular_user) as c:
+        await c.post(
+            f"/api/v1/communities/{invite_only_community.slug}/membership-request",
+            json={"reason": "First request"},
+        )
+        resp = await c.post(
+            f"/api/v1/communities/{invite_only_community.slug}/membership-request",
+            json={"reason": "Second request"},
+        )
+    app.dependency_overrides.clear()
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_membership_request_blocked_when_toggle_off(
+    db_session: AsyncSession,
+    regular_user: User,
+) -> None:
+    c_no_req = Community(
+        slug="closed-bookclub",
+        name="Closed Bookclub",
+        description="No request allowed.",
+        community_type=CommunityType.TOPICAL,
+        boundary_desc="Online",
+        verification_method="Manual",
+        is_public=True,
+        is_invite_only=True,
+        allow_membership_requests=False,
+    )
+    db_session.add(c_no_req)
+    await db_session.commit()
+
+    async with _make_client(db_session, regular_user) as c:
+        resp = await c.post(
+            f"/api/v1/communities/{c_no_req.slug}/membership-request",
+            json={},
+        )
+    app.dependency_overrides.clear()
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_admin_can_approve_membership_request(
+    db_session: AsyncSession,
+    regular_user: User,
+    invite_only_community: Community,
+    invite_only_admin: User,
+) -> None:
+    # Submit request
+    async with _make_client(db_session, regular_user) as c:
+        submit_resp = await c.post(
+            f"/api/v1/communities/{invite_only_community.slug}/membership-request",
+            json={"reason": "I want to join."},
+        )
+    app.dependency_overrides.clear()
+    request_id = submit_resp.json()["id"]
+
+    # Approve it
+    async with _make_client(db_session, invite_only_admin) as c:
+        resp = await c.patch(
+            f"/api/v1/communities/{invite_only_community.slug}/membership-requests/{request_id}",
+            json={"action": "approve"},
+        )
+    app.dependency_overrides.clear()
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "approved"
+
+    # Verify membership was created
+    from sqlalchemy import select as sa_select
+    from app.models.community_membership import CommunityMembership as CM
+    result = await db_session.execute(
+        sa_select(CM).where(
+            CM.community_id == invite_only_community.id,
+            CM.user_id == regular_user.id,
+            CM.is_active == True,
+        )
+    )
+    membership = result.scalar_one_or_none()
+    assert membership is not None
+    assert membership.tier == UserTier.REGISTERED
+
+
+@pytest.mark.asyncio
+async def test_admin_can_deny_membership_request(
+    db_session: AsyncSession,
+    regular_user: User,
+    invite_only_community: Community,
+    invite_only_admin: User,
+) -> None:
+    async with _make_client(db_session, regular_user) as c:
+        submit_resp = await c.post(
+            f"/api/v1/communities/{invite_only_community.slug}/membership-request",
+            json={},
+        )
+    app.dependency_overrides.clear()
+    request_id = submit_resp.json()["id"]
+
+    async with _make_client(db_session, invite_only_admin) as c:
+        resp = await c.patch(
+            f"/api/v1/communities/{invite_only_community.slug}/membership-requests/{request_id}",
+            json={"action": "deny"},
+        )
+    app.dependency_overrides.clear()
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "denied"
+
+
+@pytest.mark.asyncio
+async def test_non_admin_cannot_review_membership_request(
+    db_session: AsyncSession,
+    regular_user: User,
+    invite_only_community: Community,
+) -> None:
+    async with _make_client(db_session, regular_user) as c:
+        resp = await c.patch(
+            f"/api/v1/communities/{invite_only_community.slug}/membership-requests/{uuid.uuid4()}",
+            json={"action": "approve"},
+        )
+    app.dependency_overrides.clear()
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_community_settings_toggle(
+    db_session: AsyncSession,
+    invite_only_community: Community,
+    invite_only_admin: User,
+) -> None:
+    async with _make_client(db_session, invite_only_admin) as c:
+        resp = await c.patch(
+            f"/api/v1/communities/{invite_only_community.slug}/settings",
+            json={"allow_membership_requests": False},
+        )
+    app.dependency_overrides.clear()
+    assert resp.status_code == 200
+    assert resp.json()["allow_membership_requests"] is False
+
+    # Verify audit log recorded the change
+    from sqlalchemy import select as sa_select
+    result = await db_session.execute(
+        sa_select(AuditLog).where(
+            AuditLog.event_type == AuditEventType.COMMUNITY_SETTINGS_UPDATED,
+            AuditLog.community_id == invite_only_community.id,
+        )
+    )
+    assert result.scalar_one_or_none() is not None
