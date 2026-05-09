@@ -9,6 +9,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.session import AsyncSessionLocal
+from app.models.thread import Thread
+from app.models.community import Community
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 
 from app.config import settings
@@ -388,9 +393,27 @@ async def community_threads_page(slug: str) -> FileResponse:
     return FileResponse("app/templates/threads.html")
 
 
-@app.get("/c/{slug}/thread/{thread_id}")
-async def community_thread_page(slug: str, thread_id: str) -> FileResponse:
-    return FileResponse("app/templates/thread.html")
+@app.get("/c/{slug}/thread/{thread_id}", response_class=HTMLResponse)
+async def community_thread_page(request: Request, slug: str, thread_id: str) -> HTMLResponse:
+    thread_title = "Thread"
+    community_name = "Sensus"
+    try:
+        async with AsyncSessionLocal() as db:
+            row = await db.execute(
+                select(Thread.title, Community.name)
+                .join(Community, Thread.community_id == Community.id)
+                .where(Thread.id == thread_id)
+            )
+            result = row.first()
+            if result:
+                thread_title, community_name = result
+    except Exception:
+        pass
+    return templates.TemplateResponse(
+        request,
+        "thread.html",
+        {"thread_title": thread_title, "community_name": community_name, "request_url": str(request.url)},
+    )
 
 
 @app.get("/c/{slug}/new-thread")
