@@ -809,6 +809,34 @@ async def test_non_admin_cannot_review_membership_request(
 
 
 @pytest.mark.asyncio
+async def test_admin_can_list_membership_requests(
+    db_session: AsyncSession,
+    regular_user: User,
+    invite_only_community: Community,
+    invite_only_admin: User,
+) -> None:
+    # Submit a request first
+    async with _make_client(db_session, regular_user) as c:
+        await c.post(
+            f"/api/v1/communities/{invite_only_community.slug}/membership-request",
+            json={"reason": "Please let me in."},
+        )
+    app.dependency_overrides.clear()
+
+    # Admin lists pending requests — should see the one we just submitted
+    async with _make_client(db_session, invite_only_admin) as c:
+        resp = await c.get(
+            f"/api/v1/communities/{invite_only_community.slug}/membership-requests"
+        )
+    app.dependency_overrides.clear()
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["user"]["email"] == regular_user.email
+    assert data[0]["status"] == "pending"
+
+
+@pytest.mark.asyncio
 async def test_community_settings_toggle(
     db_session: AsyncSession,
     invite_only_community: Community,

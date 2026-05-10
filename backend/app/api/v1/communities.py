@@ -16,6 +16,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.api.deps import (
     DB,
@@ -581,7 +582,11 @@ async def list_membership_requests(
     status_filter: Annotated[MembershipRequestStatus | None, Query(alias="status")] = None,
 ) -> list[MembershipRequestDetail]:
     """List membership requests for a community. Defaults to pending requests."""
-    q = select(MembershipRequest).where(MembershipRequest.community_id == community.id)
+    q = (
+        select(MembershipRequest)
+        .options(selectinload(MembershipRequest.user))
+        .where(MembershipRequest.community_id == community.id)
+    )
     if status_filter is not None:
         q = q.where(MembershipRequest.status == status_filter)
     else:
@@ -591,22 +596,19 @@ async def list_membership_requests(
     result = await db.execute(q)
     requests = result.scalars().all()
 
-    out = []
-    for req in requests:
-        await db.refresh(req, ["user"])
-        out.append(
-            MembershipRequestDetail(
-                id=req.id,
-                community_id=req.community_id,
-                user_id=req.user_id,
-                reason=req.reason,
-                status=req.status,
-                reviewed_at=req.reviewed_at,
-                created_at=req.created_at,
-                user={"id": req.user.id, "display_name": req.user.display_name, "email": req.user.email},
-            )
+    return [
+        MembershipRequestDetail(
+            id=req.id,
+            community_id=req.community_id,
+            user_id=req.user_id,
+            reason=req.reason,
+            status=req.status,
+            reviewed_at=req.reviewed_at,
+            created_at=req.created_at,
+            user={"id": req.user.id, "display_name": req.user.display_name, "email": req.user.email},
         )
-    return out
+        for req in requests
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -672,7 +674,13 @@ async def review_membership_request(
         community_id=community.id,
     )
 
-    await db.refresh(req, ["user"])
+    # Reload with user eagerly to avoid async lazy-load issues
+    refreshed = await db.execute(
+        select(MembershipRequest)
+        .options(selectinload(MembershipRequest.user))
+        .where(MembershipRequest.id == req.id)
+    )
+    req = refreshed.scalar_one()
     return MembershipRequestDetail(
         id=req.id,
         community_id=req.community_id,

@@ -40,7 +40,7 @@ def upgrade() -> None:
 
     op.execute("DROP TYPE IF EXISTS membership_request_status")
     op.execute(
-        "CREATE TYPE membership_request_status AS ENUM ('pending', 'approved', 'denied')"
+        "CREATE TYPE membership_request_status AS ENUM ('PENDING', 'APPROVED', 'DENIED')"
     )
 
     op.create_table(
@@ -91,16 +91,16 @@ def upgrade() -> None:
     )
 
     op.execute(
-        "ALTER TYPE audit_event_type ADD VALUE IF NOT EXISTS 'community_settings_updated'"
+        "ALTER TYPE audit_event_type ADD VALUE IF NOT EXISTS 'COMMUNITY_SETTINGS_UPDATED'"
     )
     op.execute(
-        "ALTER TYPE audit_event_type ADD VALUE IF NOT EXISTS 'membership_request_submitted'"
+        "ALTER TYPE audit_event_type ADD VALUE IF NOT EXISTS 'MEMBERSHIP_REQUEST_SUBMITTED'"
     )
     op.execute(
-        "ALTER TYPE audit_event_type ADD VALUE IF NOT EXISTS 'membership_request_approved'"
+        "ALTER TYPE audit_event_type ADD VALUE IF NOT EXISTS 'MEMBERSHIP_REQUEST_APPROVED'"
     )
     op.execute(
-        "ALTER TYPE audit_event_type ADD VALUE IF NOT EXISTS 'membership_request_denied'"
+        "ALTER TYPE audit_event_type ADD VALUE IF NOT EXISTS 'MEMBERSHIP_REQUEST_DENIED'"
     )
 
 
