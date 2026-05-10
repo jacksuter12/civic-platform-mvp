@@ -248,7 +248,10 @@ function renderNewPostForm() {
 
   if (!canPost()) {
     if (!auth.isSignedIn()) {
-      return `<div class="phase-locked"><a href="/signin">Sign in</a> to join the discussion.</div>`;
+      return `<div class="phase-locked" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <span>Sign in to join the discussion.</span>
+        <a href="/signin" style="display:inline-block; padding:7px 16px; background:#1a1a1a; color:#fff; border-radius:5px; font-size:13px; font-weight:500; text-decoration:none; white-space:nowrap;">Sign in</a>
+      </div>`;
     }
     const msgs = {
       proposing: "Posts are locked during the proposing phase.",
