@@ -23,9 +23,7 @@ Fixes:
 
 from typing import Sequence, Union
 
-import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql as pg
 
 
 revision: str = "i3c4d5e6f7g8"
@@ -38,7 +36,11 @@ def upgrade() -> None:
     # -------------------------------------------------------------------------
     # 1. Fix membership_request_status: recreate with uppercase values
     # -------------------------------------------------------------------------
-    # Alter the column to TEXT first so we can drop the old enum type
+    # The column default ('pending'::membership_request_status) depends on the
+    # type, so drop it first; we'll restore an uppercase default after.
+    op.execute(
+        "ALTER TABLE membership_requests ALTER COLUMN status DROP DEFAULT"
+    )
     op.execute(
         "ALTER TABLE membership_requests "
         "ALTER COLUMN status TYPE TEXT USING status::TEXT"
@@ -47,10 +49,18 @@ def upgrade() -> None:
     op.execute(
         "CREATE TYPE membership_request_status AS ENUM ('PENDING', 'APPROVED', 'DENIED')"
     )
+    # Convert existing 'pending' → 'PENDING' etc. (handles zero or more rows)
+    op.execute(
+        "UPDATE membership_requests SET status = UPPER(status)"
+    )
     op.execute(
         "ALTER TABLE membership_requests "
         "ALTER COLUMN status TYPE membership_request_status "
         "USING status::membership_request_status"
+    )
+    op.execute(
+        "ALTER TABLE membership_requests "
+        "ALTER COLUMN status SET DEFAULT 'PENDING'::membership_request_status"
     )
 
     # -------------------------------------------------------------------------
@@ -73,6 +83,9 @@ def downgrade() -> None:
     # Revert membership_request_status back to lowercase values.
     # audit_event_type values cannot be removed; leave them in place.
     op.execute(
+        "ALTER TABLE membership_requests ALTER COLUMN status DROP DEFAULT"
+    )
+    op.execute(
         "ALTER TABLE membership_requests "
         "ALTER COLUMN status TYPE TEXT USING status::TEXT"
     )
@@ -81,7 +94,14 @@ def downgrade() -> None:
         "CREATE TYPE membership_request_status AS ENUM ('pending', 'approved', 'denied')"
     )
     op.execute(
+        "UPDATE membership_requests SET status = LOWER(status)"
+    )
+    op.execute(
         "ALTER TABLE membership_requests "
         "ALTER COLUMN status TYPE membership_request_status "
         "USING status::membership_request_status"
+    )
+    op.execute(
+        "ALTER TABLE membership_requests "
+        "ALTER COLUMN status SET DEFAULT 'pending'::membership_request_status"
     )
