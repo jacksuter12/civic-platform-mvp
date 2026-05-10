@@ -720,7 +720,15 @@ function renderPage() {
 
   document.getElementById("thread-container").innerHTML = `
     <div class="thread-header">
-      <a href="/c/${S.communitySlug}/threads" class="back-link">← All Discussions</a>
+      <div style="font-size:13px; color:#888; margin-bottom:12px;">
+        <a href="/" style="color:#1565c0; text-decoration:none;">← All Communities</a>
+        <span style="margin:0 4px;">/</span>
+        <a href="/c/${S.communitySlug}" style="color:#1565c0; text-decoration:none;">${esc(S.community?.name || S.communitySlug)}</a>
+        <span style="margin:0 4px;">/</span>
+        <a href="/c/${S.communitySlug}/threads" style="color:#1565c0; text-decoration:none;">Discussions</a>
+        <span style="margin:0 4px;">/</span>
+        <span>${esc(t.title)}</span>
+      </div>
       <div class="thread-header-top">
         <h1 class="thread-detail-title">${esc(t.title)}</h1>
         <span class="${phaseBadgeClass(t.status)}">${capitalize(t.status)}</span>

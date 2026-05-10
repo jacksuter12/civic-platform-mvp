@@ -63,7 +63,7 @@
 
   <div id="nav-placeholder"></div>
 
-  <main class="container">
+  <main class="container" style="padding-top: 32px; padding-bottom: 64px;">
     <div id="page-content">
       <div class="loading">Loading members…</div>
     </div>
@@ -139,7 +139,7 @@
 
     async function fetchUserSuggestions(query) {
       try {
-        const users = await listUsers({ search: query, limit: 10 });
+        const users = await searchCommunityUsers(communitySlug, query);
         renderUserDropdown(users);
       } catch (_) { closeUserDropdown(); }
     }
@@ -149,17 +149,19 @@
       if (!dd || !users.length) { closeUserDropdown(); return; }
       dd.innerHTML = users.map(u => `
         <div class="user-dropdown-option"
-             onmousedown="selectUser(${JSON.stringify({ email: u.email, display_name: u.display_name })})">
+             data-email="${esc(u.email)}"
+             data-name="${esc(u.display_name)}"
+             onmousedown="selectUser(this)">
           <span class="user-dd-name">${esc(u.display_name)}</span>
           <span class="user-dd-email">${esc(u.email)}</span>
         </div>`).join("");
       dd.style.display = "block";
     }
 
-    function selectUser(user) {
-      _selectedEmail = user.email;
-      document.getElementById("add-member-input").value = `${user.display_name} (${user.email})`;
-      document.getElementById("add-member-email").value = user.email;
+    function selectUser(el) {
+      _selectedEmail = el.dataset.email;
+      document.getElementById("add-member-input").value = `${el.dataset.name} (${el.dataset.email})`;
+      document.getElementById("add-member-email").value = el.dataset.email;
       closeUserDropdown();
     }
 
