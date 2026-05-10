@@ -108,12 +108,13 @@
       }
 
       const content = document.getElementById("page-content");
-      let domains, community;
+      let domains, community, me;
 
       try {
-        [community, domains] = await Promise.all([
+        [community, domains, me] = await Promise.all([
           getCommunity(communitySlug),
           getDomains(communitySlug),
+          getMe(),
         ]);
       } catch (err) {
         content.innerHTML = `<div class="error-message">Could not load: ${err.message}</div>`;
@@ -127,19 +128,99 @@
         return;
       }
 
-      content.innerHTML = renderForm(community, domains);
+      const isAdmin = (me.community_memberships || []).some(
+        m => m.community_slug === communitySlug && (m.tier === "facilitator" || m.tier === "admin")
+      );
+
+      content.innerHTML = renderForm(community, domains, isAdmin);
       setTimeout(() => {
         wireCharCounter("prompt-input", "prompt-count", 2000);
         wireCharCounter("context-input", "context-count", 5000);
       }, 0);
     }
 
-    function renderForm(community, domains) {
+    const DOMAIN_SUGGESTIONS = [
+      { name: "General", slug: "general" },
+      { name: "Housing", slug: "housing" },
+      { name: "Transportation", slug: "transportation" },
+      { name: "Public Safety", slug: "public-safety" },
+      { name: "Environment", slug: "environment" },
+      { name: "Budget & Finance", slug: "budget-finance" },
+      { name: "Education", slug: "education" },
+      { name: "Health", slug: "health" },
+      { name: "Infrastructure", slug: "infrastructure" },
+      { name: "Land Use", slug: "land-use" },
+    ];
+
+    function slugify(name) {
+      return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    }
+
+    function renderForm(community, domains, isAdmin) {
       const options = domains
         .map(d => `<option value="${d.id}">${escapeHtml(d.name)}</option>`)
         .join("");
 
+      const createOption = isAdmin
+        ? `<option value="__new__">+ Create new domain…</option>`
+        : "";
+
+      const domainPanel = isAdmin ? `
+        <div id="new-domain-panel" style="display:none; margin-top:12px; padding:16px; border:1px solid #d0d0d0; border-radius:8px; background:#f8f9ff;">
+          <div style="font-size:13px; color:#555; font-weight:500; margin-bottom:10px;">Common domains — click to pre-fill:</div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;">
+            ${DOMAIN_SUGGESTIONS.map(s => `
+              <button type="button"
+                onclick="preFillDomainSuggestion('${escapeHtml(s.name)}', '${escapeHtml(s.slug)}')"
+                style="padding:5px 12px; font-size:13px; border:1px solid #b0bec5; border-radius:16px; background:#fff; cursor:pointer; font-family:inherit;"
+                onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background='#fff'"
+              >${escapeHtml(s.name)}</button>
+            `).join("")}
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+            <div>
+              <label style="font-size:13px; color:#444; display:block; margin-bottom:4px;">Domain name <span style="color:#c62828">*</span></label>
+              <input id="new-domain-name" type="text" placeholder="e.g. Housing"
+                oninput="onNewDomainNameInput(this.value)"
+                style="width:100%; padding:8px 10px; border:1px solid #d0d0d0; border-radius:5px; font-size:14px; font-family:inherit; box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="font-size:13px; color:#444; display:block; margin-bottom:4px;">Slug (auto-generated)</label>
+              <input id="new-domain-slug" type="text" placeholder="e.g. housing"
+                style="width:100%; padding:8px 10px; border:1px solid #d0d0d0; border-radius:5px; font-size:14px; font-family:inherit; box-sizing:border-box;">
+            </div>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="font-size:13px; color:#444; display:block; margin-bottom:4px;">Why is this domain needed? <span style="color:#c62828">*</span></label>
+            <textarea id="new-domain-reason" rows="2" placeholder="Describe why this domain is needed for your community…"
+              style="width:100%; padding:8px 10px; border:1px solid #d0d0d0; border-radius:5px; font-size:14px; font-family:inherit; box-sizing:border-box; resize:vertical;"></textarea>
+          </div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <button type="button" id="create-domain-btn"
+              onclick="handleCreateDomain()"
+              style="padding:8px 20px; background:#1a1a1a; color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:500; font-family:inherit; cursor:pointer;">
+              Create Domain
+            </button>
+            <a href="#" onclick="cancelNewDomain(); return false;"
+              style="font-size:13px; color:#1565c0; text-decoration:none;">Cancel</a>
+            <span id="domain-create-feedback" style="font-size:13px;"></span>
+          </div>
+        </div>` : "";
+
+      const cSlug = escapeHtml(community.slug);
+      const cName = escapeHtml(community.name);
+
       return `
+        <div style="font-size:13px; color:#888; margin-bottom:12px;">
+          <a href="/" style="color:#1565c0; text-decoration:none;">← All Communities</a>
+          <span style="margin:0 4px;">/</span>
+          <a href="/c/${cSlug}" style="color:#1565c0; text-decoration:none;">${cName}</a>
+          <span style="margin:0 4px;">/</span>
+          <a href="/c/${cSlug}/threads" style="color:#1565c0; text-decoration:none;">Discussions</a>
+          <span style="margin:0 4px;">/</span>
+          <span>New Discussion</span>
+        </div>
+
         <h1 class="page-title">Start a Discussion</h1>
         <p class="page-subtitle">
           New threads open in the <strong>Open</strong> phase. A facilitator advances the discussion from there.
@@ -155,7 +236,10 @@
                 Domain
                 <span class="field-hint">— Which area does this discussion belong to?</span>
               </label>
-              <select id="domain-select" required>${options}</select>
+              <select id="domain-select" required onchange="onDomainSelectChange(this.value)">
+                ${options}${createOption}
+              </select>
+              ${domainPanel}
             </div>
 
             <div class="form-field">
@@ -204,7 +288,7 @@
             </div>
 
             <div class="form-footer">
-              <a href="/c/${escapeHtml(communitySlug)}/threads" style="font-size:14px; color:#888;">← Back to discussions</a>
+              <a href="/c/${escapeHtml(communitySlug)}/threads" style="font-size:14px; color:#1565c0; text-decoration:none;">← Back to discussions</a>
               <button type="submit" class="btn-submit" id="submit-btn">Create discussion</button>
             </div>
 
@@ -231,6 +315,84 @@
         .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
 
+    function onDomainSelectChange(value) {
+      const panel = document.getElementById("new-domain-panel");
+      if (!panel) return;
+      if (value === "__new__") {
+        panel.style.display = "block";
+      } else {
+        panel.style.display = "none";
+      }
+    }
+
+    function preFillDomainSuggestion(name, slug) {
+      const nameInput = document.getElementById("new-domain-name");
+      const slugInput = document.getElementById("new-domain-slug");
+      if (nameInput) nameInput.value = name;
+      if (slugInput) slugInput.value = slug;
+      nameInput && nameInput.focus();
+    }
+
+    function onNewDomainNameInput(value) {
+      const slugInput = document.getElementById("new-domain-slug");
+      if (slugInput) slugInput.value = slugify(value);
+    }
+
+    async function handleCreateDomain() {
+      const name = (document.getElementById("new-domain-name").value || "").trim();
+      const slug = (document.getElementById("new-domain-slug").value || "").trim();
+      const reason = (document.getElementById("new-domain-reason").value || "").trim();
+      const btn = document.getElementById("create-domain-btn");
+      const fb = document.getElementById("domain-create-feedback");
+
+      fb.textContent = "";
+      fb.style.color = "#444";
+
+      if (!name) { fb.textContent = "Domain name is required."; fb.style.color = "#c62828"; return; }
+      if (!slug || !/^[a-z0-9-]+$/.test(slug)) {
+        fb.textContent = "Slug must be lowercase letters, numbers, and hyphens.";
+        fb.style.color = "#c62828";
+        return;
+      }
+      if (!reason) { fb.textContent = "Please describe why this domain is needed."; fb.style.color = "#c62828"; return; }
+
+      btn.disabled = true;
+      btn.textContent = "Creating…";
+
+      try {
+        const domain = await apiFetch("/domains", {
+          method: "POST",
+          body: JSON.stringify({ community_id: communityId, slug, name, description: reason }),
+        });
+
+        const select = document.getElementById("domain-select");
+        const newOption = document.createElement("option");
+        newOption.value = domain.id;
+        newOption.textContent = domain.name;
+        // Insert before the __new__ option
+        const newMarker = select.querySelector('option[value="__new__"]');
+        if (newMarker) select.insertBefore(newOption, newMarker);
+        else select.appendChild(newOption);
+
+        select.value = domain.id;
+        document.getElementById("new-domain-panel").style.display = "none";
+      } catch (err) {
+        fb.textContent = err.message || "Could not create domain.";
+        fb.style.color = "#c62828";
+        btn.disabled = false;
+        btn.textContent = "Create Domain";
+      }
+    }
+
+    function cancelNewDomain() {
+      const select = document.getElementById("domain-select");
+      const panel = document.getElementById("new-domain-panel");
+      if (select && select.options.length > 1) select.selectedIndex = 0;
+      if (panel) panel.style.display = "none";
+      const fb = document.getElementById("domain-create-feedback");
+      if (fb) fb.textContent = "";
+    }
+
     async function handleSubmit(e) {
       e.preventDefault();
       const btn = document.getElementById("submit-btn");
@@ -241,6 +403,12 @@
       const title = document.getElementById("title-input").value.trim();
       const prompt = document.getElementById("prompt-input").value.trim();
       const context = document.getElementById("context-input").value.trim();
+
+      if (domainId === "__new__") {
+        errEl.textContent = "Please finish creating your domain or select an existing one.";
+        errEl.style.display = "block";
+        return;
+      }
 
       if (prompt.length < 50) {
         errEl.textContent = "The central question must be at least 50 characters.";

@@ -70,3 +70,10 @@ class CommunityMembershipSummary(CamelBase):
     community_slug: str
     community_name: str
     tier: UserTier
+
+
+class UserSearchResult(CamelBase):
+    """Minimal user info returned by the community-scoped user search (for add-member UX)."""
+
+    display_name: str
+    email: str

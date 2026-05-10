@@ -512,6 +512,10 @@ async function addCommunityMember(slug, email, tier = "registered") {
   });
 }
 
+async function searchCommunityUsers(slug, q) {
+  return apiFetch(`/communities/${encodeURIComponent(slug)}/users/search?q=${encodeURIComponent(q)}`);
+}
+
 // ===== Proposal (single) =====
 
 async function getProposal(proposalId) {

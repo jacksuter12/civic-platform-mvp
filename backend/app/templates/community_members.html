@@ -213,8 +213,12 @@
           (myMembership && (myMembership.tier === "facilitator" || myMembership.tier === "admin"));
 
         document.getElementById("page-content").innerHTML = `
-          <div style="margin-bottom:16px;">
-            <a href="/c/${esc(communitySlug)}" style="font-size:13px; color:#1565c0; text-decoration:none;">← ${esc(community.name)}</a>
+          <div style="font-size:13px; color:#888; margin-bottom:12px;">
+            <a href="/" style="color:#1565c0; text-decoration:none;">← All Communities</a>
+            <span style="margin:0 4px;">/</span>
+            <a href="/c/${esc(communitySlug)}" style="color:#1565c0; text-decoration:none;">${esc(community.name)}</a>
+            <span style="margin:0 4px;">/</span>
+            <span>Members</span>
           </div>
           <h1 class="page-title">Members</h1>
           <p class="members-count" id="members-count"></p>

@@ -42,6 +42,7 @@ from app.schemas.community import (
     CommunityRead,
     CommunitySettingsUpdate,
     CommunityUpdate,
+    UserSearchResult,
 )
 from app.schemas.membership_request import (
     MembershipRequestCreate,
@@ -269,6 +270,40 @@ async def list_community_members(
     )
     rows = result.all()
     return [CommunityMemberRead(display_name=display_name, tier=tier) for display_name, tier in rows]
+
+
+# ---------------------------------------------------------------------------
+# GET /communities/{slug}/users/search — facilitator user search for add-member
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{slug}/users/search", response_model=list[UserSearchResult])
+async def search_community_users(
+    community: Annotated[Community, Depends(get_community)],
+    admin: CommunityAdminUser,
+    db: DB,
+    q: str = Query(default="", min_length=0),
+) -> list[UserSearchResult]:
+    """
+    Search platform users by display_name or email for the add-member flow.
+    Community facilitator/admin or platform admin only. Returns up to 10 results.
+    """
+    if len(q) < 2:
+        return []
+
+    pattern = f"%{q}%"
+    result = await db.execute(
+        select(User.display_name, User.email)
+        .where(
+            User.is_active == True,
+            (func.lower(User.display_name).like(func.lower(pattern)))
+            | (func.lower(User.email).like(func.lower(pattern))),
+        )
+        .order_by(User.display_name)
+        .limit(10)
+    )
+    rows = result.all()
+    return [UserSearchResult(display_name=dn, email=email) for dn, email in rows]
 
 
 # ---------------------------------------------------------------------------

@@ -382,7 +382,7 @@
 
         const breadcrumb = document.getElementById("community-breadcrumb");
         if (breadcrumb && community) {
-          breadcrumb.innerHTML = `<a href="/c/${communitySlug}" style="color:#1565c0; text-decoration:none;">← ${community.name}</a> / Discussions`;
+          breadcrumb.innerHTML = `<a href="/" style="color:#1565c0; text-decoration:none;">← All Communities</a> <span style="margin:0 4px;">/</span> <a href="/c/${communitySlug}" style="color:#1565c0; text-decoration:none;">${community.name}</a> <span style="margin:0 4px;">/</span> Discussions`;
         }
 
         if (allThreads.length === 0) {
