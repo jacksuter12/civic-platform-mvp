@@ -33,6 +33,7 @@
         getThread(threadId),
         getProposalComments(proposalId),
         fetchSignalsForTarget('proposal', proposalId),
+        getCommunity(slug).catch(() => null),
       ];
       if (auth.isSignedIn()) {
         loadPromises.push(fetchMySignalForTarget('proposal', proposalId));
@@ -40,9 +41,9 @@
         loadPromises.push(Promise.resolve(null));
       }
 
-      const [proposal, thread, comments, signals, mySignal] = await Promise.all(loadPromises);
+      const [proposal, thread, comments, signals, community, mySignal] = await Promise.all(loadPromises);
 
-      renderHeader(proposal, thread);
+      renderHeader(proposal, thread, community);
       renderDoc(proposal);
       initTOC();
       initAnnoToggle();
@@ -73,9 +74,15 @@
   // Header
   // ----------------------------------------------------------------
 
-  function renderHeader(p, thread) {
+  function renderHeader(p, thread, community) {
     document.getElementById('pr-crumb').innerHTML =
-      `<a href="/c/${slug}">${esc(slug)}</a> › <a href="/c/${slug}/thread/${threadId}">${esc(thread.title || 'Thread')}</a> › Proposal`;
+      `<a href="/communities" style="color:#1565c0; text-decoration:none;">← All Communities</a>` +
+      ` <span style="margin:0 4px;">/</span>` +
+      ` <a href="/c/${slug}" style="color:#1565c0; text-decoration:none;">${esc(community?.name || slug)}</a>` +
+      ` <span style="margin:0 4px;">/</span>` +
+      ` <a href="/c/${slug}/thread/${threadId}" style="color:#1565c0; text-decoration:none;">${esc(thread.title || 'Thread')}</a>` +
+      ` <span style="margin:0 4px;">/</span>` +
+      ` <span>Proposal</span>`;
     const phaseBadge = document.getElementById('pr-phase');
     phaseBadge.textContent = capitalize(thread.status || '');
     document.getElementById('pr-title').textContent = p.title;
