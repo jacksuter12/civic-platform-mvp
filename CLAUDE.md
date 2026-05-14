@@ -211,6 +211,14 @@ mypy app --ignore-missing-imports  # type check
     `community_id=thread.community_id` (or the equivalent). Platform-level
     events (community creation, annotator grants) pass `community_id=None`.
 
+11. **New tables in `public` must have RLS enabled in the same migration.**
+    The Supabase Data API is disabled, and all data access goes through
+    FastAPI + SQLAlchemy (connecting as the `postgres` role, which bypasses
+    RLS). RLS is enabled with no policies on all existing tables so that if
+    the Data API is ever re-enabled, nothing is accidentally exposed. Any
+    migration that creates a new table in `public` must include:
+    `op.execute("ALTER TABLE public.<table> ENABLE ROW LEVEL SECURITY")`
+
 ---
 
 ## Conventions
