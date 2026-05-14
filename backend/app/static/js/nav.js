@@ -42,7 +42,7 @@
     try {
       if (typeof auth !== "undefined" && auth.isSignedIn()) {
         const user = auth.getUser();
-        return adminLink(user) + `<span id="cpc-bell-slot"></span><a href="/account" class="cpc-nav-auth">Account</a>`;
+        return adminLink(user) + `<span id="cpc-bell-slot">${bellHTML(0)}</span><a href="/account" class="cpc-nav-auth">Account</a>`;
       }
     } catch (_) {}
     return `<a href="/signin" class="cpc-nav-auth">Sign In</a>`;
