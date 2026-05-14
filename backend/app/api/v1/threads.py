@@ -14,20 +14,26 @@ Session 3 changes:
 import uuid
 from typing import Annotated
 
+import structlog
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import DB, CurrentUser, OptionalUser, check_community_membership
 from app.core.audit import log_event
+from app.core.notifications import create_notification
 from app.models.audit import AuditEventType
 from app.models.community import Community
 from app.models.domain import Domain
+from app.models.notification import NotificationType
 from app.models.post import Post
 from app.models.proposal import Proposal
 from app.models.signal import Signal, SignalTargetType, SignalType
 from app.models.thread import Thread, ThreadStatus
 from app.models.user import UserTier
+from app.models.vote import Vote
+
+log = structlog.get_logger()
 from app.schemas.thread import (
     SignalCounts,
     ThreadCreate,
@@ -335,15 +341,55 @@ async def advance_thread_phase(
         community_id=thread.community_id,
     )
 
-    sc = await _signal_counts(db, thread.id)
-    pc = await _post_count(db, thread.id)
-    rc = await _proposal_count(db, thread.id)
-
-    # Fetch community slug for response
+    # Fetch community slug early so notifications can use it
     comm_slug_result = await db.execute(
         select(Community.slug).where(Community.id == thread.community_id)
     )
     community_slug = comm_slug_result.scalar_one_or_none()
+
+    # Notify users who have posted or voted in this thread
+    post_author_rows = await db.execute(
+        select(Post.author_id).where(Post.thread_id == thread.id).distinct()
+    )
+    recipient_ids: set[uuid.UUID] = set(post_author_rows.scalars())
+
+    proposal_id_rows = await db.execute(
+        select(Proposal.id).where(Proposal.thread_id == thread.id)
+    )
+    proposal_ids = list(proposal_id_rows.scalars())
+    if proposal_ids:
+        voter_rows = await db.execute(
+            select(Vote.voter_id).where(Vote.proposal_id.in_(proposal_ids)).distinct()
+        )
+        recipient_ids |= set(voter_rows.scalars())
+
+    notif_link = f"/c/{community_slug}/thread/{thread.id}" if community_slug else None
+    if payload.target_status == ThreadStatus.VOTING:
+        notif_type = NotificationType.THREAD_VOTING_OPENED
+        notif_headline = f"Voting is now open on '{thread.title}'"
+    else:
+        notif_type = NotificationType.THREAD_PHASE_ADVANCED
+        notif_headline = f"'{thread.title}' moved to {payload.target_status.value} phase"
+
+    for recipient_id in recipient_ids:
+        try:
+            await create_notification(
+                db,
+                recipient_id=recipient_id,
+                notification_type=notif_type,
+                actor_id=user.id,
+                target_type="thread",
+                target_id=thread.id,
+                community_id=thread.community_id,
+                headline=notif_headline,
+                link=notif_link,
+            )
+        except Exception:
+            log.warning("notification_failed", notification_type=notif_type.value, exc_info=True)
+
+    sc = await _signal_counts(db, thread.id)
+    pc = await _post_count(db, thread.id)
+    rc = await _proposal_count(db, thread.id)
 
     return ThreadSummary(
         id=thread.id,

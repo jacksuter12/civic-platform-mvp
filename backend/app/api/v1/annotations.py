@@ -44,6 +44,7 @@ from app.api.v1._annotation_perms import (
     require_can_resolve,
 )
 from app.core.audit import log_event
+from app.core.notifications import create_notification
 from app.models.annotation import (
     Annotation,
     AnnotationReaction,
@@ -51,6 +52,9 @@ from app.models.annotation import (
     ReactionType,
 )
 from app.models.audit import AuditEventType
+from app.models.notification import NotificationType
+from app.models.post import Post
+from app.models.proposal import Proposal
 from app.models.user import UserTier
 from app.schemas.annotation import (
     AnnotationCreate,
@@ -324,6 +328,40 @@ async def create_annotation(
     )
 
     await db.refresh(annotation, ["author", "reactions"])
+
+    # Notify the content's author — entire block in try/except so any
+    # failure (including the author-lookup query) never breaks the response.
+    try:
+        target_id_uuid = uuid.UUID(str(annotation.target_id))
+        content_author_id: uuid.UUID | None = None
+        if annotation.target_type == AnnotationTargetType.PROPOSAL:
+            r = await db.execute(
+                select(Proposal.created_by_id).where(Proposal.id == target_id_uuid)
+            )
+            content_author_id = r.scalar_one_or_none()
+        elif annotation.target_type == AnnotationTargetType.POST:
+            r = await db.execute(
+                select(Post.author_id).where(Post.id == target_id_uuid)
+            )
+            content_author_id = r.scalar_one_or_none()
+        # wiki_article (WIKI): no single author — skip
+
+        if content_author_id is not None:
+            target_label = annotation.target_type.value.replace("_", " ")
+            await create_notification(
+                db,
+                recipient_id=content_author_id,
+                notification_type=NotificationType.ANNOTATION_CREATED,
+                actor_id=user.id,
+                target_type=annotation.target_type.value,
+                target_id=target_id_uuid,
+                community_id=community_id,
+                headline=f"{user.display_name} annotated your {target_label}",
+                link=None,
+            )
+    except Exception:
+        logger.warning("notification_failed", notification_type="annotation_created", exc_info=True)
+
     return _to_read(annotation, user.id)
 
 

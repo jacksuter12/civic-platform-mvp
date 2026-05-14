@@ -11,6 +11,7 @@ Flow:
 from datetime import datetime, timedelta, timezone
 
 import httpx
+import structlog
 from fastapi import APIRouter, HTTPException, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -18,10 +19,12 @@ from sqlalchemy.exc import IntegrityError
 from app.api.deps import DB, RegisteredUser
 from app.config import settings
 from app.core.audit import log_event
+from app.core.notifications import create_notification
 from app.core.security import TokenError, decode_supabase_token, extract_supabase_uid
 from app.models.audit import AuditEventType, AuditLog
 from app.models.community import Community
 from app.models.community_membership import CommunityMembership
+from app.models.notification import NotificationType
 from app.models.annotator_request import AnnotatorRequest, AnnotatorRequestStatus
 from app.models.facilitator_request import FacilitatorRequest, FacilitatorRequestStatus
 from app.models.post import Post
@@ -35,6 +38,7 @@ from app.schemas.annotator_request import AnnotatorRequestCreate, AnnotatorReque
 from app.schemas.facilitator_request import FacilitatorRequestCreate, FacilitatorRequestOut
 from app.schemas.user import ActivityItem, CommunityActivityOut, DisplayNameUpdate, MyActivityOut, MyHistoryOut, UserCreate, UserMe, UserPublic
 
+log = structlog.get_logger()
 router = APIRouter()
 
 
@@ -236,6 +240,32 @@ async def submit_facilitator_request(
         actor_id=user.id,
         community_id=payload.community_id,
     )
+
+    # Notify community facilitators/admins (skip if no community on legacy requests)
+    if payload.community_id is not None:
+        admin_rows = await db.execute(
+            select(CommunityMembership.user_id).where(
+                CommunityMembership.community_id == payload.community_id,
+                CommunityMembership.tier.in_([UserTier.FACILITATOR, UserTier.ADMIN]),
+                CommunityMembership.is_active == True,  # noqa: E712
+            )
+        )
+        for admin_id in admin_rows.scalars():
+            try:
+                await create_notification(
+                    db,
+                    recipient_id=admin_id,
+                    notification_type=NotificationType.FACILITATOR_REQUEST_SUBMITTED,
+                    actor_id=user.id,
+                    target_type="facilitator_request",
+                    target_id=req.id,
+                    community_id=payload.community_id,
+                    headline="A new facilitator request is pending review",
+                    link="/admin",
+                )
+            except Exception:
+                log.warning("notification_failed", notification_type="facilitator_request_submitted", exc_info=True)
+
     return req
 
 

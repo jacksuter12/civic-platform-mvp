@@ -12,21 +12,25 @@ Authorization model (Session 2):
 import uuid
 from datetime import UTC, datetime
 
+import structlog
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import or_, select
 
 from app.api.deps import DB, CurrentUser, PlatformAdminUser
 from app.core.audit import log_event
+from app.core.notifications import create_notification
+from app.models.annotator_request import AnnotatorRequest, AnnotatorRequestStatus
 from app.models.audit import AuditEventType
 from app.models.community import Community
 from app.models.community_membership import CommunityMembership
-from app.models.annotator_request import AnnotatorRequest, AnnotatorRequestStatus
 from app.models.facilitator_request import FacilitatorRequest, FacilitatorRequestStatus
+from app.models.notification import NotificationType
 from app.models.user import PlatformRole, User, UserTier, TIER_ORDER
 from app.schemas.annotation import AnnotatorGrantBody, UserAdminSummary, UserAnnotatorOut
 from app.schemas.annotator_request import AnnotatorRequestDetail
 from app.schemas.facilitator_request import FacilitatorRequestDetail
 
+log = structlog.get_logger()
 router = APIRouter()
 
 
@@ -206,6 +210,25 @@ async def approve_facilitator_request(
         community_id=req.community_id,
     )
 
+    try:
+        await create_notification(
+            db,
+            recipient_id=req.user_id,
+            notification_type=NotificationType.FACILITATOR_REQUEST_DECIDED,
+            actor_id=user.id,
+            target_type="facilitator_request",
+            target_id=req.id,
+            community_id=req.community_id,
+            headline="Your facilitator request was approved",
+            link="/account",
+        )
+    except Exception:
+        log.warning(
+            "notification_failed",
+            notification_type="facilitator_request_decided",
+            exc_info=True,
+        )
+
     await db.refresh(req, ["user"])
     return FacilitatorRequestDetail.model_validate(req)
 
@@ -257,6 +280,25 @@ async def deny_facilitator_request(
         actor_id=user.id,
         community_id=req.community_id,
     )
+
+    try:
+        await create_notification(
+            db,
+            recipient_id=req.user_id,
+            notification_type=NotificationType.FACILITATOR_REQUEST_DECIDED,
+            actor_id=user.id,
+            target_type="facilitator_request",
+            target_id=req.id,
+            community_id=req.community_id,
+            headline="Your facilitator request was denied",
+            link="/account",
+        )
+    except Exception:
+        log.warning(
+            "notification_failed",
+            notification_type="facilitator_request_decided",
+            exc_info=True,
+        )
 
     await db.refresh(req, ["user"])
     return FacilitatorRequestDetail.model_validate(req)

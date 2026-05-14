@@ -18,6 +18,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+import structlog
+
 from app.api.deps import (
     DB,
     CommunityAdminUser,
@@ -27,6 +29,8 @@ from app.api.deps import (
     get_community,
 )
 from app.core.audit import log_event
+from app.core.notifications import create_notification
+from app.models.notification import NotificationType
 from app.models.audit import AuditEventType, AuditLog
 from app.models.community import Community
 from app.models.community_membership import CommunityMembership
@@ -51,6 +55,7 @@ from app.schemas.membership_request import (
     MembershipRequestReview,
 )
 
+log = structlog.get_logger()
 router = APIRouter()
 
 # Thread statuses that do NOT count as active deliberations
@@ -601,6 +606,30 @@ async def submit_membership_request(
         community_id=community.id,
     )
 
+    # Notify community facilitators/admins
+    admin_rows = await db.execute(
+        select(CommunityMembership.user_id).where(
+            CommunityMembership.community_id == community.id,
+            CommunityMembership.tier.in_([UserTier.FACILITATOR, UserTier.ADMIN]),
+            CommunityMembership.is_active == True,  # noqa: E712
+        )
+    )
+    for admin_id in admin_rows.scalars():
+        try:
+            await create_notification(
+                db,
+                recipient_id=admin_id,
+                notification_type=NotificationType.MEMBERSHIP_REQUEST_SUBMITTED,
+                actor_id=user.id,
+                target_type="membership_request",
+                target_id=req.id,
+                community_id=community.id,
+                headline=f"A new membership request is pending review for {community.name}",
+                link=f"/c/{community.slug}/admin",
+            )
+        except Exception:
+            log.warning("notification_failed", notification_type="membership_request_submitted", exc_info=True)
+
     return MembershipRequestOut.model_validate(req)
 
 
@@ -708,6 +737,27 @@ async def review_membership_request(
         actor_id=admin.id,
         community_id=community.id,
     )
+
+    # Notify the applicant
+    is_approved = payload.action == "approve"
+    try:
+        await create_notification(
+            db,
+            recipient_id=req.user_id,
+            notification_type=NotificationType.MEMBERSHIP_REQUEST_DECIDED,
+            actor_id=admin.id,
+            target_type="membership_request",
+            target_id=req.id,
+            community_id=community.id,
+            headline=(
+                f"Your membership request for {community.name} was approved"
+                if is_approved
+                else f"Your membership request for {community.name} was denied"
+            ),
+            link=f"/c/{community.slug}" if is_approved else "/account",
+        )
+    except Exception:
+        log.warning("notification_failed", notification_type="membership_request_decided", exc_info=True)
 
     # Reload with user eagerly to avoid async lazy-load issues
     refreshed = await db.execute(

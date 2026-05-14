@@ -364,6 +364,15 @@
           </form>
         </div>
 
+        <div class="detail-section" id="section-notif-prefs">
+          <div class="section-heading">Notification Preferences</div>
+          <p class="account-field-desc">
+            Choose which notifications you receive. All types are enabled by default.
+          </p>
+          <div id="notif-prefs-list"><em style="color:#9ca3af;font-size:13px;">Loading…</em></div>
+          <div id="notif-prefs-feedback" class="account-feedback" style="display:none"></div>
+        </div>
+
         <div class="detail-section" id="section-tooltips">
           <div class="section-heading">Help Tooltips</div>
           <p class="account-field-desc">
@@ -897,6 +906,7 @@
         { id: "section-communities",  label: "Communities" },
         { id: "section-profile",      label: "Profile" },
         { id: "section-display-name", label: "Display Name" },
+        { id: "section-notif-prefs",  label: "Notifications" },
         { id: "section-tooltips",     label: "Help Tooltips" },
         { id: "section-security",     label: "Security" },
         { id: "section-signout",      label: "Sign Out" },
@@ -968,6 +978,7 @@
 
         container.innerHTML = renderAccount(user, facReq, annoReq);
         initTooltipToggleBtn();
+        loadNotifPrefs();
         const memberships = user.communityMemberships || user.community_memberships || [];
         if (activity) renderEngagement(activity);
         if (history) renderHistory(history, memberships);
@@ -977,6 +988,84 @@
           <div class="error-message">Could not load account: ${err.message}</div>
           <p style="margin-top:16px"><a href="/">← Back to discussions</a></p>
         `;
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Notification Preferences
+    // ---------------------------------------------------------------------------
+
+    const NOTIF_LABELS = {
+      post_reply:                      "Replies to your posts",
+      proposal_created:                "New proposals in threads you've joined",
+      thread_phase_advanced:           "Thread phase changes",
+      thread_voting_opened:            "Voting opened on a thread",
+      annotation_created:              "Annotations on your content",
+      facilitator_request_submitted:   "Facilitator requests (admin)",
+      facilitator_request_decided:     "Decision on your facilitator request",
+      membership_request_submitted:    "Membership requests (admin)",
+      membership_request_decided:      "Decision on your membership request",
+    };
+
+    const ALL_NOTIF_TYPES = Object.keys(NOTIF_LABELS);
+
+    async function loadNotifPrefs() {
+      const el = document.getElementById("notif-prefs-list");
+      if (!el) return;
+      try {
+        const token = await auth.getToken();
+        const resp = await fetch("/api/v1/notifications/preferences", {
+          headers: { Authorization: "Bearer " + token }
+        });
+        if (!resp.ok) throw new Error("Failed to load preferences");
+        const data = await resp.json();
+        renderNotifPrefs(data.disabled || []);
+      } catch (err) {
+        if (el) el.innerHTML = `<span style="color:#b91c1c;font-size:13px;">Failed to load preferences.</span>`;
+      }
+    }
+
+    function renderNotifPrefs(disabledTypes) {
+      const el = document.getElementById("notif-prefs-list");
+      if (!el) return;
+      el.innerHTML = ALL_NOTIF_TYPES.map(function(type) {
+        const enabled = !disabledTypes.includes(type);
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6;">
+          <span style="font-size:14px;color:#374151;">${NOTIF_LABELS[type]}</span>
+          <label class="notif-toggle" title="${enabled ? "Enabled — click to disable" : "Disabled — click to enable"}" style="cursor:pointer;display:flex;align-items:center;gap:6px;">
+            <input type="checkbox" ${enabled ? "checked" : ""} data-type="${type}" style="width:16px;height:16px;cursor:pointer;" onchange="handleNotifPrefChange(this)">
+            <span style="font-size:12px;color:${enabled ? "#16a34a" : "#9ca3af"};">${enabled ? "On" : "Off"}</span>
+          </label>
+        </div>`;
+      }).join("");
+    }
+
+    async function handleNotifPrefChange(checkbox) {
+      const type = checkbox.dataset.type;
+      const enabled = checkbox.checked;
+      const label = checkbox.nextElementSibling;
+      checkbox.disabled = true;
+      try {
+        const token = await auth.getToken();
+        const resp = await fetch(`/api/v1/notifications/preferences/${type}`, {
+          method: "PUT",
+          headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled: enabled }),
+        });
+        if (!resp.ok) throw new Error("Failed");
+        if (label) {
+          label.textContent = enabled ? "On" : "Off";
+          label.style.color = enabled ? "#16a34a" : "#9ca3af";
+        }
+      } catch (_) {
+        // Revert
+        checkbox.checked = !enabled;
+        if (label) {
+          label.textContent = !enabled ? "On" : "Off";
+          label.style.color = !enabled ? "#16a34a" : "#9ca3af";
+        }
+      } finally {
+        checkbox.disabled = false;
       }
     }
 

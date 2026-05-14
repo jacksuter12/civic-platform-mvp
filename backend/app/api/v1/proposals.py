@@ -16,11 +16,14 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Annotated
 
+import structlog
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from app.api.deps import CurrentUser, DB, OptionalUser, check_community_membership
+from app.core.notifications import create_notification, get_community_slug
+from app.models.notification import NotificationType
 from app.api.v1._annotation_perms import (
     check_can_delete_proposal,
     check_can_edit_proposal,
@@ -30,6 +33,7 @@ from app.api.v1._annotation_perms import (
 from app.core.audit import log_event
 from app.core.markdown import render_markdown
 from app.models.audit import AuditEventType
+from app.models.post import Post
 from app.models.proposal import Proposal, ProposalStatus
 from app.models.proposal_version import ProposalVersion, ProposalVersionStatus
 from app.models.thread import Thread, ThreadStatus
@@ -46,6 +50,7 @@ from app.schemas.proposal import (
 )
 from app.schemas.user import UserPublic
 
+log = structlog.get_logger()
 router = APIRouter()
 
 
@@ -172,6 +177,28 @@ async def create_proposal(
         actor_id=user.id,
         community_id=thread.community_id,
     )
+
+    # Notify users who have posted in this thread
+    post_author_rows = await db.execute(
+        select(Post.author_id).where(Post.thread_id == thread.id).distinct()
+    )
+    slug = await get_community_slug(db, thread.community_id)
+    notif_link = f"/c/{slug}/thread/{thread.id}" if slug else None
+    for recipient_id in set(post_author_rows.scalars()):
+        try:
+            await create_notification(
+                db,
+                recipient_id=recipient_id,
+                notification_type=NotificationType.PROPOSAL_CREATED,
+                actor_id=user.id,
+                target_type="proposal",
+                target_id=proposal.id,
+                community_id=thread.community_id,
+                headline=f"A new proposal was submitted in '{thread.title}'",
+                link=notif_link,
+            )
+        except Exception:
+            log.warning("notification_failed", notification_type="proposal_created", exc_info=True)
 
     return _build_summary(proposal, VoteSummary(), versions_count=0)
 

@@ -347,6 +347,11 @@ async def account_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "account.html")
 
 
+@app.get("/notifications")
+async def notifications_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "notifications.html")
+
+
 @app.get("/admin")
 async def admin_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "admin.html")

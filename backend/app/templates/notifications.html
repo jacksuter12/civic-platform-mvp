@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notifications — Civic Platform</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <script src="/static/js/auth.js?v={{ static_v }}"></script>
+  <script src="/static/js/nav.js?v={{ static_v }}"></script>
+  <style>
+    .notif-page { max-width: 700px; margin: 40px auto; padding: 0 24px 60px; }
+    .notif-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .notif-header h1 { font-size: 1.5rem; font-weight: 600; color: #1a1a1a; margin: 0; }
+    .notif-mark-all {
+      background: none; border: 1px solid #d1d5db; border-radius: 6px;
+      padding: 6px 14px; font-size: 13px; color: #374151;
+      cursor: pointer; font-family: inherit;
+    }
+    .notif-mark-all:hover { border-color: #9ca3af; }
+    .notif-tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid #e5e7eb; }
+    .notif-tab {
+      padding: 8px 16px; font-size: 14px; color: #6b7280; cursor: pointer;
+      border: none; background: none; font-family: inherit;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+    }
+    .notif-tab.active { color: #2a5c9a; border-bottom-color: #2a5c9a; font-weight: 500; }
+    .notif-list { display: flex; flex-direction: column; gap: 1px; }
+    .notif-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 14px 16px; background: #fff;
+      border: 1px solid #e5e7eb; border-radius: 8px;
+      cursor: pointer; text-decoration: none; color: inherit;
+      transition: background 0.1s;
+    }
+    .notif-item:hover { background: #f9fafb; text-decoration: none; }
+    .notif-item.unread { background: #eff6ff; border-color: #bfdbfe; }
+    .notif-item.unread:hover { background: #dbeafe; }
+    .notif-dot { width: 8px; height: 8px; border-radius: 50%; background: #2a5c9a; flex-shrink: 0; margin-top: 6px; }
+    .notif-dot.read { background: transparent; }
+    .notif-body { flex: 1; min-width: 0; }
+    .notif-headline { font-size: 14px; color: #1a1a1a; line-height: 1.4; }
+    .notif-item.unread .notif-headline { font-weight: 600; }
+    .notif-time { font-size: 12px; color: #9ca3af; margin-top: 3px; }
+    .notif-empty { text-align: center; padding: 60px 0; color: #9ca3af; font-size: 15px; }
+    .notif-loading { text-align: center; padding: 40px 0; color: #9ca3af; }
+    .notif-load-more { display: block; width: 100%; margin-top: 16px;
+      padding: 10px; background: none; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 14px; color: #374151; cursor: pointer; font-family: inherit; }
+    .notif-load-more:hover { border-color: #9ca3af; }
+  </style>
+</head>
+<body>
+  <div id="nav-placeholder"></div>
+  <main class="notif-page">
+    <div class="notif-header">
+      <h1>Notifications</h1>
+      <button class="notif-mark-all" id="notif-mark-all">Mark all read</button>
+    </div>
+    <div class="notif-tabs">
+      <button class="notif-tab active" data-filter="all">All</button>
+      <button class="notif-tab" data-filter="unread">Unread</button>
+    </div>
+    <div id="notif-list-container">
+      <div class="notif-loading">Loading notifications…</div>
+    </div>
+  </main>
+  <script src="/static/js/notifications.js?v={{ static_v }}"></script>
+</body>
+</html>

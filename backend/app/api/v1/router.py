@@ -9,6 +9,7 @@ from app.api.v1 import (
     auth,
     communities,
     domains,
+    notifications,
     pools,
     posts,
     proposal_comments,
@@ -35,3 +36,4 @@ api_router.include_router(pools.router, prefix="/pools", tags=["pools"])
 api_router.include_router(allocations.router, prefix="/allocations", tags=["allocations"])
 api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 api_router.include_router(annotations.router, prefix="/annotations", tags=["annotations"])
+api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])

@@ -80,6 +80,9 @@ class User(Base, UUIDPKMixin, TimestampMixin):
     annotation_reactions: Mapped[list["AnnotationReaction"]] = relationship(  # type: ignore[name-defined]
         "AnnotationReaction", back_populates="user"
     )
+    notifications: Mapped[list["Notification"]] = relationship(  # type: ignore[name-defined]
+        "Notification", back_populates="recipient", foreign_keys="Notification.recipient_id"
+    )
 
     def has_tier(self, required: UserTier) -> bool:
         return TIER_ORDER[self.tier] >= TIER_ORDER[required]

@@ -31,14 +31,40 @@
     return "";
   }
 
+  function bellHTML(count) {
+    var badge = count > 0
+      ? `<span class="cpc-notif-badge">${count > 99 ? "99+" : count}</span>`
+      : "";
+    return `<a href="/notifications" class="cpc-notif-bell" aria-label="Notifications (${count} unread)"><span class="cpc-bell-wrap">&#128276;${badge}</span></a>`;
+  }
+
   function authLink() {
     try {
       if (typeof auth !== "undefined" && auth.isSignedIn()) {
         const user = auth.getUser();
-        return adminLink(user) + `<a href="/account" class="cpc-nav-auth">Account</a>`;
+        return adminLink(user) + `<span id="cpc-bell-slot"></span><a href="/account" class="cpc-nav-auth">Account</a>`;
       }
     } catch (_) {}
     return `<a href="/signin" class="cpc-nav-auth">Sign In</a>`;
+  }
+
+  function updateBell(count) {
+    var slot = document.getElementById("cpc-bell-slot");
+    if (slot) slot.innerHTML = bellHTML(count);
+  }
+
+  async function fetchUnreadCount() {
+    try {
+      if (typeof auth === "undefined" || !auth.isSignedIn()) return;
+      var token = await auth.getToken();
+      if (!token) return;
+      var resp = await fetch("/api/v1/notifications/unread-count", {
+        headers: { Authorization: "Bearer " + token }
+      });
+      if (!resp.ok) return;
+      var data = await resp.json();
+      updateBell(data.count || 0);
+    } catch (_) {}
   }
 
   function render() {
@@ -73,6 +99,17 @@
 .cpc-active { color: #1a1a1a; border-bottom: 2px solid #2a5c9a; padding-bottom: 2px; }
 .cpc-nav-auth { font-size: 14px; color: #2a5c9a; font-weight: 500; text-decoration: none; white-space: nowrap; }
 .cpc-nav-auth:hover { text-decoration: underline; }
+.cpc-notif-bell { position: relative; display: inline-flex; align-items: center; text-decoration: none; margin-right: 4px; }
+.cpc-notif-bell:hover { text-decoration: none; }
+.cpc-bell-wrap { font-size: 18px; position: relative; display: inline-block; line-height: 1; }
+.cpc-notif-badge {
+  position: absolute; top: -6px; right: -8px;
+  background: #dc2626; color: #fff;
+  font-size: 10px; font-weight: 700; font-family: inherit;
+  min-width: 16px; height: 16px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 3px; line-height: 1;
+}
 .cpc-hamburger { display: none; background: none; border: none; font-size: 22px; cursor: pointer; color: #1a1a1a; padding: 4px; line-height: 1; }
 body { padding-top: 56px !important; }
 @media (max-width: 768px) {
@@ -116,6 +153,9 @@ body { padding-top: 56px !important; }
       this.textContent = links.classList.contains("open") ? "✕" : "☰";
     });
     initTooltipToggle();
+    // Bell: fetch immediately, then poll every 60 s
+    fetchUnreadCount();
+    setInterval(fetchUnreadCount, 60000);
   }
 
   if (document.readyState === "loading") {

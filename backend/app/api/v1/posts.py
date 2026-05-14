@@ -1,5 +1,6 @@
 import uuid
 
+import structlog
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -9,11 +10,15 @@ from typing import Annotated
 from app.api.deps import DB, CurrentUser, check_community_membership
 from app.models.user import UserTier
 from app.core.audit import log_event
+from app.core.notifications import create_notification, get_community_slug
 from app.models.audit import AuditEventType
+from app.models.notification import NotificationType
 from app.models.post import Post
 from app.models.thread import Thread, ThreadStatus
 from app.schemas.common import CamelBase, TimestampSchema, UUIDSchema
 from app.schemas.user import UserPublic
+
+log = structlog.get_logger()
 
 router = APIRouter()
 
@@ -127,13 +132,15 @@ async def create_post(
     if thread.community_id is not None:
         await check_community_membership(user, thread.community_id, UserTier.REGISTERED, db)
 
+    parent: Post | None = None
     if payload.parent_id:
         parent_result = await db.execute(
             select(Post).where(
                 Post.id == payload.parent_id, Post.thread_id == payload.thread_id
             )
         )
-        if not parent_result.scalar_one_or_none():
+        parent = parent_result.scalar_one_or_none()
+        if not parent:
             raise HTTPException(status_code=404, detail="Parent post not found.")
 
     post = Post(
@@ -156,6 +163,25 @@ async def create_post(
     )
 
     await db.refresh(post, ["author", "replies"])
+
+    if parent is not None:
+        slug = await get_community_slug(db, thread.community_id)
+        link = f"/c/{slug}/thread/{thread.id}" if slug else None
+        try:
+            await create_notification(
+                db,
+                recipient_id=parent.author_id,
+                notification_type=NotificationType.POST_REPLY,
+                actor_id=user.id,
+                target_type="post",
+                target_id=post.id,
+                community_id=thread.community_id,
+                headline=f"{user.display_name} replied to your post",
+                link=link,
+            )
+        except Exception:
+            log.warning("notification_failed", notification_type="post_reply", exc_info=True)
+
     return post
 
 
