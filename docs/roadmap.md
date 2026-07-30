@@ -118,7 +118,7 @@ reconstructs every decision.
 - [x] Annotator request system: user-facing apply flow, admin review queue, approve/deny routes
 - [x] Proposal annotation system: W3C text anchoring, threaded replies, resolve/feature/moderate, polling, role badge
 - [x] Two-environment deployment: production (`main`) + staging (`feature/proposal-review`), each with separate Supabase project
-- [x] 22 migrations total; head: `e8f9a0b1c2d3`; 106 passing tests
+- [x] 30 migration files total; head: `k5e6f7g8h9i0`; 148 passing tests
 
 ---
 
@@ -150,6 +150,26 @@ See `docs/llm-integration.md` for full design.
 
 **Gate:** Only begin after Phase 4 is validated. Don't add LLM until
 deliberation without it is working.
+
+---
+
+## Side track — LLM Deliberation Panel (research instrument)
+
+Not a platform feature and not gated on Phase 4. A research instrument that runs
+multi-LLM deliberations through the platform's own phase gates inside
+`research_mode` communities, then debriefs the models about the process. It
+lives in `scripts/llm_panel/`, talks to the platform over HTTP only, and imports
+nothing from `app.*`.
+
+See `docs/llm-panel/sprint-plan.md` and `docs/llm-panel/design.md`.
+
+- [x] **Sprint 1** — `Community.research_mode` flag (migration `k5e6f7g8h9i0`)
+      and the `scripts/llm_panel/` seeding package
+- [ ] **Sprint 2** — orchestrator (`prompts.py`, `providers.py`, `panel.py`,
+      `survey.py`, `run.py`). Needs the source blueprints attached.
+
+The Phase 5 gate is unaffected: nothing here lets an LLM post in a real
+community's thread.
 
 ---
 

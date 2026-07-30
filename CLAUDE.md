@@ -185,6 +185,11 @@ mypy app --ignore-missing-imports  # type check
 
 6. **LLM is not yet integrated.** Do not add LLM calls until Phase 4
    of the roadmap. See `docs/llm-integration.md`.
+   *Narrow exception:* communities with `Community.research_mode = True` are
+   synthetic-participant research spaces, and the deliberation panel in
+   `scripts/llm_panel/` may post there on behalf of seeded bot users. This
+   does not relax the rule anywhere else — no LLM posts in a real community's
+   thread, and no LLM code enters `backend/`. See `docs/llm-panel/design.md`.
 
 7. **api.js must stay framework-agnostic.** No DOM manipulation in api.js —
    only fetch() calls that return data. This file must survive unchanged
@@ -218,6 +223,20 @@ mypy app --ignore-missing-imports  # type check
     the Data API is ever re-enabled, nothing is accidentally exposed. Any
     migration that creates a new table in `public` must include:
     `op.execute("ALTER TABLE public.<table> ENABLE ROW LEVEL SECURITY")`
+    This covers new *tables*, not new columns on existing ones.
+
+12. **`scripts/llm_panel/` must never import from `app.*`.** The deliberation
+    panel is a peer of `backend/`, not a part of it. It reaches the platform
+    over HTTP only, through `llm_panel/platform_client.py`. It has its own
+    `pyproject.toml` and its own dependencies — provider SDKs never enter
+    `backend/pyproject.toml`. Enforced by
+    `scripts/llm_panel/tests/test_no_app_imports.py`.
+
+13. **`research_mode` is set at creation only.** It is on `CommunityCreate`
+    and `CommunityRead`, and deliberately absent from `CommunityUpdate` — it
+    cannot be toggled on or off. Real communities never set it. Research
+    communities are excluded from `GET /communities` for every caller,
+    platform admins included, and stay reachable by slug.
 
 ---
 
@@ -241,7 +260,10 @@ mypy app --ignore-missing-imports  # type check
 ## What NOT to Do
 
 - Do NOT add crypto, tokens, or blockchain. Explicitly excluded from MVP.
-- Do NOT allow the LLM to post in threads. It is read-only.
+- Do NOT allow the LLM to post in threads. It is read-only. The only exception
+  is a `research_mode=True` community — see constraint #6.
+- Do NOT import from `app.*` inside `scripts/llm_panel/`, and do NOT add
+  provider SDKs to `backend/pyproject.toml`. See constraint #12.
 - Do NOT skip the phase gate in any route, even "just for testing."
 - Do NOT add upvotes, downvotes, or engagement metrics on posts.
 - Do NOT use reaction counts to sort, filter, rank, boost, or bury any content.

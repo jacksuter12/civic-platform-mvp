@@ -1,0 +1,38 @@
+[project]
+name = "llm-panel"
+version = "0.1.0"
+description = "Multi-LLM deliberation panel — a research instrument that drives the civic platform over HTTP"
+requires-python = ">=3.12"
+dependencies = [
+    "pyjwt>=2.8",
+    "httpx>=0.28",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.8",
+    "mypy>=1.13",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_unused_ignores = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["llm_panel"]
