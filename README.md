@@ -1,5 +1,7 @@
 # Civic Power Consortium — Deliberation Platform
 
+**Live site:** [sensusplatform.org](https://sensusplatform.org)
+
 **Thesis:** Public deliberation can be translated into legitimate, transparent
 collective allocation without outrage dynamics. The architecture enforces that
 translation structurally — not through content moderation alone.
