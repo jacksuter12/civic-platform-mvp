@@ -35,13 +35,17 @@ a hired lobbyist, delivered to the legislature.
 backend/          Python + FastAPI REST API
   app/
     models/       SQLAlchemy models (Community, Thread, Proposal, Vote, Audit, etc.)
-    api/v1/       Route handlers (13 modules)
+    api/v1/       Route handlers (18 modules)
     static/js/    Frontend JS (api.js, thread.js, annotations.js, etc.)
-    templates/    HTML pages (16 templates)
-  alembic/        DB migrations (17 total)
-  tests/          pytest (58 tests)
+    templates/    HTML pages (19 templates)
+  alembic/        DB migrations (30 files)
+  tests/          pytest (148 tests)
+scripts/llm_panel/  LLM deliberation panel — a research instrument, and a peer
+                  of backend/ rather than part of it. Own dependencies, talks
+                  to the platform over HTTP only. pytest (57 tests)
 docs/             Architecture, roadmap, LLM integration plan, decision log,
                   annotator-guide.md, community-model-v0.3.md (resolved spec)
+  llm-panel/      Panel sprint plan and design notes
 index.html        Public landing page (served via GitHub Pages)
 CLAUDE.md         Instructions for Claude Code
 ```
@@ -94,6 +98,12 @@ tooling required).
 | 3.5 | Multi-community architecture: Community, CommunityMembership, /c/{slug} routes, wiki, annotations | Complete |
 | 4 | First real deliberation with real users | Pending |
 | 5 | LLM read-only research assistant | Pending |
+
+Running alongside, not on that path: the **LLM deliberation panel** — a research
+instrument that runs multi-model deliberations through the platform's own phase
+gates inside `research_mode` communities, then debriefs the models about the
+process. Sprint 1 (the flag and the seeding layer) is complete; Sprint 2 (the
+orchestrator) is not. See [docs/llm-panel/design.md](docs/llm-panel/design.md).
 
 See [docs/roadmap.md](docs/roadmap.md) for detail.
 
