@@ -91,6 +91,7 @@ async def _build_community_read(community: Community, db: AsyncSession) -> Commu
         verification_method=community.verification_method,
         is_public=community.is_public,
         is_invite_only=community.is_invite_only,
+        research_mode=community.research_mode,
         allow_membership_requests=community.allow_membership_requests,
         is_active=community.is_active,
         member_count=member_count,
@@ -112,10 +113,15 @@ async def list_communities(
     List active communities.
     - Unauthenticated users and regular members see is_public=TRUE only.
     - Platform admins see all active communities including private ones.
+    - research_mode communities are excluded from the directory for everyone,
+      platform admins included. They remain reachable by slug.
     """
     is_platform_admin = user is not None and user.platform_role == PlatformRole.PLATFORM_ADMIN
 
-    q = select(Community).where(Community.is_active == True)
+    q = select(Community).where(
+        Community.is_active == True,
+        Community.research_mode == False,
+    )
     if not is_platform_admin:
         q = q.where(Community.is_public == True)
     q = q.order_by(Community.name.asc())
@@ -154,6 +160,7 @@ async def create_community(
         verification_method=payload.verification_method,
         is_public=payload.is_public,
         is_invite_only=payload.is_invite_only,
+        research_mode=payload.research_mode,
         default_phase_durations=payload.default_phase_durations,
         created_by_id=admin.id,
     )

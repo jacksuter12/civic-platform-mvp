@@ -18,15 +18,17 @@ target: Redlands, CA (`/c/redlands`).
 
 ---
 
-## Current Build Status (as of 2026-04-23)
+## Current Build Status (as of 2026-07-31)
 
 **What's live and working:**
 
 *Infrastructure*
 - Multi-community data model: `Community`, `CommunityMembership` tables
 - `platform_role` field on users (user | platform_admin) for platform-level ops
-- 17 Alembic migrations (head: `d6e7f8a9b0c1`)
-- 58 passing tests
+- 30 Alembic migration files (head: `k5e6f7g8h9i0`)
+- 148 passing backend tests, plus 57 in `scripts/llm_panel/`
+- `Community.research_mode` — synthetic-participant research spaces
+  (creation-only, excluded from the public directory)
 
 *Pages and routes*
 - `/` `/how-it-works` `/quiz` `/signin` `/account` `/wiki` `/wiki/{slug}`
@@ -65,6 +67,13 @@ target: Redlands, CA (`/c/redlands`).
 - Wiki at `/wiki/{slug}` — global platform resource, not community-scoped
 - Inline annotations on wiki articles (annotator capability, endorse/needs_work reactions)
 
+*LLM deliberation panel (research instrument, `scripts/llm_panel/`)*
+- Sprint 1 complete: `research_mode` flag and the seeding package
+- Seeds three research communities and their bot rosters over HTTP; mints and
+  verifies one long-lived JWT per bot; idempotent
+- Not a platform feature and not on the Phase 4 → Phase 5 path.
+  See `docs/llm-panel/design.md` and `docs/llm-panel/sprint-plan.md`
+
 **What is NOT yet built:**
 
 - Real communities seeded in DB — `test` community exists; `redlands`,
@@ -76,7 +85,12 @@ target: Redlands, CA (`/c/redlands`).
 - Per-community wiki (deferred to Phase 2)
 
 **What is explicitly deferred:**
-- LLM integration (Phase 5 — do not add until Phase 4 deliberation is validated)
+- LLM integration *as a platform feature* (Phase 5 — do not add until Phase 4
+  deliberation is validated). The `scripts/llm_panel/` research instrument is
+  not this and is not gated on it; see constraint #6.
+- LLM panel Sprint 2 — the orchestrator (`prompts.py`, `providers.py`,
+  `panel.py`, `survey.py`, `run.py`). Needs the source blueprints attached
+  and provider API keys.
 - React migration (no npm/build toolchain yet)
 - Rate limiting, participant verification web flow, render.yaml
 - Email-bridge contact feature (Phase 2)
@@ -130,12 +144,24 @@ backend/          FastAPI backend
       communities.html, community_home.html, community_members.html,
       community_admin.html, threads.html, thread.html, new-thread.html,
       account.html, admin.html, audit.html, signin.html, wiki_index.html,
-      wiki_article.html, how-it-works.html, quiz.html, index.html
-  alembic/        DB migrations (17 total; head: d6e7f8a9b0c1)
-  tests/          pytest (58 tests)
+      wiki_article.html, how-it-works.html, quiz.html, index.html,
+      notifications.html, proposal_authoring.html, proposal_review.html
+  alembic/        DB migrations (30 files; head: k5e6f7g8h9i0)
+  tests/          pytest (148 tests)
+
+scripts/llm_panel/   LLM deliberation panel — a PEER of backend/, not part of it.
+                     Own pyproject.toml, own deps, zero imports from app.*.
+  llm_panel/
+    conditions.py       The three experimental conditions and their rosters
+    jwt_util.py         HS256 bot tokens (sub = User.supabase_uid)
+    platform_client.py  The only module that talks to the platform
+    seed.py             Idempotent HTTP seeding of communities, bots, tokens
+  tests/                pytest (57 tests, no network)
 
 docs/             Architecture, roadmap, LLM integration guide, decision log
                   community-model-v0.3.md — multi-community spec (resolved)
+  llm-panel/      sprint-plan.md (authority on paths and control flow),
+                  design.md (rationale, condition design, v0.1 limitations)
 index.html        Public landing page (served via GitHub Pages)
 ```
 
@@ -155,6 +181,13 @@ uvicorn app.main:app --reload  # dev server at :8000
 pytest                         # run tests
 ruff check .                   # lint
 mypy app --ignore-missing-imports  # type check
+
+# LLM panel — separate project, separate dependencies
+cd scripts/llm_panel
+pip install -e ".[dev]"
+cp .env.llm-panel.example .env.llm-panel   # fill in the two secrets
+python -m llm_panel.seed       # idempotent; safe to re-run
+pytest                         # 57 unit tests, no network
 ```
 
 ---
@@ -185,6 +218,11 @@ mypy app --ignore-missing-imports  # type check
 
 6. **LLM is not yet integrated.** Do not add LLM calls until Phase 4
    of the roadmap. See `docs/llm-integration.md`.
+   *Narrow exception:* communities with `Community.research_mode = True` are
+   synthetic-participant research spaces, and the deliberation panel in
+   `scripts/llm_panel/` may post there on behalf of seeded bot users. This
+   does not relax the rule anywhere else — no LLM posts in a real community's
+   thread, and no LLM code enters `backend/`. See `docs/llm-panel/design.md`.
 
 7. **api.js must stay framework-agnostic.** No DOM manipulation in api.js —
    only fetch() calls that return data. This file must survive unchanged
@@ -218,6 +256,20 @@ mypy app --ignore-missing-imports  # type check
     the Data API is ever re-enabled, nothing is accidentally exposed. Any
     migration that creates a new table in `public` must include:
     `op.execute("ALTER TABLE public.<table> ENABLE ROW LEVEL SECURITY")`
+    This covers new *tables*, not new columns on existing ones.
+
+12. **`scripts/llm_panel/` must never import from `app.*`.** The deliberation
+    panel is a peer of `backend/`, not a part of it. It reaches the platform
+    over HTTP only, through `llm_panel/platform_client.py`. It has its own
+    `pyproject.toml` and its own dependencies — provider SDKs never enter
+    `backend/pyproject.toml`. Enforced by
+    `scripts/llm_panel/tests/test_no_app_imports.py`.
+
+13. **`research_mode` is set at creation only.** It is on `CommunityCreate`
+    and `CommunityRead`, and deliberately absent from `CommunityUpdate` — it
+    cannot be toggled on or off. Real communities never set it. Research
+    communities are excluded from `GET /communities` for every caller,
+    platform admins included, and stay reachable by slug.
 
 ---
 
@@ -241,7 +293,10 @@ mypy app --ignore-missing-imports  # type check
 ## What NOT to Do
 
 - Do NOT add crypto, tokens, or blockchain. Explicitly excluded from MVP.
-- Do NOT allow the LLM to post in threads. It is read-only.
+- Do NOT allow the LLM to post in threads. It is read-only. The only exception
+  is a `research_mode=True` community — see constraint #6.
+- Do NOT import from `app.*` inside `scripts/llm_panel/`, and do NOT add
+  provider SDKs to `backend/pyproject.toml`. See constraint #12.
 - Do NOT skip the phase gate in any route, even "just for testing."
 - Do NOT add upvotes, downvotes, or engagement metrics on posts.
 - Do NOT use reaction counts to sort, filter, rank, boost, or bury any content.

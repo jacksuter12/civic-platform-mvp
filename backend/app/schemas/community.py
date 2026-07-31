@@ -32,6 +32,8 @@ class CommunityCreate(CamelBase):
     verification_method: str = Field(min_length=5, max_length=500)
     is_public: bool = True
     is_invite_only: bool = False
+    # Set at creation only — deliberately absent from CommunityUpdate.
+    research_mode: bool = False
     default_phase_durations: dict | None = None
 
 
@@ -44,6 +46,7 @@ class CommunityRead(UUIDSchema, TimestampSchema):
     verification_method: str
     is_public: bool
     is_invite_only: bool
+    research_mode: bool
     allow_membership_requests: bool
     is_active: bool
     member_count: int = 0

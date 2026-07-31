@@ -1,6 +1,13 @@
 # Environment — never commit
 .env
 *.env
+# `*.env` does NOT match a file named `.env.llm-panel` — it needs its own line.
+# The .example template stays committed; gitignore matches path components
+# exactly, so this pattern does not cover `.env.llm-panel.example`.
+.env.llm-panel
+
+# LLM panel run artifacts (transcripts, surveys, reasoning logs)
+scripts/llm_panel/runs/
 
 # Python
 __pycache__/
@@ -9,6 +16,9 @@ __pycache__/
 .venv/
 dist/
 build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Node — not used in this project
 node_modules/

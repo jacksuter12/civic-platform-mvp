@@ -1,7 +1,7 @@
 import uuid
 from enum import Enum as PyEnum
 
-from sqlalchemy import Boolean, Enum as SAEnum, ForeignKey, JSON, String, Text
+from sqlalchemy import Boolean, Enum as SAEnum, ForeignKey, JSON, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -39,6 +39,14 @@ class Community(Base, UUIDPKMixin, TimestampMixin):
     verification_method: Mapped[str] = mapped_column(Text, nullable=False)
     is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_invite_only: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    research_mode: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("false"),
+        default=False,
+        doc="Synthetic-participant research space. Orchestration scripts may "
+            "post on behalf of bot users here. Real communities never set this.",
+    )
     allow_membership_requests: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # JSONB on PostgreSQL (GIN-indexable), JSON on SQLite (tests)
     default_phase_durations: Mapped[dict | None] = mapped_column(
