@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
 
-from sqlalchemy import Boolean, DateTime, Enum as SAEnum, String
+from sqlalchemy import Boolean, DateTime, Enum as SAEnum, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPKMixin
@@ -49,6 +49,17 @@ class User(Base, UUIDPKMixin, TimestampMixin):
     # tier hierarchy. A user can be any tier and either have or not have this flag.
     # Admin tier implicitly carries annotator capability; see has_annotator_capability().
     is_annotator: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # This account is operated by software, not a person. Set by a platform
+    # admin, never self-asserted at registration — a label is only worth
+    # something if someone accountable made the claim.
+    #
+    # Rendered wherever this user's name appears, so a human always knows who
+    # they are reading. Deliberately NOT rendered into anything a synthetic
+    # participant sees: the LLM panel's blind condition is maintained in the
+    # orchestrator's prompt assembly, not by hiding platform state.
+    is_synthetic: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false"), default=False
+    )
     # Platform-level role — orthogonal to the tier hierarchy.
     # PLATFORM_ADMIN can create communities and manage platform-wide annotators.
     # Seeded from tier='admin' users in migration a3b4c5d6e7f8.

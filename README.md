@@ -38,11 +38,11 @@ backend/          Python + FastAPI REST API
     api/v1/       Route handlers (18 modules)
     static/js/    Frontend JS (api.js, thread.js, annotations.js, etc.)
     templates/    HTML pages (19 templates)
-  alembic/        DB migrations (30 files)
-  tests/          pytest (148 tests)
+  alembic/        DB migrations (31 files)
+  tests/          pytest (159 tests)
 scripts/llm_panel/  LLM deliberation panel — a research instrument, and a peer
                   of backend/ rather than part of it. Own dependencies, talks
-                  to the platform over HTTP only. pytest (57 tests)
+                  to the platform over HTTP only. pytest (58 tests)
 docs/             Architecture, roadmap, LLM integration plan, decision log,
                   annotator-guide.md, community-model-v0.3.md (resolved spec)
   llm-panel/      Panel sprint plan and design notes

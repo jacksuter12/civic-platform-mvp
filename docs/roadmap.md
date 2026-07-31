@@ -118,7 +118,7 @@ reconstructs every decision.
 - [x] Annotator request system: user-facing apply flow, admin review queue, approve/deny routes
 - [x] Proposal annotation system: W3C text anchoring, threaded replies, resolve/feature/moderate, polling, role badge
 - [x] Two-environment deployment: production (`main`) + staging (`feature/proposal-review`), each with separate Supabase project
-- [x] 30 migration files total; head: `k5e6f7g8h9i0`; 148 passing tests
+- [x] 31 migration files total; head: `m6f7g8h9i0j1`; 159 passing tests
 
 ---
 

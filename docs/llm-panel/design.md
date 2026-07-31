@@ -94,6 +94,41 @@ A leak is silent. The run completes, the transcript looks fine, and the result
 is worthless. That is the entire reason these checks are tests rather than
 review comments.
 
+### Disclosure to humans is not the variable
+
+The experimental manipulation applies to models. It does not apply to people.
+
+Every bot account carries `User.is_synthetic`, rendered beside its display name
+on every surface a human reads: the community member list, author bylines on
+posts and proposals and comments, the platform admin user list, the add-member
+search. Condition B's bots are labelled too — `R. Alvarez` reads as a bot to any
+person who looks, and as a neighbour to `J. Chen`.
+
+That asymmetry is the whole ethical position. A person on this platform is never
+misled about who wrote something. A language model inside a controlled
+instrument is, briefly, and then Stage 2 of the debrief tells it so.
+
+**The blind condition is maintained in prompt assembly, not by hiding platform
+state.** This matters because the tempting implementation is the wrong one:
+restricting what bots can read — filtering the audit log, hiding member lists —
+would be both unnecessary and damaging. Unnecessary because a participant's
+entire perceptual world is the text `render_thread_state` hands it, and the
+audit log is not in that text. Damaging because an audit log that shows
+different things to different viewers is not an audit log; the capture-detection
+property in CLAUDE.md constraint #1 depends on it being uniformly public.
+
+So the rule is narrow and one-directional: `is_synthetic` is shown to everyone
+who can see the platform, and it is never rendered into a participant's turn.
+If a future orchestrator starts including member lists or audit excerpts in
+assembled state, that is the moment the flag needs filtering *there* — in
+`prompts.py`, where the condition already lives.
+
+The label is set through `POST /api/v1/admin/users/synthetic`, which is
+platform-admin only and audited. Not at registration: that route is
+unauthenticated, so a self-asserted label would carry no information. A claim
+about who is a bot is only worth something when someone accountable made it,
+and the audit log records who.
+
 ### Why C is disclosed-only
 
 Blind-mixed — humans deliberating with bots they believe are human — is the

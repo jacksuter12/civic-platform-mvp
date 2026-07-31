@@ -1392,3 +1392,26 @@ body:not(.tooltips-disabled) .signal-bar[data-tooltip]:hover::before {
   .process-flow__steps { flex-direction: column; }
   .process-flow__connector { transform: rotate(90deg); align-self: center; margin-top: 0; }
 }
+
+/* ---------------------------------------------------------------------------
+   Synthetic (software-operated) account badge.
+
+   Rendered next to the display name everywhere a human might read this
+   account's words. Never rendered into anything a synthetic participant
+   itself sees — the LLM panel's blind condition is maintained in prompt
+   assembly, not by hiding platform state. See docs/llm-panel/design.md.
+   --------------------------------------------------------------------------- */
+.bot-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  margin-left: 6px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #fff3e0;
+  color: #b45309;
+  border: 1px solid #f0c992;
+  vertical-align: middle;
+}

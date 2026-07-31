@@ -63,3 +63,18 @@ function esc(str) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
+/**
+ * Badge marking an account as software-operated.
+ *
+ * Takes any UserPublic-shaped object (post authors, proposal authors,
+ * amendment authors, thread starters — they all use the same schema) and
+ * returns markup, or "" for a human.
+ *
+ * Always rendered when the flag is set. This is the one label a reader must
+ * never have to go looking for.
+ */
+function botBadge(user) {
+  if (!user || !user.is_synthetic) return "";
+  return `<span class="bot-badge" title="This account is operated by software, not a person.">Bot</span>`;
+}

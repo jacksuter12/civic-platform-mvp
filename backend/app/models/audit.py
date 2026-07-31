@@ -59,6 +59,8 @@ class AuditEventType(str, PyEnum):
     ANNOTATION_MODERATED = "annotation_moderated"
     USER_ANNOTATOR_GRANTED = "user_annotator_granted"
     USER_ANNOTATOR_REVOKED = "user_annotator_revoked"
+    USER_MARKED_SYNTHETIC = "user_marked_synthetic"
+    USER_UNMARKED_SYNTHETIC = "user_unmarked_synthetic"
     ANNOTATOR_REQUEST_SUBMITTED = "annotator_request_submitted"
     ANNOTATOR_REQUEST_APPROVED = "annotator_request_approved"
     ANNOTATOR_REQUEST_DENIED = "annotator_request_denied"

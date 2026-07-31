@@ -152,7 +152,7 @@ function renderPost(post, depth, childrenOf, { maxDepth = MAX_DEPTH, commentMode
     : `<div class="post-body">${esc(post.body)}</div>`;
 
   const authorHtml = post.is_removed ? "" : `
-    <span class="post-author">${esc(post.author?.display_name || "Unknown")}</span>
+    <span class="post-author">${esc(post.author?.display_name || "Unknown")}</span>${botBadge(post.author)}
     <span class="post-time">${timeAgo(post.created_at)}</span>`;
 
   // Signal bar for this post
@@ -210,7 +210,7 @@ function renderRootPost(post, childrenOf) {
     return `
       <div class="post-root" data-root-id="${esc(post.id)}">
         <div class="post-root-summary">
-          <span class="post-author">${esc(post.is_removed ? "" : post.author?.display_name || "")}</span>
+          <span class="post-author">${esc(post.is_removed ? "" : post.author?.display_name || "")}</span>${post.is_removed ? "" : botBadge(post.author)}
           <span class="post-preview">${esc(preview)}</span>
           <span class="post-meta">${totalReplies} repl${totalReplies !== 1 ? "ies" : "y"}</span>
           <button class="collapse-link" data-action="expand-root" data-root-id="${esc(post.id)}">Expand</button>
@@ -461,7 +461,7 @@ function renderAmendment(amendment, proposal) {
       <div class="amendment-header">
         <span class="amendment-title">${esc(amendment.title)}</span>
         <span class="amendment-badge ${statusClass}">${esc(amendment.status)}</span>
-        <span class="amendment-meta">by ${esc(amendment.author?.display_name)} · ${timeAgo(amendment.created_at)}</span>
+        <span class="amendment-meta">by ${esc(amendment.author?.display_name)}${botBadge(amendment.author)} · ${timeAgo(amendment.created_at)}</span>
       </div>
       <div class="amendment-body">
         <div class="amendment-original">
@@ -543,7 +543,7 @@ function renderProposalCard(proposal) {
         <span class="proposal-status-badge proposal-status-${esc(proposal.status)}">${label}</span>
       </div>
       <div class="proposal-meta">
-        by ${esc(proposal.created_by?.display_name || "Unknown")} · ${timeAgo(proposal.created_at)}
+        by ${esc(proposal.created_by?.display_name || "Unknown")}${botBadge(proposal.created_by)} · ${timeAgo(proposal.created_at)}
         ${amount}
       </div>
       <div class="proposal-description" data-proposal-description="${esc(proposal.id)}">${esc(proposal.description)}</div>
@@ -595,7 +595,7 @@ function renderProposalCompactCard(proposal) {
         <span class="proposal-status-badge proposal-status-${esc(proposal.status)}">${label}</span>
       </div>
       <div class="pcc-meta">
-        by ${esc(proposal.created_by?.display_name || "Unknown")} ·
+        by ${esc(proposal.created_by?.display_name || "Unknown")}${botBadge(proposal.created_by)} ·
         v${proposal.current_version_number || 1}
         ${amount}
       </div>
@@ -734,7 +734,7 @@ function renderPage() {
         <span class="${phaseBadgeClass(t.status)}">${capitalize(t.status)}</span>
       </div>
       <div class="thread-header-meta">
-        Started by ${esc(t.created_by?.display_name)} · ${timeAgo(t.created_at)}
+        Started by ${esc(t.created_by?.display_name)}${botBadge(t.created_by)} · ${timeAgo(t.created_at)}
         · ${t.post_count} post${t.post_count !== 1 ? "s" : ""}
         · ${t.proposal_count} proposal${t.proposal_count !== 1 ? "s" : ""}
       </div>

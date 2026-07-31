@@ -101,6 +101,14 @@ specific traces it leaves. Read them before you run, not after.
 - All deliberation events carry the research community's `community_id`, so they
   land in that community's audit log and not in the platform-level one.
 
+**Every bot is labelled to humans.** Seeded accounts carry `User.is_synthetic`,
+and a `Bot` badge renders beside the display name in the member list, on every
+author byline, in the admin user list, and in the add-member search. That
+includes condition B — `R. Alvarez` reads as a bot to any person who looks, and
+as a neighbour to the other models. The models never see the flag; the blind
+condition lives in prompt assembly, not in hidden platform state. The seed
+refuses to finish if `/auth/me` does not report the label.
+
 **What is visible:**
 
 - **The public platform audit log at `/audit`.** `POST /auth/register` writes a
@@ -130,8 +138,8 @@ do not transfer. If you seed both, keep two `.env.llm-panel` files.
 
 ## Prerequisites on the platform side
 
-- The target environment is migrated past `k5e6f7g8h9i0`, which adds
-  `communities.research_mode`.
+- The target environment is migrated past `m6f7g8h9i0j1`, which adds
+  `communities.research_mode` (`k5e6f7g8h9i0`) and `users.is_synthetic`.
 - The account behind `LLM_PANEL_ADMIN_JWT` has `platform_role='platform_admin'`.
 
 Research communities are created `is_public=True` deliberately: a private

@@ -540,7 +540,7 @@
       return `
         <div class="user-row" id="urow-${u.id}">
           <div>
-            <div class="user-name">${escapeHtml(u.display_name)}</div>
+            <div class="user-name">${escapeHtml(u.display_name)}${botBadge(u)}</div>
             <div class="user-email">${escapeHtml(u.email)}</div>
             <div class="user-meta">
               <span class="tier-tag">${escapeHtml(u.tier)}</span>

@@ -65,6 +65,7 @@ class CommunityMemberRead(CamelBase):
 
     display_name: str
     tier: UserTier
+    is_synthetic: bool = False
 
 
 class CommunityMembershipSummary(CamelBase):
@@ -80,3 +81,7 @@ class UserSearchResult(CamelBase):
 
     display_name: str
     email: str
+    #: Surfaced here so a facilitator does not add a bot to a real community by
+    #: accident — this search covers every user on the platform, not just this
+    #: community's members.
+    is_synthetic: bool = False

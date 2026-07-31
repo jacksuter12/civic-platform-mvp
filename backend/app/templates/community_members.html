@@ -30,6 +30,7 @@
     .tier-facilitator { background: #e3f2fd; color: #1565c0; }
     .tier-participant { background: #e8f5e9; color: #2e7d32; }
     .tier-registered  { background: #f5f5f5; color: #555; }
+    /* .bot-badge lives in main.css — one definition, every page. */
     .members-count    { font-size: 13px; color: #888; margin-bottom: 16px; }
     .add-member-wrap  { position: relative; flex: 1; min-width: 200px; }
     .add-member-input {
@@ -101,6 +102,7 @@
         : members.map(m => `
           <div class="member-row">
             <span class="member-name">${esc(m.display_name)}</span>
+            ${botBadge(m)}
             <span class="tier-badge ${tierClass(m.tier)}">${esc(m.tier)}</span>
           </div>`).join("");
 
@@ -153,6 +155,7 @@
              data-name="${esc(u.display_name)}"
              onmousedown="selectUser(this)">
           <span class="user-dd-name">${esc(u.display_name)}</span>
+          ${botBadge(u)}
           <span class="user-dd-email">${esc(u.email)}</span>
         </div>`).join("");
       dd.style.display = "block";

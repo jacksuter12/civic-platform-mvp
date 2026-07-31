@@ -161,6 +161,31 @@ def test_add_member_sends_email_and_tier() -> None:
     }
 
 
+def test_synthetic_marking_labels_the_bot_by_email() -> None:
+    """
+    Humans must be able to tell a bot from a person. The panel does not get to
+    assert that itself at registration — this goes through the platform-admin
+    route so the claim has an accountable author in the audit log.
+    """
+    bot = CONDITION_B.roster[0]
+    sent: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent["path"] = request.url.path
+        sent["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"is_synthetic": True})
+
+    with _api(handler) as api:
+        api.ensure_synthetic(CONDITION_B, bot)
+
+    assert sent["path"] == "/api/v1/admin/users/synthetic"
+    assert sent["body"]["email"] == CONDITION_B.email(bot)
+    assert sent["body"]["is_synthetic"] is True
+    # Even the blind condition's bots are labelled. The models never see this;
+    # only humans do.
+    assert "B" in sent["body"]["reason"]
+
+
 def test_platform_errors_surface_with_the_status_code() -> None:
     from llm_panel.platform_client import PlatformError
 

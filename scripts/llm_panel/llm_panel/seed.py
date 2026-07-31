@@ -14,9 +14,12 @@ Per condition:
                                            domain auto-creates — the panel uses it.
   2. POST /auth/register                   one bot user per roster entry,
                                            deterministic supabase_uid
-  3. POST /communities/{slug}/members      one facilitator, the rest registered
-  4. mint a JWT per bot, write .env.llm-panel
-  5. GET /auth/me with each JWT            assert the membership actually landed
+  3. POST /admin/users/synthetic           label the account as a bot, so every
+                                           human who reads it knows
+  4. POST /communities/{slug}/members      one facilitator, the rest registered
+  5. mint a JWT per bot, write .env.llm-panel
+  6. GET /auth/me with each JWT            assert the membership actually landed
+                                           and the synthetic label stuck
 
 Communities are created public on purpose. A private community 404s for
 everyone except platform admins — *including its own members* — so the bots
@@ -185,6 +188,29 @@ class AdminApi:
         raise_for_status(response, f"POST /auth/register ({condition.email(bot)})")
         return True
 
+    def ensure_synthetic(self, condition: Condition, bot: Bot) -> None:
+        """
+        Mark the account as software-operated, so every human who reads it knows.
+
+        Platform-admin only and idempotent on the server. Not settable at
+        registration: `POST /auth/register` is unauthenticated, so a
+        self-asserted label would be worth nothing.
+
+        The models never see this flag — it is not rendered into any turn. The
+        blind condition lives in prompt assembly, not in hidden platform state.
+        """
+        response = self._http.post(
+            "/admin/users/synthetic",
+            json={
+                "email": condition.email(bot),
+                "is_synthetic": True,
+                "reason": f"LLM panel bot, condition {condition.key}",
+            },
+        )
+        raise_for_status(
+            response, f"POST /admin/users/synthetic ({condition.email(bot)})"
+        )
+
     def ensure_member(self, condition: Condition, bot: Bot) -> None:
         """
         Add or re-tier the bot's membership. The platform route upserts, so this
@@ -265,6 +291,7 @@ def seed_condition(
     tokens: dict[str, str] = {}
     for bot in condition.roster:
         user_created = api.ensure_user(condition, bot)
+        api.ensure_synthetic(condition, bot)
         api.ensure_member(condition, bot)
         tokens[condition.env_var(bot)] = generate_bot_jwt(
             supabase_uid=condition.supabase_uid(bot),
@@ -281,12 +308,22 @@ def seed_condition(
             token = tokens[condition.env_var(bot)]
             with PlatformClient(base_url, token, condition.slug) as client:
                 tier = client.membership_tier()
+                me = client.me()
             if tier != bot.tier:
                 raise SeedError(
                     f"Verification failed for {bot.display_name}: expected tier "
                     f"{bot.tier!r} in {condition.slug!r}, /auth/me reported {tier!r}"
                 )
-        print(f"  verified   [ok]      {len(condition.roster)} tokens against /auth/me")
+            if not me.get("is_synthetic"):
+                raise SeedError(
+                    f"Verification failed for {bot.display_name}: the account is "
+                    "not labelled synthetic. Humans would read it as a person. "
+                    "Check that the platform is migrated past m6f7g8h9i0j1."
+                )
+        print(
+            f"  verified   [ok]      {len(condition.roster)} tokens against "
+            "/auth/me, all labelled Bot"
+        )
 
     return tokens
 

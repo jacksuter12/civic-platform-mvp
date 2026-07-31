@@ -26,7 +26,13 @@ from app.models.community_membership import CommunityMembership
 from app.models.facilitator_request import FacilitatorRequest, FacilitatorRequestStatus
 from app.models.notification import NotificationType
 from app.models.user import PlatformRole, User, UserTier, TIER_ORDER
-from app.schemas.annotation import AnnotatorGrantBody, UserAdminSummary, UserAnnotatorOut
+from app.schemas.annotation import (
+    AnnotatorGrantBody,
+    UserAdminSummary,
+    UserAnnotatorOut,
+    UserSyntheticOut,
+    UserSyntheticSet,
+)
 from app.schemas.annotator_request import AnnotatorRequestDetail
 from app.schemas.facilitator_request import FacilitatorRequestDetail
 
@@ -522,6 +528,70 @@ async def revoke_annotator(
 
 
 # ---------------------------------------------------------------------------
+# Synthetic (bot) account marking — platform admin only
+# ---------------------------------------------------------------------------
+
+
+@router.post("/users/synthetic", response_model=UserSyntheticOut)
+async def set_user_synthetic(
+    payload: UserSyntheticSet,
+    admin: PlatformAdminUser,
+    db: DB,
+) -> UserSyntheticOut:
+    """
+    Mark an account as operated by software, or clear the mark. Platform admin
+    only, and deliberately not settable at registration: POST /auth/register is
+    unauthenticated, so a self-asserted label would be worth nothing. This way
+    the claim has an accountable author, recorded in the audit log.
+
+    Idempotent — no audit entry when the value is already what you asked for.
+
+    Keyed by email rather than id so a seeding script can call it without
+    having captured the id, which it does not have on the already-exists path.
+    """
+    result = await db.execute(select(User).where(User.email == payload.email))
+    target = result.scalar_one_or_none()
+    if target is None:
+        raise HTTPException(
+            status_code=404, detail="No user found with that email address."
+        )
+
+    if target.is_synthetic == payload.is_synthetic:
+        return UserSyntheticOut(
+            id=target.id,
+            display_name=target.display_name,
+            is_synthetic=target.is_synthetic,
+        )
+
+    target.is_synthetic = payload.is_synthetic
+    db.add(target)
+    await db.flush()
+
+    audit_payload: dict = {}
+    if payload.reason:
+        audit_payload["reason"] = payload.reason
+
+    await log_event(
+        db,
+        event_type=(
+            AuditEventType.USER_MARKED_SYNTHETIC
+            if payload.is_synthetic
+            else AuditEventType.USER_UNMARKED_SYNTHETIC
+        ),
+        target_type="user",
+        target_id=target.id,
+        payload=audit_payload,
+        actor_id=admin.id,
+    )
+
+    return UserSyntheticOut(
+        id=target.id,
+        display_name=target.display_name,
+        is_synthetic=target.is_synthetic,
+    )
+
+
+# ---------------------------------------------------------------------------
 # User list (platform admin only)
 # ---------------------------------------------------------------------------
 
@@ -558,6 +628,7 @@ async def list_users(
             email=u.email,
             tier=u.tier,
             is_annotator=u.is_annotator,
+            is_synthetic=u.is_synthetic,
             created_at=u.created_at,
         )
         for u in users

@@ -25,10 +25,12 @@ target: Redlands, CA (`/c/redlands`).
 *Infrastructure*
 - Multi-community data model: `Community`, `CommunityMembership` tables
 - `platform_role` field on users (user | platform_admin) for platform-level ops
-- 30 Alembic migration files (head: `k5e6f7g8h9i0`)
-- 148 passing backend tests, plus 57 in `scripts/llm_panel/`
+- 31 Alembic migration files (head: `m6f7g8h9i0j1`)
+- 159 passing backend tests, plus 58 in `scripts/llm_panel/`
 - `Community.research_mode` — synthetic-participant research spaces
   (creation-only, excluded from the public directory)
+- `User.is_synthetic` — bot accounts are labelled everywhere a human reads
+  them (member lists, author bylines, admin lists, add-member search)
 
 *Pages and routes*
 - `/` `/how-it-works` `/quiz` `/signin` `/account` `/wiki` `/wiki/{slug}`
@@ -146,8 +148,8 @@ backend/          FastAPI backend
       account.html, admin.html, audit.html, signin.html, wiki_index.html,
       wiki_article.html, how-it-works.html, quiz.html, index.html,
       notifications.html, proposal_authoring.html, proposal_review.html
-  alembic/        DB migrations (30 files; head: k5e6f7g8h9i0)
-  tests/          pytest (148 tests)
+  alembic/        DB migrations (31 files; head: m6f7g8h9i0j1)
+  tests/          pytest (159 tests)
 
 scripts/llm_panel/   LLM deliberation panel — a PEER of backend/, not part of it.
                      Own pyproject.toml, own deps, zero imports from app.*.
@@ -156,7 +158,7 @@ scripts/llm_panel/   LLM deliberation panel — a PEER of backend/, not part of 
     jwt_util.py         HS256 bot tokens (sub = User.supabase_uid)
     platform_client.py  The only module that talks to the platform
     seed.py             Idempotent HTTP seeding of communities, bots, tokens
-  tests/                pytest (57 tests, no network)
+  tests/                pytest (58 tests, no network)
 
 docs/             Architecture, roadmap, LLM integration guide, decision log
                   community-model-v0.3.md — multi-community spec (resolved)
@@ -187,7 +189,7 @@ cd scripts/llm_panel
 pip install -e ".[dev]"
 cp .env.llm-panel.example .env.llm-panel   # fill in the two secrets
 python -m llm_panel.seed       # idempotent; safe to re-run
-pytest                         # 57 unit tests, no network
+pytest                         # 58 unit tests, no network
 ```
 
 ---
@@ -270,6 +272,18 @@ pytest                         # 57 unit tests, no network
     cannot be toggled on or off. Real communities never set it. Research
     communities are excluded from `GET /communities` for every caller,
     platform admins included, and stay reachable by slug.
+
+14. **`User.is_synthetic` is shown to humans and hidden from no one.**
+    It marks a software-operated account. Set only via
+    `POST /api/v1/admin/users/synthetic` (platform admin, audited) — never at
+    registration, which is unauthenticated and where a self-asserted label
+    would be worthless. Render it beside the display name on every surface a
+    human reads; `botBadge()` in `static/js/utils.js` is the one helper, and
+    `UserPublic` carries the field to every author byline.
+    **Never render it into a synthetic participant's own view.** The LLM
+    panel's blind condition is maintained in the orchestrator's prompt
+    assembly, not by hiding platform state — and never by filtering the audit
+    log, which must show the same thing to everyone (constraint #1).
 
 ---
 

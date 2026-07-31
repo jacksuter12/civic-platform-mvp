@@ -272,7 +272,7 @@ async def list_community_members(
         )
 
     result = await db.execute(
-        select(User.display_name, CommunityMembership.tier)
+        select(User.display_name, CommunityMembership.tier, User.is_synthetic)
         .join(User, User.id == CommunityMembership.user_id)
         .where(
             CommunityMembership.community_id == community.id,
@@ -281,7 +281,10 @@ async def list_community_members(
         .order_by(CommunityMembership.joined_at.asc())
     )
     rows = result.all()
-    return [CommunityMemberRead(display_name=display_name, tier=tier) for display_name, tier in rows]
+    return [
+        CommunityMemberRead(display_name=display_name, tier=tier, is_synthetic=is_synthetic)
+        for display_name, tier, is_synthetic in rows
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -305,7 +308,7 @@ async def search_community_users(
 
     pattern = f"%{q}%"
     result = await db.execute(
-        select(User.display_name, User.email)
+        select(User.display_name, User.email, User.is_synthetic)
         .where(
             User.is_active == True,
             (func.lower(User.display_name).like(func.lower(pattern)))
@@ -315,7 +318,10 @@ async def search_community_users(
         .limit(10)
     )
     rows = result.all()
-    return [UserSearchResult(display_name=dn, email=email) for dn, email in rows]
+    return [
+        UserSearchResult(display_name=dn, email=email, is_synthetic=is_synthetic)
+        for dn, email, is_synthetic in rows
+    ]
 
 
 # ---------------------------------------------------------------------------

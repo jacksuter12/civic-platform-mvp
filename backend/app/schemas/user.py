@@ -65,11 +65,19 @@ class UserCreate(CamelBase):
 
 
 class UserPublic(UUIDSchema, TimestampSchema):
-    """Safe public representation — no email, no supabase_uid."""
+    """
+    Safe public representation — no email, no supabase_uid.
+
+    Every author byline on the platform is built from this schema (posts,
+    proposals, comments, amendments, annotations), so `is_synthetic` reaches
+    all of them from here.
+    """
 
     display_name: str
     tier: UserTier
     identity_verified_at: datetime | None
+    #: Account is operated by software, not a person.
+    is_synthetic: bool = False
 
 
 class UserMe(UserPublic):

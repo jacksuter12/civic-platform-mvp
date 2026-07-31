@@ -14,7 +14,7 @@ Includes:
 import uuid
 from datetime import datetime
 
-from pydantic import Field
+from pydantic import EmailStr, Field
 
 from app.models.annotation import AnnotationTargetType, ReactionType
 from app.models.user import UserTier
@@ -148,4 +148,21 @@ class UserAdminSummary(CamelBase):
     email: str
     tier: UserTier
     is_annotator: bool
+    is_synthetic: bool = False
     created_at: datetime
+
+
+class UserSyntheticSet(CamelBase):
+    """Platform admin marks (or unmarks) an account as software-operated."""
+
+    email: EmailStr
+    is_synthetic: bool = True
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class UserSyntheticOut(CamelBase):
+    """Minimal user representation returned by the synthetic-marking endpoint."""
+
+    id: uuid.UUID
+    display_name: str
+    is_synthetic: bool
