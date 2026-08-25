@@ -12,7 +12,13 @@ from dataclasses import replace
 import httpx
 import pytest
 
-from llm_panel.conditions import CONDITION_A, CONDITION_B, CONDITIONS, Bot
+from llm_panel.conditions import (
+    CONDITION_A,
+    CONDITION_B,
+    CONDITIONS,
+    PROVIDER_ANTHROPIC,
+    Bot,
+)
 from llm_panel.seed import (
     BEGIN_MARKER,
     END_MARKER,
@@ -33,9 +39,19 @@ def test_preflight_accepts_the_committed_conditions() -> None:
 
 
 def test_preflight_rejects_a_shared_display_name() -> None:
+    """A name shared across conditions links two rosters and ends condition B."""
+    residents = CONDITION_B.roster("residents")
     clash = replace(
         CONDITION_B,
-        roster=(*CONDITION_B.roster[:-1], Bot("clash", "Claude Panel", "facilitator")),
+        rosters=(
+            replace(
+                residents,
+                bots=(
+                    *residents.bots[:-1],
+                    Bot("clash", "Claude Panel", PROVIDER_ANTHROPIC, "facilitator"),
+                ),
+            ),
+        ),
     )
     with pytest.raises(SeedError, match="Duplicate display_name"):
         preflight((CONDITION_A, clash))
@@ -50,22 +66,49 @@ def test_preflight_rejects_a_leak_in_a_blind_condition() -> None:
         preflight((leaky,))
 
 
-def test_preflight_rejects_a_condition_with_no_facilitator() -> None:
+def test_preflight_rejects_a_roster_with_no_facilitator() -> None:
+    named = CONDITION_A.roster("named")
     headless = replace(
         CONDITION_A,
-        roster=tuple(replace(b, tier="registered") for b in CONDITION_A.roster),
+        rosters=(
+            replace(
+                named,
+                bots=tuple(replace(b, tier="registered") for b in named.bots),
+            ),
+        ),
     )
     with pytest.raises(SeedError, match="exactly one facilitator"):
         preflight((headless,))
 
 
 def test_preflight_rejects_two_facilitators() -> None:
+    named = CONDITION_A.roster("named")
     crowded = replace(
         CONDITION_A,
-        roster=tuple(replace(b, tier="facilitator") for b in CONDITION_A.roster),
+        rosters=(
+            replace(
+                named,
+                bots=tuple(replace(b, tier="facilitator") for b in named.bots),
+            ),
+        ),
     )
     with pytest.raises(SeedError, match="exactly one facilitator"):
         preflight((crowded,))
+
+
+def test_preflight_rejects_an_unknown_provider() -> None:
+    named = CONDITION_A.roster("named")
+    bogus = replace(
+        CONDITION_A,
+        rosters=(
+            replace(
+                named,
+                bots=(replace(named.bots[0], provider="mystery"), *named.bots[1:]),
+            ),
+        ),
+    )
+    with pytest.raises(SeedError, match="unknown provider"):
+        preflight((bogus,))
 
 
 # ---------------------------------------------------------------------------
@@ -124,7 +167,7 @@ def test_existing_community_is_read_back_rather_than_failing() -> None:
 
 
 def test_register_reports_created_vs_existing() -> None:
-    bot = CONDITION_A.roster[0]
+    bot = CONDITION_A.roster("named").bots[0]
     sent: dict = {}
 
     def created_handler(request: httpx.Request) -> httpx.Response:
@@ -143,7 +186,7 @@ def test_register_reports_created_vs_existing() -> None:
 
 
 def test_add_member_sends_email_and_tier() -> None:
-    facilitator = CONDITION_A.facilitator()
+    facilitator = CONDITION_A.roster("named").facilitator()
     sent: dict = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -167,7 +210,7 @@ def test_synthetic_marking_labels_the_bot_by_email() -> None:
     assert that itself at registration — this goes through the platform-admin
     route so the claim has an accountable author in the audit log.
     """
-    bot = CONDITION_B.roster[0]
+    bot = CONDITION_B.roster("residents").bots[0]
     sent: dict = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
