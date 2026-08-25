@@ -24,7 +24,7 @@ that is out of scope.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 #: Terms that must not appear anywhere in a blind condition's visible text.
 LEAK_TERMS: tuple[str, ...] = ("research", "llm", "synthetic", "experiment")
@@ -40,6 +40,24 @@ BOT_EMAIL_DOMAIN = "llm-panel.example"
 TIER_REGISTERED = "registered"
 TIER_FACILITATOR = "facilitator"
 
+# -- Recall ------------------------------------------------------------------
+#
+# What a participant is shown of its own past private `reasoning` when its turn
+# comes round again.
+#
+#   none  Each turn reasons fresh from the public thread. The participant can
+#         see that it posted, not why. Less continuity than a human has.
+#   own   Its own prior reasoning entries are replayed to it as a block in the
+#         user prompt. Not a native chat history — the provider interface is
+#         `complete(system, user)`, so this is closer to a person re-reading
+#         their own notes than to a conversation the model remembers.
+#
+# Recall never crosses participants. Nobody ever sees anyone else's reasoning;
+# that is the whole reason the field is private.
+RECALL_NONE = "none"
+RECALL_OWN = "own"
+RECALL_MODES: tuple[str, ...] = (RECALL_NONE, RECALL_OWN)
+
 
 @dataclass(frozen=True)
 class Bot:
@@ -48,6 +66,9 @@ class Bot:
     bot_slug: str
     display_name: str
     tier: str = TIER_REGISTERED
+    #: Per-participant default. `run.py --recall none|own` overrides every
+    #: participant uniformly; `--recall mixed` honours what the roster says.
+    recall: str = RECALL_NONE
 
 
 @dataclass(frozen=True)
@@ -94,6 +115,24 @@ class Condition:
             *(bot.display_name for bot in self.roster),
         )
 
+    def with_recall(self, mode: str) -> Condition:
+        """
+        This condition with every participant forced to one recall mode.
+
+        The uniform form is what an actual comparison uses: run the same
+        thread prompt twice, once `none` and once `own`, and recall is the only
+        thing that differs. `mode="mixed"` returns the condition untouched, so
+        the roster's own per-participant assignment stands.
+        """
+        if mode == "mixed":
+            return self
+        if mode not in RECALL_MODES:
+            known = ", ".join((*RECALL_MODES, "mixed"))
+            raise ValueError(f"Unknown recall mode {mode!r}. Known modes: {known}")
+        return replace(
+            self, roster=tuple(replace(b, recall=mode) for b in self.roster)
+        )
+
     def facilitator(self) -> Bot:
         facilitators = [b for b in self.roster if b.tier == TIER_FACILITATOR]
         if len(facilitators) != 1:
@@ -117,8 +156,15 @@ CONDITION_A = Condition(
     community_type="technical",
     boundary_desc="Seeded synthetic participants operated by the panel scripts.",
     verification_method="Bot accounts seeded by scripts/llm_panel. No human members.",
+    # Pilot recall assignment, used only by `--recall mixed`. Memory is
+    # entangled with model identity here — Claude-with-notes versus
+    # GPT-without is two variables, not one — so a mixed run is a look at
+    # whether recall changes behaviour at all, never a result about recall.
+    # The clean comparison is two runs at `--recall none` and `--recall own`.
+    # Assigned here rather than in B or C because A's display names make the
+    # name → provider mapping unambiguous.
     roster=(
-        Bot("claude-panel", "Claude Panel"),
+        Bot("claude-panel", "Claude Panel", recall=RECALL_OWN),
         Bot("gpt-panel", "GPT Panel"),
         Bot("gemini-panel", "Gemini Panel"),
         Bot("facilitator-bot", "Facilitator Bot", tier=TIER_FACILITATOR),

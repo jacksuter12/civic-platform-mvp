@@ -84,6 +84,13 @@ quietly worthless.
 Rosters must not share a display name, email, `supabase_uid`, or token env var
 across conditions. Same reason.
 
+Each roster entry also carries `recall` — whether that participant is shown its
+own prior private reasoning on later turns (`none`, the default, or `own`).
+Sprint 2's `run.py --recall {none,own,mixed}` forces every participant to one
+mode or honours the roster. Use two uniform runs for any real comparison; a
+mixed run entangles recall with model identity. See
+[`docs/llm-panel/design.md`](../../docs/llm-panel/design.md).
+
 ## Running against production
 
 Supported, and the current intent for the first run. The panel writes nothing

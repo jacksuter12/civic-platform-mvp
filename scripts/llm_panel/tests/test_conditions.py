@@ -16,6 +16,9 @@ from llm_panel.conditions import (
     CONDITION_C,
     CONDITIONS,
     LEAK_TERMS,
+    RECALL_MODES,
+    RECALL_NONE,
+    RECALL_OWN,
     TIER_FACILITATOR,
     Bot,
     Condition,
@@ -149,6 +152,61 @@ def test_community_text_fits_the_platform_constraints() -> None:
             "topical",
             "technical",
         }
+
+
+# ---------------------------------------------------------------------------
+# Recall — what a participant sees of its own past private reasoning
+# ---------------------------------------------------------------------------
+
+
+def test_recall_defaults_to_none() -> None:
+    """
+    Stateless is the default: each turn reasons fresh from the public thread.
+    Anything else has to be asked for explicitly.
+    """
+    assert Bot("x", "X. Person").recall == RECALL_NONE
+    for condition in (CONDITION_B, CONDITION_C):
+        assert all(b.recall == RECALL_NONE for b in condition.roster), condition.key
+
+
+def test_condition_a_carries_the_mixed_pilot_assignment() -> None:
+    """One participant with recall, the rest without — used only by --recall mixed."""
+    by_recall = Counter(b.recall for b in CONDITION_A.roster)
+    assert by_recall[RECALL_OWN] == 1
+    assert by_recall[RECALL_NONE] == 3
+    assert CONDITION_A.roster[0].display_name == "Claude Panel"
+    assert CONDITION_A.roster[0].recall == RECALL_OWN
+
+
+@pytest.mark.parametrize("mode", RECALL_MODES)
+def test_with_recall_forces_every_participant_to_one_mode(mode: str) -> None:
+    """
+    The uniform form is what an actual comparison uses — same thread prompt,
+    two runs, recall the only difference.
+    """
+    forced = CONDITION_A.with_recall(mode)
+    assert all(b.recall == mode for b in forced.roster)
+    # Identity is untouched: same names, same slugs, same tiers.
+    assert [b.display_name for b in forced.roster] == [
+        b.display_name for b in CONDITION_A.roster
+    ]
+    assert [b.tier for b in forced.roster] == [b.tier for b in CONDITION_A.roster]
+    assert forced.slug == CONDITION_A.slug
+
+
+def test_with_recall_mixed_leaves_the_roster_alone() -> None:
+    assert CONDITION_A.with_recall("mixed") is CONDITION_A
+
+
+def test_with_recall_rejects_an_unknown_mode() -> None:
+    with pytest.raises(ValueError, match="Unknown recall mode"):
+        CONDITION_A.with_recall("telepathy")
+
+
+def test_with_recall_does_not_mutate_the_committed_condition() -> None:
+    """Conditions are frozen; a forced copy must not leak back into the table."""
+    CONDITION_A.with_recall(RECALL_OWN)
+    assert Counter(b.recall for b in CONDITION_A.roster)[RECALL_OWN] == 1
 
 
 # ---------------------------------------------------------------------------

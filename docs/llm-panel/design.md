@@ -161,6 +161,58 @@ participant would not say out loud.
 
 ---
 
+## Recall: what a participant remembers of its own thinking
+
+Each turn is a stateless call — `complete(system, user)`, no accumulated message
+list. The public thread is re-read from the platform and re-rendered in full
+every turn, so a participant always sees the whole conversation verbatim. The
+open question was narrower: does it see its own prior *private* `reasoning`?
+
+Both, by design. `Bot.recall` is `none` (default) or `own`.
+
+Under `own`, prior entries are replayed as a block in the user prompt. That is
+not a chat history the model remembers — the provider interface has no place to
+put one — so it behaves more like a person re-reading their own notes before
+speaking again. Recall never crosses participants; nobody ever sees anyone
+else's reasoning, which is the entire reason the field is private.
+
+### Why both, and why that is not one experiment
+
+`none` and `own` are different deliberators. Under `none` a participant can see
+that it argued something three turns ago but not why, which is less continuity
+than any human in a meeting has. Under `own` it carries its own thread of
+thought — and may also carry its own early errors further than it should.
+Neither is obviously the right model of a person, so measuring both is better
+than guessing.
+
+**A run with some participants on `own` and others on `none` is a pilot, not a
+result.** With three participants, memory is entangled with model identity:
+Claude-with-notes versus GPT-without is two variables moving at once, and
+nothing in the transcript separates them. Worse, they are not independent
+samples — they are in the same conversation, and a participant with better
+continuity changes what the others are responding to.
+
+So the mechanism is per-participant, and the comparison is per-run:
+
+| Invocation | What it is |
+|---|---|
+| `--recall none` | Every participant stateless. Clean arm. |
+| `--recall own` | Every participant carries its own notes. Clean arm. |
+| `--recall mixed` | Roster's own assignment. Confounded — a look at whether recall visibly changes anything, worth doing before spending two runs. |
+
+`Condition.with_recall()` produces the uniform forms, leaving names, slugs and
+tiers untouched so the only difference between the two runs is recall. Run the
+same `--thread-prompt` through both and the comparison means something.
+
+The committed pilot assignment lives in condition A only, where display names
+make the name → provider mapping unambiguous. Condition B's roster is uniform
+`none` until Sprint 2 fixes which provider backs which neutral name — assigning
+recall before that would be assigning it blind.
+
+`metadata.json` records the resolved per-participant modes, not just the flag,
+so a run directory is readable a year later without re-deriving what `mixed`
+meant that day.
+
 ## Design choices worth keeping
 
 **The panel drives the platform over HTTP, with zero imports from `app.*`.**
@@ -203,6 +255,9 @@ state staging is in.
 
 Constraints, not oversights. See the first real run before changing any of them.
 
+- **Recall is per-participant but comparable only per-run.** A mixed run
+  confounds recall with model identity; the meaningful comparison is two
+  uniform runs. At three participants, even those are anecdotal.
 - **Round-robin turn-taking only.** Participants speak in a fixed order. Real
   deliberation is not round-robin, and turn order may itself shape the outcome —
   but varying it adds a second uncontrolled variable to a first run.

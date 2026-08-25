@@ -290,6 +290,19 @@ go to `scripts/llm_panel/runs/`.
 8. **Guard post length** — skip or pad posts under the platform's 10-char minimum
    rather than letting them 422.
 
+9. **Recall.** `Bot.recall` (`conditions.py`) says what a participant is shown of
+   its own prior private `reasoning` when its turn comes round again:
+   `none` (default — reason fresh from the public thread each turn) or `own`
+   (prior entries replayed as a block in the **user** prompt; the system prompt
+   takes no turn-varying content). Recall never crosses participants — nobody
+   sees anyone else's reasoning, which is the point of the field being private.
+   `run.py --recall {none,own,mixed}`: `none`/`own` force every participant
+   uniformly via `Condition.with_recall()`, `mixed` honours the roster. Record
+   the resolved per-participant modes in `metadata.json`, not just the flag.
+   A mixed run confounds recall with model identity — see `design.md`; the
+   comparison that means something is two runs, `none` then `own`, same
+   `--thread-prompt`.
+
 ### Conditions in `prompts.py`
 
 Split `SYSTEM_BASE` into a shared core plus a swappable "WHAT THIS IS" block so
