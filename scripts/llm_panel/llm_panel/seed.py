@@ -42,8 +42,12 @@ from dotenv import load_dotenv
 
 from llm_panel.conditions import (
     CONDITIONS,
+    NAMING_STYLES,
+    PROVIDERS,
+    RECALL_MODES,
     Bot,
     Condition,
+    Roster,
     condition_by_key,
     find_leak_terms,
 )
@@ -80,10 +84,27 @@ def preflight(conditions: tuple[Condition, ...]) -> None:
     problems: list[str] = []
 
     for condition in conditions:
-        try:
-            condition.facilitator()
-        except ValueError as exc:
-            problems.append(str(exc))
+        for roster in condition.rosters:
+            try:
+                roster.facilitator()
+            except ValueError as exc:
+                problems.append(f"Condition {condition.key}: {exc}")
+            if roster.naming not in NAMING_STYLES:
+                problems.append(
+                    f"Roster {condition.key}/{roster.key} has unknown naming "
+                    f"style {roster.naming!r}"
+                )
+            for bot in roster.bots:
+                if bot.provider not in PROVIDERS:
+                    problems.append(
+                        f"Bot {bot.bot_slug!r} has unknown provider "
+                        f"{bot.provider!r}"
+                    )
+                if bot.recall not in RECALL_MODES:
+                    problems.append(
+                        f"Bot {bot.bot_slug!r} has unknown recall mode "
+                        f"{bot.recall!r}"
+                    )
 
         if condition.blind:
             for term, text in find_leak_terms(condition):
@@ -92,14 +113,18 @@ def preflight(conditions: tuple[Condition, ...]) -> None:
                     f"contains {term!r}: {text!r}"
                 )
 
-    # A display name or email shared across conditions would link the two
-    # rosters and, for a blind condition, give the whole thing away.
+    # A display name or email shared across conditions would link two rosters
+    # and, for a blind condition, give the whole thing away. bot_slug has to be
+    # unique condition-wide too, since the env var name is derived from it alone.
     for field, values in (
         ("slug", [c.slug for c in conditions]),
-        ("display_name", [b.display_name for c in conditions for b in c.roster]),
-        ("email", [c.email(b) for c in conditions for b in c.roster]),
-        ("supabase_uid", [c.supabase_uid(b) for c in conditions for b in c.roster]),
-        ("env_var", [c.env_var(b) for c in conditions for b in c.roster]),
+        ("display_name", [b.display_name for c in conditions for b in c.all_bots()]),
+        ("email", [c.email(b) for c in conditions for b in c.all_bots()]),
+        (
+            "supabase_uid",
+            [c.supabase_uid(b) for c in conditions for b in c.all_bots()],
+        ),
+        ("env_var", [c.env_var(b) for c in conditions for b in c.all_bots()]),
     ):
         duplicates = [value for value, count in Counter(values).items() if count > 1]
         if duplicates:
@@ -274,9 +299,18 @@ def seed_condition(
     *,
     base_url: str,
     jwt_secret: str,
+    rosters: tuple[Roster, ...] | None = None,
     verify: bool = True,
 ) -> dict[str, str]:
-    """Seed one condition end to end. Returns the env-var → JWT mapping."""
+    """
+    Seed one condition end to end. Returns the env-var → JWT mapping.
+
+    `rosters` defaults to every roster in the condition. Pass a subset to
+    create only the accounts a planned run needs — each roster is real accounts
+    on a real platform, so seeding all of them when you will use one is just
+    more rows in the public audit log.
+    """
+    rosters = rosters if rosters is not None else condition.rosters
     print(f"\n[{condition.key}] {condition.label} — /c/{condition.slug}")
 
     community, created = api.ensure_community(condition)
@@ -289,43 +323,91 @@ def seed_condition(
         )
 
     tokens: dict[str, str] = {}
-    for bot in condition.roster:
-        user_created = api.ensure_user(condition, bot)
-        api.ensure_synthetic(condition, bot)
-        api.ensure_member(condition, bot)
-        tokens[condition.env_var(bot)] = generate_bot_jwt(
-            supabase_uid=condition.supabase_uid(bot),
-            email=condition.email(bot),
-            secret=jwt_secret,
-        )
-        print(
-            f"  bot        {'[created]' if user_created else '[exists] '} "
-            f"{bot.display_name:<20} {bot.tier:<12} → {condition.env_var(bot)}"
-        )
+    for roster in rosters:
+        crossed = " crossed" if roster.is_crossed() else ""
+        print(f"  roster     {roster.key} ({roster.naming}{crossed})")
 
-    if verify:
-        for bot in condition.roster:
-            token = tokens[condition.env_var(bot)]
-            with PlatformClient(base_url, token, condition.slug) as client:
-                tier = client.membership_tier()
-                me = client.me()
-            if tier != bot.tier:
-                raise SeedError(
-                    f"Verification failed for {bot.display_name}: expected tier "
-                    f"{bot.tier!r} in {condition.slug!r}, /auth/me reported {tier!r}"
-                )
-            if not me.get("is_synthetic"):
-                raise SeedError(
-                    f"Verification failed for {bot.display_name}: the account is "
-                    "not labelled synthetic. Humans would read it as a person. "
-                    "Check that the platform is migrated past m6f7g8h9i0j1."
-                )
-        print(
-            f"  verified   [ok]      {len(condition.roster)} tokens against "
-            "/auth/me, all labelled Bot"
-        )
+        for bot in roster.bots:
+            user_created = api.ensure_user(condition, bot)
+            api.ensure_synthetic(condition, bot)
+            api.ensure_member(condition, bot)
+            tokens[condition.env_var(bot)] = generate_bot_jwt(
+                supabase_uid=condition.supabase_uid(bot),
+                email=condition.email(bot),
+                secret=jwt_secret,
+            )
+            print(
+                f"    bot      {'[created]' if user_created else '[exists] '} "
+                f"{bot.display_name:<20} {bot.provider:<10} {bot.tier:<12} "
+                f"recall={bot.recall:<5} → {condition.env_var(bot)}"
+            )
+
+        if verify:
+            for bot in roster.bots:
+                token = tokens[condition.env_var(bot)]
+                with PlatformClient(base_url, token, condition.slug) as client:
+                    tier = client.membership_tier()
+                    me = client.me()
+                if tier != bot.tier:
+                    raise SeedError(
+                        f"Verification failed for {bot.display_name}: expected tier "
+                        f"{bot.tier!r} in {condition.slug!r}, got {tier!r}"
+                    )
+                if not me.get("is_synthetic"):
+                    raise SeedError(
+                        f"Verification failed for {bot.display_name}: the account is "
+                        "not labelled synthetic. Humans would read it as a person. "
+                        "Check that the platform is migrated past m6f7g8h9i0j1."
+                    )
+            print(
+                f"    verified [ok]      {len(roster.bots)} tokens against "
+                "/auth/me, all labelled Bot"
+            )
 
     return tokens
+
+
+def describe_table() -> str:
+    """
+    The whole design, printable. Answers "what can I actually run?" without a
+    network call or a trip through the source.
+    """
+    lines: list[str] = []
+    for condition in CONDITIONS:
+        blind = "  [blind — visible text must stay neutral]" if condition.blind else ""
+        lines.append(
+            f"\n[{condition.key}] {condition.label} — /c/{condition.slug}{blind}"
+        )
+        for roster in condition.rosters:
+            crossed = "crossed" if roster.is_crossed() else "not crossed"
+            counts = ", ".join(
+                f"{provider} x{n}"
+                for provider, n in sorted(roster.provider_counts().items())
+            )
+            lines.append(
+                f"  {roster.key:<10} naming={roster.naming:<10} "
+                f"{len(roster.participants())} participants ({counts}) — {crossed}"
+            )
+            lines.append(f"             {roster.description}")
+    lines.append(
+        "\n'crossed' means recall is balanced within every provider, which is "
+        "what\nmakes a mixed-recall run interpretable. Uniform runs "
+        "(--recall none|own) do\nnot need it."
+    )
+    return "\n".join(lines)
+
+
+def _select_rosters(
+    condition: Condition, roster_keys: tuple[str, ...] | None
+) -> tuple[Roster, ...]:
+    """
+    Rosters to seed for this condition. `None` means all of them; otherwise
+    keep the named ones, silently skipping keys this condition does not have
+    so `--roster crossed` across all conditions does the obvious thing.
+    """
+    if roster_keys is None:
+        return condition.rosters
+    return tuple(r for r in condition.rosters if r.key in roster_keys)
 
 
 def run(
@@ -334,20 +416,28 @@ def run(
     jwt_secret: str,
     *,
     conditions: tuple[Condition, ...] = CONDITIONS,
+    roster_keys: tuple[str, ...] | None = None,
     env_file: Path = DEFAULT_ENV_FILE,
     verify: bool = True,
 ) -> dict[str, str]:
-    preflight(conditions)
+    # Preflight the whole table, not just the selected slice: a duplicate
+    # display name between a roster you are seeding and one you are not is
+    # still a collision waiting to happen.
+    preflight(CONDITIONS)
 
     tokens: dict[str, str] = {}
     with AdminApi(base_url, admin_token) as api:
         for condition in conditions:
+            rosters = _select_rosters(condition, roster_keys)
+            if not rosters:
+                continue
             tokens.update(
                 seed_condition(
                     api,
                     condition,
                     base_url=base_url,
                     jwt_secret=jwt_secret,
+                    rosters=rosters,
                     verify=verify,
                 )
             )
@@ -374,6 +464,21 @@ def main(argv: list[str] | None = None) -> int:
         help="Seed only these conditions (A, B, C). Repeatable. Default: all.",
     )
     parser.add_argument(
+        "--roster",
+        action="append",
+        metavar="KEY",
+        help=(
+            "Seed only these rosters (named, crossed, anonymous, residents, "
+            "disclosed). Repeatable. Default: all. Each roster is real accounts "
+            "on a real platform — seed what you will actually run."
+        ),
+    )
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        help="Print the condition and roster table, then exit. No network.",
+    )
+    parser.add_argument(
         "--env-file",
         type=Path,
         default=DEFAULT_ENV_FILE,
@@ -385,6 +490,10 @@ def main(argv: list[str] | None = None) -> int:
         help="Skip the GET /auth/me check on each minted token.",
     )
     args = parser.parse_args(argv)
+
+    if args.list:
+        print(describe_table())
+        return 0
 
     # Real environment variables win over the file.
     load_dotenv(args.env_file, override=False)
@@ -420,6 +529,7 @@ def main(argv: list[str] | None = None) -> int:
             admin_token,
             jwt_secret,
             conditions=conditions,
+            roster_keys=tuple(args.roster) if args.roster else None,
             env_file=args.env_file,
             verify=not args.no_verify,
         )

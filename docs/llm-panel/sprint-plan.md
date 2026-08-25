@@ -290,6 +290,31 @@ go to `scripts/llm_panel/runs/`.
 8. **Guard post length** — skip or pad posts under the platform's 10-char minimum
    rather than letting them 422.
 
+9. **Recall.** `Bot.recall` (`conditions.py`) says what a participant is shown of
+   its own prior private `reasoning` when its turn comes round again:
+   `none` (default — reason fresh from the public thread each turn) or `own`
+   (prior entries replayed as a block in the **user** prompt; the system prompt
+   takes no turn-varying content). Recall never crosses participants — nobody
+   sees anyone else's reasoning, which is the point of the field being private.
+   `run.py --recall {none,own,mixed}`: `none`/`own` force every participant
+   uniformly via `Roster.with_recall()`, `mixed` honours the roster. Warn when
+   `mixed` is used on a roster where `is_crossed()` is false — recall is then
+   confounded with provider identity. See `design.md`.
+
+10. **Rosters.** A condition has several. `run.py --roster <key>` picks one;
+    default to the condition's first. A run uses exactly one roster — two
+    rosters share a community but must never share a thread. `metadata.json`
+    records condition, roster key, naming style, and the resolved
+    per-participant recall modes, not just the flags: a run directory has to be
+    readable a year later without re-deriving what `mixed` meant that day.
+
+11. **Provider disclosure** is a run-time factor and belongs in
+    `build_system_prompt`, alongside the condition text. It is independent of
+    the `anonymous` roster, which hides provider identity at the *account*
+    level — a display name of `Claude Panel` cannot be un-said by a prompt
+    flag, which is why both exist. Sprint 2's leak check on a blind or
+    anonymous run must grep the assembled prompt for every provider name.
+
 ### Conditions in `prompts.py`
 
 Split `SYSTEM_BASE` into a shared core plus a swappable "WHAT THIS IS" block so

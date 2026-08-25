@@ -26,7 +26,7 @@ target: Redlands, CA (`/c/redlands`).
 - Multi-community data model: `Community`, `CommunityMembership` tables
 - `platform_role` field on users (user | platform_admin) for platform-level ops
 - 31 Alembic migration files (head: `m6f7g8h9i0j1`)
-- 159 passing backend tests, plus 58 in `scripts/llm_panel/`
+- 159 passing backend tests, plus 86 in `scripts/llm_panel/`
 - `Community.research_mode` — synthetic-participant research spaces
   (creation-only, excluded from the public directory)
 - `User.is_synthetic` — bot accounts are labelled everywhere a human reads
@@ -154,11 +154,11 @@ backend/          FastAPI backend
 scripts/llm_panel/   LLM deliberation panel — a PEER of backend/, not part of it.
                      Own pyproject.toml, own deps, zero imports from app.*.
   llm_panel/
-    conditions.py       The three experimental conditions and their rosters
+    conditions.py       Conditions, rosters, and the experimental factors
     jwt_util.py         HS256 bot tokens (sub = User.supabase_uid)
     platform_client.py  The only module that talks to the platform
     seed.py             Idempotent HTTP seeding of communities, bots, tokens
-  tests/                pytest (58 tests, no network)
+  tests/                pytest (86 tests, no network)
 
 docs/             Architecture, roadmap, LLM integration guide, decision log
                   community-model-v0.3.md — multi-community spec (resolved)
@@ -189,7 +189,7 @@ cd scripts/llm_panel
 pip install -e ".[dev]"
 cp .env.llm-panel.example .env.llm-panel   # fill in the two secrets
 python -m llm_panel.seed       # idempotent; safe to re-run
-pytest                         # 58 unit tests, no network
+pytest                         # 86 unit tests, no network
 ```
 
 ---

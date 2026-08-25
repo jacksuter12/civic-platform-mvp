@@ -39,11 +39,15 @@ Nothing here changes what the platform does for its real communities.
 Three framings, each in its own community with its own bot roster
 (`scripts/llm_panel/llm_panel/conditions.py`).
 
-| | Community | Framing | Roster |
+| | Community | Framing | Rosters |
 |---|---|---|---|
-| **A — disclosed** | `research-llm-panel` | Research disclosed; co-participants disclosed as LLMs. | `Claude Panel`, `GPT Panel`, `Gemini Panel`, `Facilitator Bot` |
-| **B — blind** | `riverside-policy-forum` | Research disclosed; co-participants presented as human community members. | `R. Alvarez`, `J. Chen`, `M. Okafor`, `T. Whitfield` |
-| **C — mixed** | `mixed-panel-pilot` | Humans and bots together, bot presence disclosed. Scaffold only. | `Claude (AI)`, `GPT (AI)`, `Gemini (AI)`, `Panel Facilitator` |
+| **A — disclosed** | `research-llm-panel` | Research disclosed; co-participants disclosed as LLMs. | `named`, `crossed`, `anonymous` |
+| **B — blind** | `riverside-policy-forum` | Research disclosed; co-participants presented as human community members. | `residents` |
+| **C — mixed** | `mixed-panel-pilot` | Humans and bots together, bot presence disclosed. Scaffold only. | `disclosed` |
+
+`python -m llm_panel.seed --list` prints the full table — rosters, naming
+styles, per-provider counts, and whether each is crossed — without touching the
+network.
 
 ### Why disclosure is the variable, not a fixed principle
 
@@ -161,7 +165,108 @@ participant would not say out loud.
 
 ---
 
-## Design choices worth keeping
+## Recall: what a participant remembers of its own thinking
+
+Each turn is a stateless call — `complete(system, user)`, no accumulated message
+list. The public thread is re-read from the platform and re-rendered in full
+every turn, so a participant always sees the whole conversation verbatim. The
+open question was narrower: does it see its own prior *private* `reasoning`?
+
+Both, by design. `Bot.recall` is `none` (default) or `own`.
+
+Under `own`, prior entries are replayed as a block in the user prompt. That is
+not a chat history the model remembers — the provider interface has no place to
+put one — so it behaves more like a person re-reading their own notes before
+speaking again. Recall never crosses participants; nobody ever sees anyone
+else's reasoning, which is the entire reason the field is private.
+
+### Why both
+
+`none` and `own` are different deliberators. Under `none` a participant can see
+that it argued something three turns ago but not why, which is less continuity
+than any human in a meeting has. Under `own` it carries its own thread of
+thought — and may also carry its own early errors further than it should.
+Neither is obviously the right model of a person, so measuring both beats
+guessing.
+
+### Mixing recall requires crossing it against provider
+
+A first version of this design claimed that any run mixing recall modes was
+confounded. That was too strong, and it is worth recording why, because the
+correction is the whole reason the `crossed` roster exists.
+
+The confound is real but it comes from *roster shape*, not from mixing. With
+exactly one participant per provider — the original roster — assigning recall
+to some participants and not others necessarily assigns it to some providers
+and not others. Claude-with-notes versus GPT-without is two factors moving at
+once, and nothing in the transcript separates them.
+
+Two per provider dissolves it. Give each provider one participant in each
+recall mode and the two factors vary independently: recall is balanced across
+providers, provider is balanced across recall modes. That is an ordinary 2×3
+factorial, and comparing the recall arms within a provider is exactly the
+comparison you want.
+
+`Roster.is_crossed()` is that property, checked rather than asserted. It is
+true only when every provider fields a participant in each mode. The `named`
+roster cannot satisfy it at any assignment — a test pins that — and the
+`crossed` roster does.
+
+| Roster | Participants | Crossed | Use |
+|---|---|---|---|
+| `named` | 3 (1/provider) | no | Uniform runs, where crossing is irrelevant |
+| `crossed` | 6 (2/provider) | yes | Mixed-recall runs that mean something |
+| `anonymous` | 3 (1/provider) | no | Hiding provider identity |
+
+So the run options are:
+
+| Invocation | What it is |
+|---|---|
+| `--recall none` | Every participant stateless. Any roster. |
+| `--recall own` | Every participant carries its own notes. Any roster. |
+| `--recall mixed` on `crossed` | Recall varied within provider. Interpretable. |
+| `--recall mixed` on `named` | Recall confounded with provider. A smoke test, not a result. |
+
+`Roster.with_recall()` produces the uniform forms with naming, tiers and
+providers untouched, so two runs of the same `--thread-prompt` differ in
+exactly one thing.
+
+Uniform runs are still worth doing even with a crossed roster: within-run
+participants share one conversation and are not independent samples, so the
+between-run comparison and the within-run comparison answer slightly different
+questions. Run both; they are cheap.
+
+One cost stays real regardless. Under `own`, the `reasoning` field partly
+becomes working memory, which weakens its secondary use as a contemporaneous
+record to check the Stage 1 survey against. Another reason the `none` arm has
+to exist.
+
+## Naming is a seed-time factor
+
+Recall is prompt assembly, so it switches per run for free. Naming is not.
+
+`display_name` is a column on a platform account. `render_thread_state` emits
+the platform's own name for each participant, so a participant called
+`Claude Panel` announces its provider in every turn and no prompt-level flag
+can un-say it. Hiding provider identity means *different accounts*.
+
+That is what a roster is: a disjoint set of accounts inside one condition's
+community, sharing a naming style. `anonymous` exists because the question
+"does knowing who you are arguing with change how you argue?" cannot be asked
+with the `named` accounts.
+
+Rosters share a community rather than needing one each, because
+`render_thread_state` renders a thread, not a member list — participants in
+different threads never see each other. Only the *community slug* forces a
+separate community, which is why conditions A and B need different ones and
+A's three rosters do not.
+
+The practical consequence: adding a naming variant means seeding more accounts
+on a real platform, which is why `python -m llm_panel.seed --roster <key>`
+exists. Seed what you plan to run. `--list` prints the whole table without
+touching the network.
+
+## Design choices worth keeping## Design choices worth keeping
 
 **The panel drives the platform over HTTP, with zero imports from `app.*`.**
 `scripts/llm_panel/` is a peer of `backend/`, with its own `pyproject.toml` and
@@ -203,6 +308,9 @@ state staging is in.
 
 Constraints, not oversights. See the first real run before changing any of them.
 
+- **Small n.** Three participants per roster, six on `crossed`. A crossed
+  roster makes a mixed-recall run *interpretable*, not *powered* — one run is
+  an observation, not an estimate.
 - **Round-robin turn-taking only.** Participants speak in a fixed order. Real
   deliberation is not round-robin, and turn order may itself shape the outcome —
   but varying it adds a second uncontrolled variable to a first run.

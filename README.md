@@ -42,7 +42,7 @@ backend/          Python + FastAPI REST API
   tests/          pytest (159 tests)
 scripts/llm_panel/  LLM deliberation panel — a research instrument, and a peer
                   of backend/ rather than part of it. Own dependencies, talks
-                  to the platform over HTTP only. pytest (58 tests)
+                  to the platform over HTTP only. pytest (86 tests)
 docs/             Architecture, roadmap, LLM integration plan, decision log,
                   annotator-guide.md, community-model-v0.3.md (resolved spec)
   llm-panel/      Panel sprint plan and design notes

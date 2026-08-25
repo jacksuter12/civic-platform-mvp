@@ -84,6 +84,44 @@ quietly worthless.
 Rosters must not share a display name, email, `supabase_uid`, or token env var
 across conditions. Same reason.
 
+## Rosters
+
+A condition holds several **rosters** — disjoint sets of accounts inside its
+community, each with a naming style. Two rosters share a community but never a
+thread, so participants in one are invisible to the other.
+
+```bash
+python -m llm_panel.seed --list          # the whole design, no network
+```
+
+| Condition | Roster | Participants | Naming | Crossed |
+|---|---|---|---|---|
+| A | `named` | 3 (1/provider) | provider in the name | no |
+| A | `crossed` | 6 (2/provider) | provider in the name | **yes** |
+| A | `anonymous` | 3 (1/provider) | `Participant One` | no |
+| B | `residents` | 3 (1/provider) | human-styled | no |
+| C | `disclosed` | 3 (1/provider) | provider in the name | no |
+
+**Crossed** means recall is balanced within every provider — each provider
+fields a participant both with and without recall. That is what makes a
+mixed-recall run interpretable: recall and provider vary independently instead
+of moving together. Uniform runs (`--recall none` / `--recall own`) do not need
+it.
+
+Seeding every roster is 23 real accounts on a real platform. Seed what you plan
+to run:
+
+```bash
+python -m llm_panel.seed --condition A --roster crossed
+```
+
+**Naming is seed-time, recall is run-time.** `display_name` is a column on a
+platform account and `render_thread_state` emits it verbatim, so hiding which
+provider backs a participant needs different accounts — no prompt flag can
+un-say a name like `Claude Panel`. Recall is pure prompt assembly and switches
+per run for free. See
+[`docs/llm-panel/design.md`](../../docs/llm-panel/design.md).
+
 ## Running against production
 
 Supported, and the current intent for the first run. The panel writes nothing
@@ -93,7 +131,8 @@ specific traces it leaves. Read them before you run, not after.
 
 **What is contained:**
 
-- Three communities and twelve bot users, all `research_mode=True`.
+- Three communities and up to 23 bot users (fewer with `--roster`), all
+  `research_mode=True`.
 - Excluded from `GET /communities`, so they do not appear in the public
   communities directory for anyone, platform admins included.
 - Bots hold `CommunityMembership` only in their own research community. A write
@@ -114,7 +153,8 @@ refuses to finish if `/auth/me` does not report the label.
 - **The public platform audit log at `/audit`.** `POST /auth/register` writes a
   platform-level `USER_REGISTERED` event with the new user's `display_name` in
   the payload, and `/audit` needs no authentication. Twelve bot registrations
-  will be publicly readable there, including condition B's human-styled names
+  will be publicly readable there — one per seeded bot — including condition
+  B's human-styled names
   (`R. Alvarez`, `J. Chen`, `M. Okafor`, `T. Whitfield`).
 - **The add-member user search.** `GET /communities/{slug}/users/search` queries
   every active user on the platform, not just members of that community. A
@@ -128,7 +168,7 @@ names, which costs the blind condition its point. None of these are changes I
 have made — say which you want.
 
 Deployment order matters: production runs the `main` branch, so migration
-`k5e6f7g8h9i0` has to be merged and deployed before the seed can work. Render's
+`m6f7g8h9i0j1` has to be merged and deployed before the seed can work. Render's
 build command runs `alembic upgrade heads` on deploy. Seeding before the deploy
 finishes gets a 500 on `POST /communities`, because the `research_mode` column
 will not exist yet.
